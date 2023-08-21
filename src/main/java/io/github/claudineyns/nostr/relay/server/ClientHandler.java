@@ -613,12 +613,9 @@ public class ClientHandler implements Runnable {
 	}
 
 	private void consumeWebsocketClientPacket() throws IOException {
-		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
+		final ByteArrayOutputStream message = new ByteArrayOutputStream();
+		final ByteArrayOutputStream controlMessage = new ByteArrayOutputStream();
 
-		// 0: FIN,RSV1-3,OPCODE
-		// 1: PAYLOAD LENGTH
-		// 2: DECODING
-		// 3: PAYLOAD CONSUMPTION
 		final int CHECK_FIN = 0;
 		final int PAYLOAD_LENGTH = 1;
 		final int DECODER = 2;
@@ -630,10 +627,14 @@ public class ClientHandler implements Runnable {
 		boolean isFinal = false;
 
 		final int OPCODE_FLAG     = 0b00001111;
-		final int OPCODE_CONTINUE = 0x0;
-		final int OPCODE_TEXT     = 0x1;
-		final int OPCODE_BINARY   = 0x2;
+		final int OPCODE_CONTINUE = 0b0000;
+		final int OPCODE_TEXT     = 0b0001;
+		final int OPCODE_BINARY   = 0b0010;
+
+		final int OPCODE_CONTROL_FLAG = 0b1000;
+
 		int opcode = -1;
+		int current_opcode = -1;
 
 		final int UNMASK = 0b01111111;
 
@@ -649,8 +650,9 @@ public class ClientHandler implements Runnable {
 
 			if( stage == CHECK_FIN ) {
 				isFinal = (octet & FIN_ON) == FIN_ON;
-				final int current_opcode = octet & OPCODE_FLAG;
-				logger.info("opcode: {}", current_opcode);
+				current_opcode = octet & OPCODE_FLAG;
+				logger.info("[WS] final?: {}", isFinal);
+				logger.info("[WS] opcode: {}", current_opcode);
 				if(opcode == -1) {
 					opcode = current_opcode;
 				}				
@@ -661,18 +663,28 @@ public class ClientHandler implements Runnable {
 			if( stage == PAYLOAD_LENGTH ) {
 				if( nextBytes == 0 ) {
 					int byteCheck = octet & UNMASK;
+
 					if( byteCheck <= 125 ) {
-						byteLength.append(Integer.toBinaryString(byteCheck));
+						payloadLength = byteCheck;
+
 						stage = DECODER;
 						continue;
 					} else if( byteCheck == 126 ) {
 						nextBytes = 2;
+						continue;
 					} else if( byteCheck == 127 ) {
-						nextBytes = 4;
+						nextBytes = 8;
+						continue;
 					}
 				} else {
-					byteLength.append(Integer.toBinaryString(octet));
-					if( --nextBytes == 0 ) {
+					final String binaryOctet = String.format("%8s", Integer.toBinaryString(octet))
+						.replace(" ", "0");
+					byteLength.append(binaryOctet);
+
+					if( --nextBytes == 0 ) {						
+						payloadLength = Integer.parseInt(byteLength.toString(), 2);
+						byteLength = new StringBuilder("");
+
 						stage = DECODER;
 						continue;
 					}
@@ -683,8 +695,6 @@ public class ClientHandler implements Runnable {
 				decoder[decoderIndex++] = octet;
 				if(decoderIndex == decoder.length) {
 					decoderIndex = 0;
-					payloadLength = Integer.parseInt(byteLength.toString(), 2);
-					byteLength = new StringBuilder("");
 
 					stage = PAYLOAD_CONSUMPTION;
 					continue;
@@ -693,7 +703,11 @@ public class ClientHandler implements Runnable {
 
 			if( stage == PAYLOAD_CONSUMPTION ) {
 				int decoded = (octet ^ decoder[decoderIndex++ & 0x3]);
-				cache.write(decoded);
+				if( (current_opcode & OPCODE_CONTROL_FLAG) == OPCODE_CONTROL_FLAG ) {
+					controlMessage.write(decoded);
+				} else {
+					message.write(decoded);
+				}
 				if( --payloadLength == 0 ) {
 					if(isFinal) {
 						break;
@@ -709,8 +723,13 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( opcode == OPCODE_TEXT ) {
-			final String data = new String(cache.toByteArray(), StandardCharsets.UTF_8);
-			logger.info("[Websocket] Text Message received: {}", data);
+			final String data = new String(message.toByteArray(), StandardCharsets.UTF_8);
+			logger.info("[WS] Text Message received:\n{}", data);
+		}
+
+		if( (opcode & OPCODE_CONTROL_FLAG) == OPCODE_CONTROL_FLAG) {
+			final String data = new String(controlMessage.toByteArray(), StandardCharsets.UTF_8);
+			logger.info("[WS]  Control Message received: {}", data);
 		}
 
 	}
