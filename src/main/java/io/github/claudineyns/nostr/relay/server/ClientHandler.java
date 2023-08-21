@@ -18,12 +18,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import io.github.claudineyns.nostr.relay.exceptions.CloseConnectionException;
+import io.github.claudineyns.nostr.relay.types.HttpStatus;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 
+import static io.github.claudineyns.nostr.relay.utilities.Utils.secWebsocketAccept;
+
+@SuppressWarnings("unused")
 public class ClientHandler implements Runnable {
 	private final LogService logger = LogService.getInstance("HTTP-SERVER");
 
@@ -169,35 +174,10 @@ public class ClientHandler implements Runnable {
 
 	static final byte Q_BAD_REQUEST = -1;
 	static final byte Q_NOT_FOUND = -2;
-	static final byte Q_SERVER_ERROR = 1;
-
-	private byte validateMessagePayloadRequirement() throws IOException {
-		final boolean bodyExpected 
-				=	HttpMethod.POST.equals(this.requestMethod) 
-				||	HttpMethod.PUT.equals(this.requestMethod);
-
-		final boolean contentLengthProvided = this.httpRequestHeaders.containsKey("content-length");
-		final boolean transferEncodingProvided = this.httpRequestHeaders.containsKey("transfer-encoding");
-
-		if (bodyExpected) {
-			if( ! contentLengthProvided && ! transferEncodingProvided ) {
-				this.sendLengthRequired();
-				return 1;
-			}
-		}
-
-		return 0;
-	}
+	static final byte Q_SERVER_ERROR = -3;
+	static final byte Q_SWITCHING_PROTOCOL = 1;
 
 	private byte continueHandleHttpRequest() throws IOException {
-		final byte payloadRequirements = this.validateMessagePayloadRequirement();
-
-		if (payloadRequirements == 1) { return 0; }
-
-		this.extractBodyPayload();
-
-		this.httpResponseHeaders.put("Content-Length", Collections.singletonList("0"));
-
 		byte returnCode = 0;
 		switch (this.requestMethod) {
 		case GET:
@@ -207,19 +187,19 @@ public class ClientHandler implements Runnable {
 			return this.sendMethodNotAllowed();
 		}
 
-		if (returnCode == Q_BAD_REQUEST) {
-			return this.sendBadRequest("Invalid Request Data");
+		switch(returnCode) {
+			case Q_BAD_REQUEST:
+				return this.sendBadRequest("Invalid Request Data");
+			case Q_NOT_FOUND:
+				return this.sendResourceNotFound();
+			case Q_SWITCHING_PROTOCOL:
+				return this.checkSwitchingProtocol();
+			case 0:
+				return sendResponse();
+			default:
+				return this.sendServerError(null);
 		}
 
-		if (returnCode == Q_NOT_FOUND) {
-			return this.sendResourceNotFound();
-		}
-
-		if (returnCode != 0) {
-			return this.sendServerError(null);
-		}
-
-		return sendResponse();
 	}
 	
 	private byte handleGetRequests() {
@@ -239,99 +219,10 @@ public class ClientHandler implements Runnable {
 
 		switch (path) {
 			case "/":
-				return this.sendIndexPage();
+				return Q_SWITCHING_PROTOCOL;
 			default:
-				return Q_NOT_FOUND;
+				return this.sendIndexPage();
 		}
-	}
-
-	private byte extractBodyPayload() throws IOException {
-		final List<String> transferEncoding = this.httpRequestHeaders.get("transfer-encoding");
-
-		if( transferEncoding == null ) {
-			return extractBodyByContent();
-		}
-
-		return extractBodyByTransfer(transferEncoding);
-	}
-
-	private byte extractBodyByContent() throws IOException {
-		final List<String> contentLength = this.httpRequestHeaders.get("content-length");
-
-		if (contentLength == null || contentLength.isEmpty()) {
-			return 0;
-		}
-
-		final int length = Integer.parseInt(contentLength.get(0));
-		int remainingLength = length;
-
-		final int maxLength = 1024;
-		final byte[] chunkData = new byte[maxLength];
-
-		while (remainingLength > 0) {
-			final int chunkSize = remainingLength > maxLength ? maxLength : remainingLength;
-
-			this.in.read(chunkData, 0, chunkSize);
-			this.httpRequestBody.write(chunkData, 0, chunkSize);
-
-			remainingLength -= chunkSize;
-		}
-
-		return 0;
-	}
-
-	static final byte HEX_BASE = 16;
-
-	private byte extractBodyByTransfer(final List<String> transferEncoding) throws IOException {
-		StringBuilder chunkLengthStage = new StringBuilder("");
-
-		// Octets used to check end of line
-		int octet0 = 0;
-		int octet1 = 0;
-
-		int octet = 0;
-		while (true) {
-			octet = this.in.read();
-
-			octet0 = octet1;
-			octet1 = octet;
-
-			if( octet == '\r' ) { continue; }
-
-			if ( octet != '\n' && octet0 != '\r' ) {
-				chunkLengthStage.append( (char)octet );
-				continue;
-			}
-
-			final int chunkLength = Integer.parseInt(chunkLengthStage.toString(), HEX_BASE);
-
-			if(chunkLength == 0) {
-				/*
-				 * Read the last two octets, which are expected to be: '\r' (char 13) and '\n' (char 10),
-				 * ending the full chunk payload parsing 
-				 */
-				this.in.readNBytes(2);
-				break;
-			}
-
-			final byte[] chunkData = this.in.readNBytes(chunkLength);
-			this.httpRequestBody.write(chunkData);
-			
-			/*
-			 * Read the next two octets, which are expected to be: '\r' (char 13) and '\n' (char 10),
-			 * ending the actual chunk data
-			 */
-			this.in.readNBytes(2);
-
-			// reset the chunk length control
-			chunkLengthStage = new StringBuilder("");
-
-			// reset the octets used to check end of line
-			octet0 = 0;
-			octet1 = 0;
-		}
-
-		return 0;
 	}
 
 	private byte analyseRequestHeader(byte[] raw) throws IOException {
@@ -353,7 +244,6 @@ public class ClientHandler implements Runnable {
 		final String[] entries = data.split(CRLF_RE);
 
 		if (entries.length == 0) {
-			this.interrupt = true;
 			return sendBadRequest("Invalid HTTP Request");
 		}
 
@@ -375,7 +265,6 @@ public class ClientHandler implements Runnable {
 		final String methodLine = entries[startLine];
 		final String[] methodContent = methodLine.split("\\s");
 		if (methodContent.length != 3) {
-			this.interrupt = true;
 			return sendBadRequest("Invalid HTTP Method Sintax");
 		}
 
@@ -383,7 +272,6 @@ public class ClientHandler implements Runnable {
 
 		final String httpVersion = methodContent[2];
 		if ( ! "HTTP/1.1".equalsIgnoreCase(httpVersion) ) {
-			this.interrupt = true;
 			return sendVersionNotSupported();
 		}
 
@@ -392,18 +280,15 @@ public class ClientHandler implements Runnable {
 
 		final HttpMethod httpMethod = HttpMethod.from(method);
 		if (httpMethod == null) {
-			this.interrupt = true;
 			return sendMethodNotImplemented();
 		}
 
 		if (!methodLineLower.toUpperCase().startsWith(httpMethod.name() + " ")) {
-			this.interrupt = true;
 			return sendBadRequest("Invalid HTTP Method Sintax");
 		}
 
 		final String uri = methodContent[1];
 		if (!validateURI(uri)) {
-			this.interrupt = true;
 			return sendBadRequest("Invalid HTTP URI");
 		}
 
@@ -438,7 +323,8 @@ public class ClientHandler implements Runnable {
 		return dt.format(RFC_1123_DATE_TIME);
 	}
 
-	private byte sendStatusLine(final String statusLine) throws IOException {
+	private byte sendStatusLine(HttpStatus status) throws IOException {
+		final String statusLine = "HTTP/1.1 " + status.code() + " " + status.text();
 		logger.info(statusLine);
 		out.write((statusLine + CRLF).getBytes(StandardCharsets.US_ASCII));
 
@@ -464,13 +350,37 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
-	private byte sendConnectionCloseHeader() throws IOException {
-		out.write(("Connection: Close" + CRLF).getBytes(StandardCharsets.US_ASCII));
-		this.interrupt = true;
+	private byte sendUpgradeWebsocketHeader() throws IOException {
+		out.write(("Upgrade: websocket" + CRLF).getBytes(StandardCharsets.US_ASCII));
 
 		return 0;
 	}
 
+	private byte sendSecWebsocketVersionHeader() throws IOException {
+		out.write(("Sec-Websocket-Version: 13" + CRLF).getBytes(StandardCharsets.US_ASCII));
+
+		return 0;
+	}
+
+	private byte sendSecWebsocketAcceptHeader(final String secWebsocketKey) throws IOException {
+		final String secWebsocketAcceptValue = secWebsocketAccept(secWebsocketKey);
+		out.write(("Sec-Websocket-Accept: " + secWebsocketAcceptValue + CRLF).getBytes(StandardCharsets.US_ASCII));
+
+		return 0;
+	}
+
+	private byte sendConnectionUpgraderHeader() throws IOException {
+		out.write(("Connection: Upgrade" + CRLF).getBytes(StandardCharsets.US_ASCII));
+
+		return 0;
+	}
+
+	private byte sendConnectionCloseHeader() throws IOException {
+		out.write(("Connection: close" + CRLF).getBytes(StandardCharsets.US_ASCII));
+		this.interrupt = true;
+
+		return 0;
+	}
 	private byte sendIndexPage() throws IOException {
 		final String html = 
 				  "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">"
@@ -509,7 +419,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendBadRequest(String cause) throws IOException {
-		this.sendStatusLine("HTTP/1.1 400 Bad Request");
+		this.sendStatusLine(HttpStatus.BAD_REQUEST);
 		this.sendDateHeader();
 
 		if (cause == null) {
@@ -529,7 +439,7 @@ public class ClientHandler implements Runnable {
 	private byte sendResourceNotFound() throws IOException {
 		final byte[] raw = "The requested resource could not be found".getBytes(StandardCharsets.US_ASCII);
 
-		this.sendStatusLine("HTTP/1.1 404 Not Found");
+		this.sendStatusLine(HttpStatus.NOT_FOUND);
 		this.sendDateHeader();
 		this.sendContentHeader("text/plain", raw.length);
 		this.sendConnectionCloseHeader();
@@ -541,7 +451,7 @@ public class ClientHandler implements Runnable {
 	}
 	
 	private byte sendVersionNotSupported() throws IOException {
-		this.sendStatusLine("HTTP/1.1 505 HTTP Version not supported");
+		this.sendStatusLine(HttpStatus.HTTP_VERSION_NOT_SUPPORTED);
 		this.sendDateHeader();
 		this.sendConnectionCloseHeader();
 
@@ -549,7 +459,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendMethodNotImplemented() throws IOException {
-		this.sendStatusLine("HTTP/1.1 501 Not Implemented");
+		this.sendStatusLine(HttpStatus.NOT_IMPLEMENTED);
 		this.sendDateHeader();
 		this.sendConnectionCloseHeader();
 
@@ -557,15 +467,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendMethodNotAllowed() throws IOException {
-		this.sendStatusLine("HTTP/1.1 405 Method Not Allowed");
-		this.sendDateHeader();
-		this.sendConnectionCloseHeader();
-
-		return this.mountHeadersTermination();
-	}
-
-	private byte sendLengthRequired() throws IOException {
-		this.sendStatusLine("HTTP/1.1 411 Length Required");
+		this.sendStatusLine(HttpStatus.METHOD_NOT_ALLOWED);
 		this.sendDateHeader();
 		this.sendConnectionCloseHeader();
 
@@ -573,7 +475,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendServerError(String cause) throws IOException {
-		this.sendStatusLine("HTTP/1.1 500 Server Error");
+		this.sendStatusLine(HttpStatus.SERVER_ERROR);
 		this.sendDateHeader();
 		this.sendConnectionCloseHeader();
 
@@ -600,7 +502,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendResponse() throws IOException {
-		this.sendStatusLine("HTTP/1.1 200 OK");
+		this.sendStatusLine(HttpStatus.OK);
 
 		this.sendDateHeader();
 		this.sendETagHeader();
@@ -609,6 +511,65 @@ public class ClientHandler implements Runnable {
 		this.mountHeadersTermination();
 
 		return this.mountCustomBody();
+	}
+
+	private byte checkSwitchingProtocol() throws IOException {
+		final HttpStatus status = HttpStatus.SWITCHING_PROTOCOL.clone();
+
+		final List<String> upgrade = Optional
+			.ofNullable(this.httpRequestHeaders.get("upgrade"))
+			.orElse(Collections.emptyList());
+
+		final List<String> connection = Optional
+			.ofNullable(this.httpRequestHeaders.get("connection"))
+			.orElse(Collections.emptyList());
+
+		final List<String> secWebsocketKey = Optional
+			.ofNullable(this.httpRequestHeaders.get("sec-websocket-key"))
+			.orElse(Collections.emptyList());
+
+		final List<String> secWebsocketVersion = Optional
+			.ofNullable(this.httpRequestHeaders.get("sec-websocket-version"))
+			.orElse(Collections.emptyList());
+
+		final List<String> secWebsocketProtocol = Optional
+			.ofNullable(this.httpRequestHeaders.get("sec-websocket-protocol"))
+			.orElse(Collections.emptyList());
+
+		if( upgrade.isEmpty() || ! "websocket".equalsIgnoreCase(upgrade.get(0)) ) {
+			status.replace(HttpStatus.UPGRADE_REQUIRED);
+		} else {
+			if(connection.isEmpty() || ! "Upgrade".equalsIgnoreCase(connection.get(0))) {
+				status.replace(HttpStatus.BAD_REQUEST);
+			} else if(secWebsocketVersion.isEmpty() || ! secWebsocketVersion.contains("13") ) {
+				status.replace(HttpStatus.BAD_REQUEST);
+			} else if(secWebsocketKey.isEmpty() ) {
+				status.replace(HttpStatus.BAD_REQUEST);
+			}
+		}
+
+		this.sendStatusLine(status);
+		this.sendDateHeader();
+
+		if( status.code() == HttpStatus.UPGRADE_REQUIRED.code() ) {
+			this.sendUpgradeWebsocketHeader();
+		} else if( status.code() == HttpStatus.BAD_REQUEST.code() ) {
+			if( ! secWebsocketVersion.isEmpty() && ! secWebsocketVersion.contains("13") ) {
+				this.sendSecWebsocketVersionHeader();
+			}
+		}
+
+		if( status.code() == HttpStatus.SWITCHING_PROTOCOL.code() ) {
+			this.sendConnectionUpgraderHeader();
+			this.sendUpgradeWebsocketHeader();
+			this.sendSecWebsocketAcceptHeader(secWebsocketKey.get(0));
+		} else {
+			this.sendConnectionCloseHeader();
+		}
+
+		this.mountHeadersTermination();
+
+		return 0;
 	}
 
 }
