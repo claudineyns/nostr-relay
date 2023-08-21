@@ -148,7 +148,6 @@ public class ClientHandler implements Runnable {
 		} else {
 			return this.handleHttpStream();
 		}
-
 	}
 
 	private byte handleHttpStream() throws IOException {
@@ -632,6 +631,7 @@ public class ClientHandler implements Runnable {
 		final int OPCODE_BINARY   = 0b0010;
 
 		final int OPCODE_CONTROL_FLAG = 0b1000;
+		final int OPCODE_CLOSE = 0b1000;
 
 		int opcode = -1;
 		int current_opcode = -1;
@@ -725,12 +725,68 @@ public class ClientHandler implements Runnable {
 		if( opcode == OPCODE_TEXT ) {
 			final String data = new String(message.toByteArray(), StandardCharsets.UTF_8);
 			logger.info("[WS] Text Message received:\n{}", data);
+			this.sendWebsocketDataClient(data);
 		}
 
-		if( (opcode & OPCODE_CONTROL_FLAG) == OPCODE_CONTROL_FLAG) {
-			final String data = new String(controlMessage.toByteArray(), StandardCharsets.UTF_8);
-			logger.info("[WS]  Control Message received: {}", data);
+		if( opcode == OPCODE_CLOSE ) {
+			logger.info("[WS] Client sent close request");
+			this.sendWebsocketCloseFrame();
+			this.interrupt = true;
 		}
+
+	}
+
+	private void sendWebsocketDataClient(final String message) throws IOException {
+		final byte[] rawData = message.getBytes(StandardCharsets.UTF_8);
+
+		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
+
+		// 1   : FIN (final) ON
+		// 000 : extension (none at this moment)
+		// 0001: type 'text'
+		cache.write(0b10000001);
+
+		/*
+		 * Send payload message
+		 */
+
+		if(rawData.length <= 125) {
+			final int q = rawData.length | 0b10000000;
+			cache.write(q);
+		} else {
+			final int q = 126 | 0b10000000;
+			cache.write(q);
+			String binaryLength = Integer.toBinaryString(rawData.length);
+			while(binaryLength.length() % 16 != 0) {
+				binaryLength = "0"+binaryLength;
+			}
+			cache.write( Integer.parseInt(binaryLength.substring(0, 8), 2) );
+			cache.write( Integer.parseInt(binaryLength.substring(8), 2) );
+		}
+
+		cache.write(rawData);
+
+		this.out.write(cache.toByteArray());
+		this.out.flush();
+
+	}
+
+	private void sendWebsocketCloseFrame() throws IOException {
+		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
+
+		final byte[] message = "Closed".getBytes(StandardCharsets.UTF_8);
+
+		// 1   : FIN (final) ON
+		// 000 : extension (none at this moment)
+		// 1000: type 'Close'
+		cache.write(0b10001000);
+
+		// Send Message
+		cache.write(message.length);
+		cache.write(message);
+
+		this.out.write(cache.toByteArray());
+		this.out.flush();
 
 	}
 
