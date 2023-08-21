@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import io.github.claudineyns.nostr.relay.exceptions.CloseConnectionException;
+import io.github.claudineyns.nostr.relay.types.HttpMethod;
 import io.github.claudineyns.nostr.relay.types.HttpStatus;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 
@@ -100,23 +101,6 @@ public class ClientHandler implements Runnable {
 		}
 
 		logger.info("Client connection terminated.");
-	}
-
-	private static enum HttpMethod {
-		OPTIONS, HEAD, GET, POST, PUT, DELETE, TRACE, CONNECT;
-
-		static HttpMethod from(final String method) {
-			if (method == null) {
-				return null;
-			}
-			for (final HttpMethod m : values()) {
-				if (m.name().equalsIgnoreCase(method)) {
-					return m;
-				}
-			}
-			return null;
-		}
-
 	}
 
 	private static final String CRLF = "\r\n";
