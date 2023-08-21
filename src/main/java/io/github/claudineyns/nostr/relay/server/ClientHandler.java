@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import io.github.claudineyns.nostr.relay.exceptions.CloseConnectionException;
@@ -43,19 +44,37 @@ public class ClientHandler implements Runnable {
 
 	private boolean interrupt = false;
 
+	private boolean websocket = false;
+
 	final int socket_timeout = 10000;
 
 	@Override
 	public void run() {
 		try {
+			this.makeItReady();
+		} catch(IOException failure) {
+
+		}
+	}
+
+	private void makeItReady() throws IOException {
+		this.startStreams();
+		this.handleStream();
+		this.endStreams();
+	}
+
+	private void startStreams() throws IOException {
+		try {
 			// this.client.setSoTimeout(socket_timeout); // <-- websocket: do not apply
 			this.in = client.getInputStream();
 			this.out = client.getOutputStream();
-		} catch(IOException e) {
-			logger.warning("Request startup error: {}", e.getMessage());
-			return;
+		} catch(IOException failure) {
+			logger.warning("Request startup error: {}: {}", failure.getClass().getCanonicalName(), failure.getMessage());
+			throw failure;
 		}
+	}
 
+	private void handleStream() throws IOException {
 		while(true) {
 			try {
 				this.handle();
@@ -67,14 +86,18 @@ public class ClientHandler implements Runnable {
 			} catch (CloseConnectionException e) {
 				logger.warning("Connection closed");
 			} catch (IOException e) {
-				logger.warning("Request handling error: {}", e.getMessage());
+				logger.warning("Request handling error: {}: {}", e.getClass().getCanonicalName(), e.getMessage());
 			}
 			break;
-		}
+		}		
+	}
 
+	private void endStreams() throws IOException {
 		try {
 			client.close();
-		} catch (IOException e) { /***/ }
+		} catch (IOException e) {
+			logger.warning("{}: {}", e.getClass().getCanonicalName(), e.getMessage());
+		}
 
 		logger.info("Client connection terminated.");
 	}
@@ -120,6 +143,15 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte handle() throws IOException {
+		if(this.websocket) {
+			return this.handleWebsocketClientPacket();
+		} else {
+			return this.handleHttpStream();
+		}
+
+	}
+
+	private byte handleHttpStream() throws IOException {
 		this.cleanup();
 		
 		this.startHandleHttpRequest();
@@ -130,6 +162,12 @@ public class ClientHandler implements Runnable {
 		out.flush();
 
 		return this.checkCloseConnection();
+	}
+
+	private byte handleWebsocketClientPacket() throws IOException {
+		this.consumeWebsocketClientPacket();
+
+		return 0;
 	}
 	
 	private byte checkCloseConnection() throws IOException {
@@ -171,7 +209,7 @@ public class ClientHandler implements Runnable {
 
 		}
 	}
-
+	
 	static final byte Q_BAD_REQUEST = -1;
 	static final byte Q_NOT_FOUND = -2;
 	static final byte Q_SERVER_ERROR = -3;
@@ -563,6 +601,8 @@ public class ClientHandler implements Runnable {
 			this.sendConnectionUpgraderHeader();
 			this.sendUpgradeWebsocketHeader();
 			this.sendSecWebsocketAcceptHeader(secWebsocketKey.get(0));
+			
+			this.websocket = true;
 		} else {
 			this.sendConnectionCloseHeader();
 		}
@@ -570,6 +610,109 @@ public class ClientHandler implements Runnable {
 		this.mountHeadersTermination();
 
 		return 0;
+	}
+
+	private void consumeWebsocketClientPacket() throws IOException {
+		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
+
+		// 0: FIN,RSV1-3,OPCODE
+		// 1: PAYLOAD LENGTH
+		// 2: DECODING
+		// 3: PAYLOAD CONSUMPTION
+		final int CHECK_FIN = 0;
+		final int PAYLOAD_LENGTH = 1;
+		final int DECODER = 2;
+		final int PAYLOAD_CONSUMPTION = 3;
+
+		int stage = CHECK_FIN;
+
+		final int FIN_ON  = 0b10000000;
+		boolean isFinal = false;
+
+		final int OPCODE_FLAG     = 0b00001111;
+		final int OPCODE_CONTINUE = 0x0;
+		final int OPCODE_TEXT     = 0x1;
+		final int OPCODE_BINARY   = 0x2;
+		int opcode = -1;
+
+		final int UNMASK = 0b01111111;
+
+		StringBuilder byteLength = new StringBuilder("");
+		int payloadLength = 0;
+		int nextBytes = 0;
+
+		int[] decoder = new int[4];
+		int decoderIndex = 0;
+
+		int octet = -1;
+		while ((octet = in.read()) != -1) {
+
+			if( stage == CHECK_FIN ) {
+				isFinal = (octet & FIN_ON) == FIN_ON;
+				final int current_opcode = octet & OPCODE_FLAG;
+				logger.info("opcode: {}", current_opcode);
+				if(opcode == -1) {
+					opcode = current_opcode;
+				}				
+				stage = PAYLOAD_LENGTH;
+				continue;
+			}
+
+			if( stage == PAYLOAD_LENGTH ) {
+				if( nextBytes == 0 ) {
+					int byteCheck = octet & UNMASK;
+					if( byteCheck <= 125 ) {
+						byteLength.append(Integer.toBinaryString(byteCheck));
+						stage = DECODER;
+						continue;
+					} else if( byteCheck == 126 ) {
+						nextBytes = 2;
+					} else if( byteCheck == 127 ) {
+						nextBytes = 4;
+					}
+				} else {
+					byteLength.append(Integer.toBinaryString(octet));
+					if( --nextBytes == 0 ) {
+						stage = DECODER;
+						continue;
+					}
+				}
+			}
+
+			if( stage == DECODER ) {
+				decoder[decoderIndex++] = octet;
+				if(decoderIndex == decoder.length) {
+					decoderIndex = 0;
+					payloadLength = Integer.parseInt(byteLength.toString(), 2);
+					byteLength = new StringBuilder("");
+
+					stage = PAYLOAD_CONSUMPTION;
+					continue;
+				}
+			}
+
+			if( stage == PAYLOAD_CONSUMPTION ) {
+				int decoded = (octet ^ decoder[decoderIndex++ & 0x3]);
+				cache.write(decoded);
+				if( --payloadLength == 0 ) {
+					if(isFinal) {
+						break;
+					} else {
+						payloadLength = 0;
+
+						stage = CHECK_FIN;
+						continue;
+					}
+				}
+			}
+
+		}
+
+		if( opcode == OPCODE_TEXT ) {
+			final String data = new String(cache.toByteArray(), StandardCharsets.UTF_8);
+			logger.info("[Websocket] Text Message received: {}", data);
+		}
+
 	}
 
 }
