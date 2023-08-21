@@ -1,5 +1,5 @@
 # Maven
-.target/
+target/
 dependency-reduced-pom.xml
 
 # Eclise
@@ -35,3 +35,6 @@ dependency-reduced-pom.xml
 hs_err_pid*
 replay_pid*
 /target/
+
+# Local
+ca/

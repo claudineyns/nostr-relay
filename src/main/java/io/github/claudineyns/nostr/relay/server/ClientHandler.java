@@ -31,7 +31,7 @@ import static io.github.claudineyns.nostr.relay.utilities.Utils.secWebsocketAcce
 
 @SuppressWarnings("unused")
 public class ClientHandler implements Runnable {
-	private final LogService logger = LogService.getInstance("HTTP-SERVER");
+	private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
 	private Socket client;
 
@@ -751,10 +751,10 @@ public class ClientHandler implements Runnable {
 		 */
 
 		if(rawData.length <= 125) {
-			final int q = rawData.length | 0b10000000;
+			final int q = rawData.length;
 			cache.write(q);
 		} else {
-			final int q = 126 | 0b10000000;
+			final int q = 126;
 			cache.write(q);
 			String binaryLength = Integer.toBinaryString(rawData.length);
 			while(binaryLength.length() % 16 != 0) {

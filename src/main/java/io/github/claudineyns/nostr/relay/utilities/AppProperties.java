@@ -10,12 +10,22 @@ public final class AppProperties {
 	private AppProperties() { /***/ }
 
 	private static final String DEFAULT_PORT = "8080";
+	private static final String DEFAULT_TLS_PORT = "8443";
 
 	public static int getPort() {
 		final String port = nullValue(
 				System.getProperty(Constants.PROPERTY_PORT),
 				System.getenv(Constants.ENV_PORT),
 				DEFAULT_PORT
+			);
+		return Integer.parseInt(port);
+	}
+
+	public static int getTlsPort() {
+		final String port = nullValue(
+				System.getProperty(Constants.PROPERTY_TLS_PORT),
+				System.getenv(Constants.ENV_TLS_PORT),
+				DEFAULT_TLS_PORT
 			);
 		return Integer.parseInt(port);
 	}
