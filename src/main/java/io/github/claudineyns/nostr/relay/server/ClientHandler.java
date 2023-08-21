@@ -48,7 +48,7 @@ public class ClientHandler implements Runnable {
 	@Override
 	public void run() {
 		try {
-			this.client.setSoTimeout(socket_timeout);
+			// this.client.setSoTimeout(socket_timeout); // <-- websocket: do not apply
 			this.in = client.getInputStream();
 			this.out = client.getOutputStream();
 		} catch(IOException e) {
