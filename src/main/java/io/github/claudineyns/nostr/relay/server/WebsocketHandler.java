@@ -124,6 +124,11 @@ public class WebsocketHandler implements Websocket {
         response.add("OK");
         response.add(event.getEventId());
 
+        if( ! "1a7c9d8ac8a9f50d255573dbe1bacd511677d288a0ba5e2332ae4c15e407f29f".equals(event.getPublicKey())) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "blocked: development"));
+            return context.broadcast(gson.toJson(response));
+        }
+
         /*
          * Saving event
          */
