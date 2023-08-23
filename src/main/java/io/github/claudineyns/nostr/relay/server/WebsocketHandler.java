@@ -1,6 +1,10 @@
 package io.github.claudineyns.nostr.relay.server;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +21,7 @@ import io.github.claudineyns.nostr.relay.websocket.WebsocketException;
 
 public class WebsocketHandler implements Websocket {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
+    private final File directory = new File("/var/nostr/data/");
     
     @Override
     public void onOpen(final WebsocketContext context) {
@@ -75,7 +80,8 @@ public class WebsocketHandler implements Websocket {
 
         logger.info("[Nostr] Parsing EVENT");
 
-        final EventData event = gson.fromJson(nostrMessage.get(1).toString(), EventData.class);
+        final String eventJson = nostrMessage.get(1).toString();
+        final EventData event = gson.fromJson(eventJson, EventData.class);
 
         logger.info("[Nostr] [Event]\nID:{}\nPublic Key:{}\nKind:{}\nCreated At:{}\nContent:{}\nSignature:{}",
             event.getEventId(),
@@ -86,13 +92,27 @@ public class WebsocketHandler implements Websocket {
             event.getSignature()
         );
 
-        logger.info("[Nostr] Event parsed");
-
         final List<Object> response = new ArrayList<>();
         response.add("OK");
         response.add(event.getEventId());
-        response.add(Boolean.FALSE);
-        response.add("error: Development in progress.");
+
+        final File eventsDb = new File(directory, "/events");
+        eventsDb.mkdirs();
+
+        final File eventsFile = new File(eventsDb, event.getEventId()+".json");
+        try (final OutputStream eventRecord = new FileOutputStream(eventsFile)) {
+            eventRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
+
+            response.add(Boolean.TRUE);
+            response.add("");
+        } catch(IOException failure) {
+            logger.warning("[Nostr] [Persistence] Error: {}", failure.getMessage());
+
+            response.add(Boolean.FALSE);
+            response.add("error: Development in progress.");
+        }
+
+        logger.info("[Nostr] Event parsed");
 
         final String clientData = gson.toJson(response);
         logger.info("[Nostr] send client response: {}", clientData);
