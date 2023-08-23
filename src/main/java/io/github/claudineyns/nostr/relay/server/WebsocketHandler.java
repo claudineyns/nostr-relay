@@ -51,12 +51,9 @@ public class WebsocketHandler implements Websocket {
         final List<EventData> events = new ArrayList<>();
 
         for(int i = 1; i < nostrMessage.size(); ++i) {
-            final JsonObject object = nostrMessage.get(i).getAsJsonObject();
-            logger.info("[Nostr] Json Object: {}", object);
-
             final EventData event;
             try {
-                event = gson.fromJson(gson.toJson(object.toString()), EventData.class);
+                event = gson.fromJson(nostrMessage.get(i).toString(), EventData.class);
             } catch(Exception e) {
                 e.printStackTrace();
                 continue;
