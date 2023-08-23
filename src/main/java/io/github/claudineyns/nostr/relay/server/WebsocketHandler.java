@@ -39,7 +39,7 @@ public class WebsocketHandler implements Websocket {
 
     @Override
     public byte onClose(final WebsocketContext context) {
-        return logger.info("[WS] Server gone. Bye.");
+        return logger.info("[WS] Client gone. Bye.");
     }
 
     @Override
