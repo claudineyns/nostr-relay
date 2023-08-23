@@ -20,6 +20,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -33,6 +37,7 @@ import static io.github.claudineyns.nostr.relay.utilities.Utils.secWebsocketAcce
 @SuppressWarnings("unused")
 public class ClientHandler implements Runnable {
 	private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
+	private final ScheduledExecutorService pingService = Executors.newScheduledThreadPool(5);
 
 	private Socket client;
 
@@ -79,9 +84,7 @@ public class ClientHandler implements Runnable {
 		while(true) {
 			try {
 				this.handle();
-				if(!interrupt) {
-					continue;
-				}
+				if( ! interrupt ) continue;
 			} catch (SocketTimeoutException e) {
 				logger.warning(e.getMessage());
 			} catch (CloseConnectionException e) {
@@ -89,8 +92,11 @@ public class ClientHandler implements Runnable {
 			} catch (IOException e) {
 				logger.warning("Request handling error: {}: {}", e.getClass().getCanonicalName(), e.getMessage());
 			}
+
 			break;
-		}		
+		}
+
+		this.pingService.shutdown();
 	}
 
 	private void endStreams() throws IOException {
@@ -148,9 +154,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte handleWebsocketClientPacket() throws IOException {
-		this.consumeWebsocketClientPacket();
-
-		return 0;
+		return this.consumeWebsocketClientPacket();
 	}
 	
 	private byte checkCloseConnection() throws IOException {
@@ -239,42 +243,28 @@ public class ClientHandler implements Runnable {
 		final String path = getPath(); 
 
 		switch (path) {
+			case "/live":
+				return this.sendLivePage();
+			case "/favicon.ico":
+				return this.sendFavicon();
 			case "/":
 				return Q_SWITCHING_PROTOCOL;
 			default:
-				return this.sendIndexPage();
+				return Q_NOT_FOUND;
 		}
 	}
 
 	private byte analyseRequestHeader(byte[] raw) throws IOException {
 		final String CRLF_RE = "\\r\\n";
 
-		// https://www.rfc-editor.org/rfc/rfc2616.html#section-2.2
-		/*
-		 	HTTP/1.1 header field values can be folded onto multiple lines if the
-   			continuation line begins with a space or horizontal tab. All linear
-   			white space, including folding, has the same semantics as SP.
-   			A recipient MAY replace any linear white space with a single SP before
-   			interpreting the field value or forwarding the message downstream.
-		 */
-		// https://www.rfc-editor.org/rfc/rfc2616.html#section-4.2
-		/*
-			Header fields can be extended over multiple lines by preceding each extra line with at least one SP or HT. 
-		 */
-		final String data = new String(raw, StandardCharsets.US_ASCII).replaceAll("\\r\\n[\\s\\t]+", "\u0000\u0000\u0000");
+		final String data = new String(raw, StandardCharsets.US_ASCII)
+			.replaceAll("\\r\\n[\\s\\t]+", "\u0000\u0000\u0000");
 		final String[] entries = data.split(CRLF_RE);
 
 		if (entries.length == 0) {
 			return sendBadRequest("Invalid HTTP Request");
 		}
 
-		// https://www.rfc-editor.org/rfc/rfc2616.html#section-4.1
-		/*
-		 	In the interest of robustness, servers SHOULD ignore any empty
-   			line(s) received where a Request-Line is expected. In other words, if
-   			the server is reading the protocol stream at the beginning of a
-   			message and receives a CRLF first, it should ignore the CRLF.
-		 */
 		int startLine = 0;
 		while(true) {
 			if( ! entries[startLine].replaceAll("[\\s\\t]", "").isEmpty() ) {
@@ -317,7 +307,10 @@ public class ClientHandler implements Runnable {
 		for (int i = startLine + 1; i < entries.length; ++i) {
 			final String entry = entries[i];
 			final String header = entry.substring(0, entry.indexOf(':')).toLowerCase();
-			final String value = entry.substring(entry.indexOf(':') + 1).trim().replaceAll("[\u0000]{3}", "\r\n ");
+			final String value = entry
+				.substring(entry.indexOf(':') + 1)
+				.trim()
+				.replaceAll("[\u0000]{3}", "\r\n ");
 			httpRequestHeaders.putIfAbsent(header, new LinkedList<>());
 			httpRequestHeaders.get(header).add(value);
 		}
@@ -338,7 +331,8 @@ public class ClientHandler implements Runnable {
 	}
 
 	private static final String gmt() {
-		final DateTimeFormatter RFC_1123_DATE_TIME = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.US);
+		final DateTimeFormatter RFC_1123_DATE_TIME = DateTimeFormatter
+			.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.US);
 		final ZonedDateTime dt = ZonedDateTime.now(ZoneId.of("GMT"));
 
 		return dt.format(RFC_1123_DATE_TIME);
@@ -402,15 +396,26 @@ public class ClientHandler implements Runnable {
 
 		return 0;
 	}
-	private byte sendIndexPage() throws IOException {
+
+	private byte sendLivePage() throws IOException {
 		final String html = 
 				  "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">"
 				+ "<title>Nostr Relay</title></head><body>"
-				+ "<h3 style=\"font-family: Courier, monospace; text-align: center; font-weight: normal;\">Nostr Relay</h3>"
+				+ "<h3 style=\"font-family: Courier, monospace; text-align: center; font-weight: normal;\">Nostr Relay is live</h3>"
 				+ "</body></html>\n";
 		final byte[] raw = html.getBytes(StandardCharsets.UTF_8);
 
 		this.httpResponseHeaders.put("Content-Type", Collections.singletonList("text/html; charset=UTF-8"));
+		this.httpResponseHeaders.put("Content-Length", Collections.singletonList(Integer.toString(raw.length)));
+		this.httpResponseBody.write(raw);
+
+		return 0;
+	}
+
+	private byte sendFavicon() throws IOException {
+		final byte[] raw = new byte[] {};
+
+		this.httpResponseHeaders.put("Content-Type", Collections.singletonList("image/icon"));
 		this.httpResponseHeaders.put("Content-Length", Collections.singletonList(Integer.toString(raw.length)));
 		this.httpResponseBody.write(raw);
 
@@ -592,10 +597,45 @@ public class ClientHandler implements Runnable {
 
 		this.mountHeadersTermination();
 
+		if( this.websocket ) {
+			logger.info("[WS] Server ready to accept data.");
+			this.scheduleWebsocketPingClient();
+		}
+
 		return 0;
 	}
 
-	private void consumeWebsocketClientPacket() throws IOException {
+	static final int LIVENESS = 60;
+	private void scheduleWebsocketPingClient() {
+		final Thread pingPong = new Thread(this::websocketPingClientEventFired);
+		pingPong.setDaemon(true);
+
+		this.pingService.scheduleAtFixedRate(pingPong, LIVENESS, LIVENESS, TimeUnit.SECONDS);
+	}
+
+	private void websocketPingClientEventFired() {
+		if(Thread.currentThread().isInterrupted()) return;
+
+		logger.info("[WS] Send frame PING to client");
+
+		try {
+			this.sendWebsocketPingClient();
+		} catch(IOException e) {
+			logger.warning(
+				"[WS] A failure ocurred during ping to client: {}: {}",
+				e.getClass().getCanonicalName(),
+				e.getMessage());
+		}
+	}
+
+	static final byte OPCODE_CONTINUE = 0b0000;
+	static final byte OPCODE_TEXT     = 0b0001;
+	static final byte OPCODE_BINARY   = 0b0010;
+	static final byte OPCODE_CLOSE    = 0b1000;
+	static final byte OPCODE_PING     = 0b1001;
+	static final byte OPCODE_PONG     = 0b1010;
+
+	private byte consumeWebsocketClientPacket() throws IOException {
 		final ByteArrayOutputStream message = new ByteArrayOutputStream();
 		final ByteArrayOutputStream controlMessage = new ByteArrayOutputStream();
 
@@ -609,13 +649,9 @@ public class ClientHandler implements Runnable {
 		final int FIN_ON  = 0b10000000;
 		boolean isFinal = false;
 
-		final int OPCODE_FLAG     = 0b00001111;
-		final int OPCODE_CONTINUE = 0b0000;
-		final int OPCODE_TEXT     = 0b0001;
-		final int OPCODE_BINARY   = 0b0010;
+		final int OPCODE_BITSPACE_FLAG = 0b00001111;
 
 		final int OPCODE_CONTROL_FLAG = 0b1000;
-		final int OPCODE_CLOSE = 0b1000;
 
 		int opcode = -1;
 		int current_opcode = -1;
@@ -634,9 +670,8 @@ public class ClientHandler implements Runnable {
 
 			if( stage == CHECK_FIN ) {
 				isFinal = (octet & FIN_ON) == FIN_ON;
-				current_opcode = octet & OPCODE_FLAG;
-				logger.info("[WS] final?: {}", isFinal);
-				logger.info("[WS] opcode: {}", current_opcode);
+				current_opcode = octet & OPCODE_BITSPACE_FLAG;
+				logger.info("[WS] fin/opcode frame received: {}, {}", isFinal, current_opcode);
 				if(opcode == -1) {
 					opcode = current_opcode;
 				}				
@@ -650,6 +685,7 @@ public class ClientHandler implements Runnable {
 
 					if( byteCheck <= 125 ) {
 						payloadLength = byteCheck;
+						if( payloadLength == 0) break;
 
 						stage = DECODER;
 						continue;
@@ -661,8 +697,7 @@ public class ClientHandler implements Runnable {
 						continue;
 					}
 				} else {
-					final String binaryOctet = String.format("%8s", Integer.toBinaryString(octet))
-						.replace(" ", "0");
+					final String binaryOctet = "0000000"+Integer.toBinaryString(octet);
 					byteLength.append(binaryOctet);
 
 					if( --nextBytes == 0 ) {						
@@ -686,12 +721,18 @@ public class ClientHandler implements Runnable {
 			}
 
 			if( stage == PAYLOAD_CONSUMPTION ) {
-				int decoded = (octet ^ decoder[decoderIndex++ & 0x3]);
+				/*
+				 * XOR bitwise operation
+				 */
+				// int decoded = (octet ^ decoder[decoderIndex++ & 0x3]);
+				int decoded = (octet ^ decoder[decoderIndex++ % decoder.length]);
+
 				if( (current_opcode & OPCODE_CONTROL_FLAG) == OPCODE_CONTROL_FLAG ) {
 					controlMessage.write(decoded);
 				} else {
 					message.write(decoded);
 				}
+
 				if( --payloadLength == 0 ) {
 					if(isFinal) {
 						break;
@@ -709,69 +750,88 @@ public class ClientHandler implements Runnable {
 		if( opcode == OPCODE_TEXT ) {
 			final String data = new String(message.toByteArray(), StandardCharsets.UTF_8);
 			logger.info("[WS] Text Message received:\n{}", data);
-			this.sendWebsocketDataClient(data);
+			//
+			// logger.info("[WS] Send data back to the client");
+			// return this.sendWebsocketDataClient(data);
+		}
+
+		if( opcode == OPCODE_PONG ) {
+			logger.info("[WS] Client sent PONG frame.");
+			return 0;
+		}
+
+		if( opcode == OPCODE_PING ) {
+			logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
+			return this.sendWebsocketPongClient(message.toByteArray());
 		}
 
 		if( opcode == OPCODE_CLOSE ) {
-			logger.info("[WS] Client sent close request");
-			this.sendWebsocketCloseFrame();
+			logger.info("[WS] Client sent CLOSE frame. Send back a CLOSE confirmation frame.");
 			this.interrupt = true;
+			return this.sendWebsocketCloseFrame();
 		}
 
+		return 0;
 	}
 
-	private void sendWebsocketDataClient(final String message) throws IOException {
+	private byte sendWebsocketDataClient(final String message) throws IOException {
 		final byte[] rawData = message.getBytes(StandardCharsets.UTF_8);
 
+		return this.sendWebsocketClientRawData(OPCODE_TEXT, rawData);
+	}
+
+	private byte sendWebsocketCloseFrame() throws IOException {
+		final byte[] message = "closed".getBytes(StandardCharsets.UTF_8);
+
+		return this.sendWebsocketClientRawData(OPCODE_CLOSE, message);
+	}
+
+	private byte sendWebsocketPingClient() throws IOException {
+		final byte[] message = "Liveness".getBytes(StandardCharsets.UTF_8);
+		
+		return this.sendWebsocketClientRawData(OPCODE_PING, message);
+	}
+
+	private byte sendWebsocketPongClient(final byte[] rawData) throws IOException {
+		return this.sendWebsocketClientRawData(OPCODE_PONG, rawData);
+	}
+
+	private byte sendWebsocketClientRawData(final byte opcode, final byte[] rawData) throws IOException {
+		String binaryOpcode = "000"+Integer.toBinaryString(opcode);
+		binaryOpcode = binaryOpcode.substring(binaryOpcode.length() - 4);
+
+		// 1   : FIN (final frame): ON
+		// 000 : extension (Not supported at this moment)
+		// ????: opcode
+		final String binaryFrame = "1000"+binaryOpcode; ;
+		final int frame = Integer.parseInt(binaryFrame, 2);
+
 		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
-
-		// 1   : FIN (final) ON
-		// 000 : extension (none at this moment)
-		// 0001: type 'text'
-		cache.write(0b10000001);
-
-		/*
-		 * Send payload message
-		 */
+		cache.write(frame);
 
 		if(rawData.length <= 125) {
-			final int q = rawData.length;
-			cache.write(q);
+			cache.write(rawData.length);
 		} else {
-			final int q = 126;
-			cache.write(q);
-			String binaryLength = Integer.toBinaryString(rawData.length);
-			while(binaryLength.length() % 16 != 0) {
-				binaryLength = "0"+binaryLength;
-			}
-			cache.write( Integer.parseInt(binaryLength.substring(0, 8), 2) );
-			cache.write( Integer.parseInt(binaryLength.substring(8), 2) );
+			// TODO: Send only package limited to '16 bits' length of data, indicated by a byte of value '126'.
+			// TODO: In the future, send '64 bits' length of data, indicated by a byte of value '127'.
+			cache.write(126);
+
+			final String rawBinaryLength = "000000000000000"+Integer.toBinaryString(rawData.length);
+			final String binaryLength = rawBinaryLength.substring(rawBinaryLength.length() - 16);
+
+			final int byte1Length = Integer.parseInt(binaryLength.substring(0, 8), 2);
+			final int byte2Length = Integer.parseInt(binaryLength.substring(8), 2);
+			cache.write(byte1Length);
+			cache.write(byte2Length);
 		}
 
 		cache.write(rawData);
+		cache.flush();
 
 		this.out.write(cache.toByteArray());
 		this.out.flush();
 
-	}
-
-	private void sendWebsocketCloseFrame() throws IOException {
-		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
-
-		final byte[] message = "Closed".getBytes(StandardCharsets.UTF_8);
-
-		// 1   : FIN (final) ON
-		// 000 : extension (none at this moment)
-		// 1000: type 'Close'
-		cache.write(0b10001000);
-
-		// Send Message
-		cache.write(message.length);
-		cache.write(message);
-
-		this.out.write(cache.toByteArray());
-		this.out.flush();
-
+		return 0;
 	}
 
 }

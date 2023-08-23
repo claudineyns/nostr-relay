@@ -9,6 +9,7 @@ import io.github.claudineyns.nostr.relay.factory.ServerSocketFactoryBuilder;
 import io.github.claudineyns.nostr.relay.utilities.AppProperties;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 
+@SuppressWarnings("unused")
 public class ServerHandler implements Runnable {
 	
 	private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
@@ -36,7 +37,7 @@ public class ServerHandler implements Runnable {
     public void run() {
 		Runtime.getRuntime().addShutdownHook(new Thread(()-> stop()));
 
-		//final int port = AppProperties.getPort();
+		// final int port = AppProperties.getPort();
 		final int tlsPort = AppProperties.getTlsPort();
         try {
             // this.server = new ServerSocket(port);

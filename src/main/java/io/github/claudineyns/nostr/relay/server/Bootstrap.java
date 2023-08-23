@@ -8,7 +8,6 @@ public class Bootstrap {
 	static final Bootstrap bootstrap = new Bootstrap();
 	static final ExecutorService serverPool = Executors.newSingleThreadExecutor();
 	static final ExecutorService clientPool = Executors.newCachedThreadPool();
-
 	public static void main(String[] args) throws IOException {
 		bootstrap.start();
 	}
