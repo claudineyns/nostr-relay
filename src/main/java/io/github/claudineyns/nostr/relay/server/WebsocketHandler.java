@@ -7,6 +7,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -286,7 +287,8 @@ public class WebsocketHandler implements Websocket {
             final String subscriptionId
     ) {
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
-        final Collection<JsonObject> filter = this.subscriptions.getOrDefault(subscriptionKey, Collections.emptyList());
+        final Collection<JsonObject> filter = this.subscriptions
+            .getOrDefault(subscriptionKey, Collections.emptyList());
 
         final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
@@ -301,10 +303,8 @@ public class WebsocketHandler implements Websocket {
                 if( !current.exists() ) return false;
 
                 try(final InputStream in = new FileInputStream(current)) {
-                    final ByteArrayOutputStream data = new ByteArrayOutputStream();
-                    IOUtils.copy(in, data);
-
-                    events.add(gson.fromJson(new String(data.toByteArray(), StandardCharsets.UTF_8), JsonObject.class));
+                    final JsonObject data = gson.fromJson(new InputStreamReader(in), JsonObject.class);
+                    events.add(data);
                 } catch(IOException failure) { /***/ }
 
                 return false;
@@ -322,7 +322,6 @@ public class WebsocketHandler implements Websocket {
             final JsonElement until = entry.get("until");
 
             //if(entry.get(subscriptionKey))
-
         }
 
     }
