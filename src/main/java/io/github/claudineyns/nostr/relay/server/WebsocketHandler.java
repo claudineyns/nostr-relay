@@ -44,7 +44,7 @@ public class WebsocketHandler implements Websocket {
 
     @Override
     public byte onMessage(final WebsocketContext context, final TextMessage message) {
-        logger.info("[WS] Server received message of type {}", message.getType());
+        logger.info("[WS] Server received message of type {}\n{}", message.getType(), message.getMessage());
 
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
