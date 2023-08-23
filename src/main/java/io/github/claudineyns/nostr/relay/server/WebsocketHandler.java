@@ -15,6 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import io.github.claudineyns.nostr.relay.specs.EventData;
 import io.github.claudineyns.nostr.relay.specs.ReqData;
@@ -100,11 +101,13 @@ public class WebsocketHandler implements Websocket {
             final Gson gson
         ) {
 
-        final String eventJson;
+        final JsonObject eventJson;
+        final String eventRawJson;
         final EventData event;
         try {
-            eventJson = nostrMessage.get(1).getAsString();
-            event = gson.fromJson(eventJson, EventData.class);
+            eventJson = nostrMessage.get(1).getAsJsonObject();
+            eventRawJson = eventJson.toString();
+            event = gson.fromJson(eventRawJson, EventData.class);
         } catch(Exception failure) {
             return logger.info(
                 "[Nostr] [Message] could not parse event\n{}: {}",
@@ -131,12 +134,12 @@ public class WebsocketHandler implements Websocket {
             if( eventDB.exists() ) {
                 responseText = "duplicate: event has already been registered.";
             } else {
-                responseText = persistEvent(eventJson, event, eventDB);
+                responseText = persistEvent(eventRawJson, event, eventDB);
             }
         } else if( EventData.State.REPLACEABLE.equals(event.getState()) ) {
-            responseText = persistEvent(eventJson, event, eventDB);
+            responseText = persistEvent(eventRawJson, event, eventDB);
         } else if( EventData.State.EPHEMERAL.equals(event.getState()) ) {
-            responseText = cacheEvent(eventJson, event);
+            responseText = cacheEvent(eventRawJson, event);
         } else {
             responseText = "error: Could not update database";
         }
