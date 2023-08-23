@@ -96,10 +96,13 @@ public class WebsocketHandler implements Websocket {
         response.add("OK");
         response.add(event.getEventId());
 
-        final File eventsDb = new File(directory, "/events");
-        eventsDb.mkdirs();
+        /*
+         * Saving event
+         */
 
+        final File eventsDb = new File(directory, "/events");
         final File eventsFile = new File(eventsDb, event.getEventId()+".json");
+
         try (final OutputStream eventRecord = new FileOutputStream(eventsFile)) {
             eventRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
             logger.warning("[Nostr] [Persistence] Event saved");
@@ -107,10 +110,23 @@ public class WebsocketHandler implements Websocket {
             response.add(Boolean.TRUE);
             response.add("");
         } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] Error: {}", failure.getMessage());
+            logger.warning("[Nostr] [Persistence] Could not save event: {}", failure.getMessage());
 
             response.add(Boolean.FALSE);
             response.add("error: Development in progress.");
+        }
+
+        /*
+         * Saving authors
+         */
+        final File authorDb = new File(directory, "/authors/" + event.getPublicKey() + "/events");
+        authorDb.mkdirs();
+        final File eventsAuthorFile = new File(authorDb, event.getEventId());
+        try {
+            eventsAuthorFile.createNewFile();
+            logger.warning("[Nostr] [Persistence] [Event] Author saved");
+        } catch(IOException failure) {
+            logger.warning("[Nostr] [Persistence] [Event] Could not save author: {}", failure.getMessage());
         }
 
         logger.info("[Nostr] Event parsed");
