@@ -62,13 +62,14 @@ public class WebsocketHandler implements Websocket {
                 continue;
             }
 
+            logger.info("[Nostr] Debugging Event data");
+
             events.add(event);
 
             logger.info("[Nostr] [Event]\nID:{}\nPublic Key:{}\nKind:{}\nCreated At:{}\nContent:{}\nSignature:{}",
                 event.getEventId(),
                 event.getPublicKey(),
                 event.getKind(),
-                // event.getTags(),
                 event.getCreatedAt(),
                 event.getContent(),
                 event.getSignature()
