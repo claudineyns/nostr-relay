@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 import io.github.claudineyns.nostr.relay.exceptions.CloseConnectionException;
 import io.github.claudineyns.nostr.relay.types.HttpMethod;
 import io.github.claudineyns.nostr.relay.types.HttpStatus;
+import io.github.claudineyns.nostr.relay.utilities.AppProperties;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 
 import static io.github.claudineyns.nostr.relay.utilities.Utils.secWebsocketAccept;
@@ -616,12 +617,13 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
-	static final int LIVENESS = 60;
+	static final int CLIENT_LIVENESS = AppProperties.getClientPingSecond();
 	private void scheduleWebsocketPingClient() {
 		final Thread pingPong = new Thread(this::websocketPingClientEventFired);
 		pingPong.setDaemon(true);
 
-		this.pingService.scheduleAtFixedRate(pingPong, LIVENESS, LIVENESS, TimeUnit.SECONDS);
+		this.pingService.scheduleAtFixedRate(pingPong, CLIENT_LIVENESS, CLIENT_LIVENESS, TimeUnit.SECONDS);
+		logger.info("[WS] PING client liveness set to {} seconds", CLIENT_LIVENESS);
 	}
 
 	private void websocketPingClientEventFired() {

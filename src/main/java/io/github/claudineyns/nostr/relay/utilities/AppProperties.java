@@ -11,6 +11,7 @@ public final class AppProperties {
 
 	private static final String DEFAULT_PORT = "8080";
 	private static final String DEFAULT_TLS_PORT = "8443";
+	private static final String DEFAULT_CLIENT_PING_SECOND = "300";
 
 	public static int getPort() {
 		final String port = nullValue(
@@ -26,6 +27,15 @@ public final class AppProperties {
 				System.getProperty(Constants.PROPERTY_TLS_PORT),
 				System.getenv(Constants.ENV_TLS_PORT),
 				DEFAULT_TLS_PORT
+			);
+		return Integer.parseInt(port);
+	}
+
+	public static int getClientPingSecond() {
+		final String port = nullValue(
+				System.getProperty(Constants.PROPERTY_CLIENT_PING_SECOND),
+				System.getenv(Constants.ENV_CLIENT_PING_SECOND),
+				DEFAULT_CLIENT_PING_SECOND
 			);
 		return Integer.parseInt(port);
 	}
