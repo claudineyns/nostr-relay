@@ -78,19 +78,10 @@ public class WebsocketHandler implements Websocket {
             final Gson gson
         ) {
 
-        logger.info("[Nostr] Parsing EVENT");
-
         final String eventJson = nostrMessage.get(1).toString();
         final EventData event = gson.fromJson(eventJson, EventData.class);
 
-        logger.info("[Nostr] [Event]\nID:{}\nPublic Key:{}\nKind:{}\nCreated At:{}\nContent:{}\nSignature:{}",
-            event.getEventId(),
-            event.getPublicKey(),
-            event.getKind(),
-            event.getCreatedAt(),
-            event.getContent(),
-            event.getSignature()
-        );
+        logger.info("[Nostr] [Message] event received: {}", event.getEventId());
 
         final List<Object> response = new ArrayList<>();
         response.add("OK");
@@ -143,9 +134,9 @@ public class WebsocketHandler implements Websocket {
         final File eventsAuthorFile = new File(authorDb, event.getEventId());
         try {
             eventsAuthorFile.createNewFile();
-            logger.warning("[Nostr] [Persistence] [Event] Author saved");
+            logger.warning("[Nostr] [Persistence] Author saved");
         } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Event] Could not save author: {}", failure.getMessage());
+            logger.warning("[Nostr] [Persistence] Could not save author: {}", failure.getMessage());
         }
     }
     
