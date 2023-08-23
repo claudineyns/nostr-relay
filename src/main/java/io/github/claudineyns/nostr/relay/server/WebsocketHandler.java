@@ -100,9 +100,10 @@ public class WebsocketHandler implements Websocket {
             final Gson gson
         ) {
 
-        final String eventJson = nostrMessage.get(1).getAsString();
+        final String eventJson;
         final EventData event;
         try {
+            eventJson = nostrMessage.get(1).getAsString();
             event = gson.fromJson(eventJson, EventData.class);
         } catch(Exception failure) {
             return logger.info(
