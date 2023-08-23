@@ -7,12 +7,15 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParseException;
 import io.github.claudineyns.nostr.relay.specs.EventData;
+import io.github.claudineyns.nostr.relay.specs.ReqData;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 import io.github.claudineyns.nostr.relay.websocket.BinaryMessage;
 import io.github.claudineyns.nostr.relay.websocket.TextMessage;
@@ -22,6 +25,8 @@ import io.github.claudineyns.nostr.relay.websocket.WebsocketException;
 public class WebsocketHandler implements Websocket {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
     private final File directory = new File("/var/nostr/data/");
+
+    private final Map<String, List<ReqData>> subscriptions = new ConcurrentHashMap<>();
     
     @Override
     public void onOpen(final WebsocketContext context) {
@@ -62,6 +67,9 @@ public class WebsocketHandler implements Websocket {
         switch(messageType) {
             case "EVENT":
                 this.handleEvent(context, nostrMessage, gson);
+                break;
+            case "REQ":
+                this.handleSubscriptionRequest(context, nostrMessage, gson);
                 break;
             default:
                 logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
@@ -108,6 +116,33 @@ public class WebsocketHandler implements Websocket {
         }
 
         context.broadcast(gson.toJson(response));
+    }
+
+    private void handleSubscriptionRequest(
+            final WebsocketContext context,
+            final JsonArray nostrMessage,
+            final Gson gson
+        ) {
+
+        final String subscriptionId = nostrMessage.get(1).toString();
+        final String subscriptionKey = subscriptionId+":"+context.getContextID();
+
+        final List<ReqData> filter = new ArrayList<>();
+
+        for(int i = 2; i < nostrMessage.size(); ++i) {
+            final String json = nostrMessage.get(i).toString();
+            logger.info("[Nostr] [Message] filter received: {}", json);
+            final ReqData request = gson.fromJson(json, ReqData.class);
+            filter.add(request);
+        }
+
+        subscriptions.put(subscriptionKey, filter);
+
+        final List<String> notice = new ArrayList<>();
+        notice.add("NOTICE");
+        notice.add("success: subscription id <"+subscriptionId+"> accepted");
+
+        context.broadcast(gson.toJson(notice));
     }
 
     private void persistEvent(

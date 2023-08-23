@@ -6,20 +6,28 @@ import com.google.gson.annotations.SerializedName;
 
 public class ReqData {
 
+    @SerializedName("ids")
+    private List<String> events;
+
     @SerializedName("kinds")
     private List<Integer> kinds;
 
     @SerializedName("authors")
     private List<String> authors;
 
-    @SerializedName("limit")
-    private int limit;
-
     @SerializedName("#p")
-    private List<String> publicKeys;
+    private List<String> taggedPublicKeys;
 
     @SerializedName("#e")
-    private List<String> events;
+    private List<String> taggedEvents;
 
+    @SerializedName("since")
+    private Integer since;
+
+    @SerializedName("until")
+    private Integer until;
+
+    @SerializedName("limit")
+    private int limit;
     
 }
