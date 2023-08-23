@@ -51,6 +51,7 @@ public class ClientHandler implements Runnable {
 	
 	private final WebsocketContext websocketContext = new WebsocketContext() {
 		public synchronized void broadcast(final String message) {
+			logger.info("[WS] send data to client: {}", message);
 			try {
 				sendWebsocketDataClient(message);
 			} catch (IOException e) { /***/ }

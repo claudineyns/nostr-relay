@@ -38,12 +38,18 @@ public class WebsocketHandler implements Websocket {
         logger.info("[WS] Server received message of type {}", message.getType());
         logger.info("[WS] Parsing data");
 
+        final List<String> notice = new ArrayList<>();
+        notice.add("NOTICE");
+
         final Gson gson = new GsonBuilder().create();
         final JsonArray nostrMessage;
         try {
             nostrMessage = gson.fromJson(message.getMessage(), JsonArray.class);
         } catch(JsonParseException failure) {
             logger.warning("[Nostr] could not parse message");
+
+            notice.add("Could not parse data");
+            context.broadcast(gson.toJson(notice));
             return;
         }
 
@@ -101,10 +107,7 @@ public class WebsocketHandler implements Websocket {
             persistEvent(eventJson, event, response, eventsFile);
         }
 
-        final String clientData = gson.toJson(response);
-        logger.info("[Nostr] send client response: {}", clientData);
-
-        context.broadcast(clientData);
+        context.broadcast(gson.toJson(response));
     }
 
     private void persistEvent(

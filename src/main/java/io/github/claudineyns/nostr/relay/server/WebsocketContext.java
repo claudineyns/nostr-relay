@@ -1,6 +1,5 @@
 package io.github.claudineyns.nostr.relay.server;
 
-import java.io.IOException;
 import java.util.UUID;
 
 /**
