@@ -206,12 +206,12 @@ public class WebsocketHandler implements Websocket {
             final EventData event,
             final File eventDB
     ) {
-
         /**
          * Save event version
          */
-        if( ! eventDB.exists() ) eventDB.mkdirs();
-        final File eventVersion = new File(eventDB, "/version/data-" + System.currentTimeMillis() + ".json");
+        final File eventVersionDB = new File(eventDB, "/version");
+        if ( ! eventVersionDB.exists() ) eventVersionDB.mkdirs();
+        final File eventVersion = new File(eventVersionDB, "data-" + System.currentTimeMillis() + ".json");
         try (final OutputStream eventRecord = new FileOutputStream(eventVersion)) {
             eventRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
             logger.info("[Nostr] [Persistence] [Event] Version saved");
@@ -223,7 +223,9 @@ public class WebsocketHandler implements Websocket {
         /**
          * Update event with current data
          */
-        final File eventData = new File(eventDB, "/current/data.json");
+        final File eventCurrentDB = new File(eventDB, "/current");
+        if( ! eventCurrentDB.exists() ) eventCurrentDB.mkdirs();
+        final File eventData = new File(eventCurrentDB, "data.json");
         try (final OutputStream eventRecord = new FileOutputStream(eventData)) {
             eventRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
             logger.info("[Nostr] [Persistence] [Event] data updated");
