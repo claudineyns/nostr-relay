@@ -129,6 +129,7 @@ public class WebsocketHandler implements Websocket {
 
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
+        logger.info("[Nostr] [Message] subscription created: {}", subscriptionKey);
 
         final List<ReqData> filter = new ArrayList<>();
 
@@ -153,8 +154,10 @@ public class WebsocketHandler implements Websocket {
             final JsonArray nostrMessage,
             final Gson gson
         ) {
+
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
+        logger.info("[Nostr] [Message] subscription deleted: {}", subscriptionKey);
 
         subscriptions.remove(subscriptionKey);
 
