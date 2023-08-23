@@ -596,7 +596,7 @@ public class ClientHandler implements Runnable {
 			this.sendUpgradeWebsocketHeader();
 			this.sendSecWebsocketAcceptHeader(secWebsocketKey.get(0));
 			this.sendAccessControlAllowOriginHeader();
-			
+
 			this.websocket = true;
 		} else {
 			this.sendConnectionCloseHeader();
@@ -608,6 +608,10 @@ public class ClientHandler implements Runnable {
 			logger.info("[WS] Server ready to accept data.");
 			this.scheduleWebsocketPingClient();
 		}
+
+		Optional
+			.ofNullable(this.httpRequestHeaders.get("origin"))
+			.ifPresent(lista -> lista.stream().forEach(q -> System.out.printf("Origin: %s%n", q) ));
 
 		return 0;
 	}
