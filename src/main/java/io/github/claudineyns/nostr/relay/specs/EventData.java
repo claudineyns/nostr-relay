@@ -89,6 +89,14 @@ public class EventData {
         this.signature = signature;
     }
 
+    public String getOts() {
+        return ots;
+    }
+
+    public void setOts(String ots) {
+        this.ots = ots;
+    }
+
     public boolean isMetadata() {
         return this.kind == 0;
     }

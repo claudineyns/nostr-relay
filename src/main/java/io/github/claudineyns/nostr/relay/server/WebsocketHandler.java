@@ -17,6 +17,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+
 import io.github.claudineyns.nostr.relay.specs.EventData;
 import io.github.claudineyns.nostr.relay.specs.ReqData;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
@@ -75,10 +76,10 @@ public class WebsocketHandler implements Websocket {
         switch(messageType) {
             case "EVENT":
                 return this.handleEvent(context, nostrMessage, gson);
-            // case "REQ":
-            //     return this.handleSubscriptionRequest(context, nostrMessage, gson);
-            // case "CLOSE":
-            //     return this.handleSubscriptionRemoval(context, nostrMessage, gson);
+            case "REQ":
+                return this.handleSubscriptionRequest(context, nostrMessage, gson);
+            case "CLOSE":
+                return this.handleSubscriptionRemoval(context, nostrMessage, gson);
             default:
                 return logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
         }
