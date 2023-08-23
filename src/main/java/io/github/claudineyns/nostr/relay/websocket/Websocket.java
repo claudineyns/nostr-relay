@@ -6,9 +6,9 @@ import io.github.claudineyns.nostr.relay.server.WebsocketContext;
  * Basic interface for websocket events
  */
 public interface Websocket {
-    void onOpen(final WebsocketContext context);
-    void onClose(final WebsocketContext context);
-    void onMessage(final WebsocketContext context, TextMessage message);
-    void onMessage(final WebsocketContext context, BinaryMessage message);
-    void onError(WebsocketException exception);
+    byte onOpen(final WebsocketContext context);
+    byte onClose(final WebsocketContext context);
+    byte onMessage(final WebsocketContext context, TextMessage message);
+    byte onMessage(final WebsocketContext context, BinaryMessage message);
+    byte onError(WebsocketException exception);
 }

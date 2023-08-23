@@ -5,6 +5,9 @@ import java.util.List;
 import com.google.gson.annotations.SerializedName;
 
 public class EventData {
+    public static enum State {
+        REGULAR, REPLACEABLE, EPHEMERAL, PARAMETERIZED_REPLACEABLE;
+    }
 
     @SerializedName("id")
     private String eventId;
@@ -84,6 +87,36 @@ public class EventData {
 
     public void setSignature(String signature) {
         this.signature = signature;
+    }
+
+    public boolean isMetadata() {
+        return this.kind == 0;
+    }
+
+    public boolean isTextNote() {
+        return this.kind == 1;
+    }
+
+    public State getState() {
+        final int n = this.kind;
+
+        if ((10000 <= n && n < 20000) || (n == 0) || (n == 1) || (n == 3)) {
+            return State.REPLACEABLE;
+        }
+
+        if (1000 <= n && n < 10000) {
+            return State.REGULAR;
+        }
+
+        if (20000 <= n && n < 30000) {
+            return State.EPHEMERAL;
+        }
+
+        if (30000 <= n && n < 40000) {
+            return State.PARAMETERIZED_REPLACEABLE;
+        }
+
+        return State.EPHEMERAL;
     }
 
 }

@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.gson.Gson;
@@ -27,19 +29,21 @@ public class WebsocketHandler implements Websocket {
     private final File directory = new File("/var/nostr/data/");
 
     private final Map<String, List<ReqData>> subscriptions = new ConcurrentHashMap<>();
-    
+
+    private final Map<String, EventData> ephemeralEvents = new ConcurrentHashMap<>();
+
     @Override
-    public void onOpen(final WebsocketContext context) {
-        logger.info("[WS] Server ready to accept data.");
+    public byte onOpen(final WebsocketContext context) {
+        return logger.info("[WS] Server ready to accept data.");
     }
 
     @Override
-    public void onClose(final WebsocketContext context) {
-        logger.info("[WS] Server gone. Bye.");
+    public byte onClose(final WebsocketContext context) {
+        return logger.info("[WS] Server gone. Bye.");
     }
 
     @Override
-    public void onMessage(final WebsocketContext context, final TextMessage message) {
+    public byte onMessage(final WebsocketContext context, final TextMessage message) {
         logger.info("[WS] Server received message of type {}", message.getType());
         logger.info("[WS] Parsing data");
 
@@ -51,15 +55,15 @@ public class WebsocketHandler implements Websocket {
         try {
             nostrMessage = gson.fromJson(message.getMessage(), JsonArray.class);
         } catch(JsonParseException failure) {
-            logger.warning("[Nostr] could not parse message");
-
-            notice.add("error: could not parse data");
+            notice.add("error: could not parse data.");
             context.broadcast(gson.toJson(notice));
-            return;
+
+            return logger.warning("[Nostr] could not parse message: {}", message.getMessage());
         }
 
         if( nostrMessage.isEmpty() ) {
-            logger.warning("[Nostr] Empty message received.");
+            notice.add("warning: empty message.");
+            return logger.warning("[Nostr] Empty message received.");
         }
 
         final String messageType = nostrMessage.get(0).getAsString();
@@ -77,16 +81,18 @@ public class WebsocketHandler implements Websocket {
             default:
                 logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
         }
+
+        return 0;
     }
 
     @Override
-    public void onMessage(final WebsocketContext context, final BinaryMessage message) {
-        logger.info("[WS] Server received message of type {}", message.getType());
+    public byte onMessage(final WebsocketContext context, final BinaryMessage message) {
+        return logger.info("[WS] Server received message of type {}.", message.getType());
     }
 
     @Override
-    public void onError(WebsocketException exception) {
-        logger.info("[WS] Server got error.");
+    public byte onError(WebsocketException exception) {
+        return logger.info("[WS] Server got error.");
     }
 
     private void handleEvent(
@@ -100,7 +106,7 @@ public class WebsocketHandler implements Websocket {
 
         //TODO: Implementar NIP-09 (Event Deletion): https://github.com/nostr-protocol/nips/blob/master/09.md
 
-        logger.info("[Nostr] [Message] event received: {}", event.getEventId());
+        logger.info("[Nostr] [Message] event received: {}.", event.getEventId());
 
         final List<Object> response = new ArrayList<>();
         response.add("OK");
@@ -110,15 +116,28 @@ public class WebsocketHandler implements Websocket {
          * Saving event
          */
 
-        final File eventsDb = new File(directory, "/events");
-        final File eventsFile = new File(eventsDb, event.getEventId()+".json");
+        final File eventDB = new File(directory, "/events/"+event.getEventId());
 
-        if( eventsFile.exists() ) {
-            response.add(Boolean.FALSE);
-            response.add("duplicate: event has already been registered.");
+        final String responseText;
+        if( EventData.State.REGULAR.equals(event.getState()) ) {
+            if( eventDB.exists() ) {
+                responseText = "duplicate: event has already been registered.";
+            } else {
+                responseText = persistEvent(eventJson, event, eventDB);
+            }
+        } else if( EventData.State.REPLACEABLE.equals(event.getState()) ) {
+            responseText = persistEvent(eventJson, event, eventDB);
+        } else if( EventData.State.EPHEMERAL.equals(event.getState()) ) {
+            responseText = cacheEvent(eventJson, event);
         } else {
-            persistEvent(eventJson, event, response, eventsFile);
+            responseText = "error: Could not update database";
         }
+
+        Optional.ofNullable(responseText)
+        .ifPresentOrElse(
+            info -> response.addAll(Arrays.asList(Boolean.FALSE, info)),
+            () -> response.addAll(Arrays.asList(Boolean.TRUE, ""))
+        );
 
         context.broadcast(gson.toJson(response));
     }
@@ -170,37 +189,58 @@ public class WebsocketHandler implements Websocket {
         context.broadcast(gson.toJson(notice));        
     }
 
-    private void persistEvent(
+    private String persistEvent(
             final String eventJson,
             final EventData event,
-            final List<Object> response,
-            final File eventsFile
+            final File eventDB
     ) {
-        try (final OutputStream eventRecord = new FileOutputStream(eventsFile)) {
+
+        /**
+         * Save event version
+         */
+        if( ! eventDB.exists() ) eventDB.mkdirs();
+        final File eventVersion = new File(eventDB, "/version/data-" + System.currentTimeMillis() + ".json");
+        try (final OutputStream eventRecord = new FileOutputStream(eventVersion)) {
             eventRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
-            logger.warning("[Nostr] [Persistence] Event saved");
-
-            response.add(Boolean.TRUE);
-            response.add("");
+            logger.info("[Nostr] [Persistence] [Event] Version saved");
         } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] Could not save event: {}", failure.getMessage());
+            logger.warning("[Nostr] [Persistence] [Event] Could not save version: {}", failure.getMessage());
+            return "error: Development in progress.";
+        }
 
-            response.add(Boolean.FALSE);
-            response.add("error: Development in progress.");
+        /**
+         * Update event with current data
+         */
+        final File eventData = new File(eventDB, "/current/data.json");
+        try (final OutputStream eventRecord = new FileOutputStream(eventData)) {
+            eventRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
+            logger.info("[Nostr] [Persistence] [Event] data updated");
+        } catch(IOException failure) {
+            logger.warning("[Nostr] [Persistence] [Event] Could not update data: {}", failure.getMessage());
         }
 
         /*
-         * Saving authors
+         * Save author
          */
         final File authorDb = new File(directory, "/authors/" + event.getPublicKey() + "/events");
-        authorDb.mkdirs();
+        if( ! authorDb.exists() ) authorDb.mkdirs();
+
         final File eventsAuthorFile = new File(authorDb, event.getEventId());
-        try {
-            eventsAuthorFile.createNewFile();
-            logger.warning("[Nostr] [Persistence] Author saved");
-        } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] Could not save author: {}", failure.getMessage());
+        if( ! eventsAuthorFile.exists() ) {
+            try {
+                eventsAuthorFile.createNewFile();
+                logger.info("[Nostr] [Persistence] [Event] Author linked");
+            } catch(IOException failure) {
+                logger.warning("[Nostr] [Persistence] [Event] Could not link author: {}", failure.getMessage());
+            }
         }
+
+        return null;
     }
-    
+
+    private String cacheEvent(final String eventJson, final EventData event) {
+        this.ephemeralEvents.put(event.getEventId(), event);
+        return null;
+    }
+
 }
