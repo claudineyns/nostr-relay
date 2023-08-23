@@ -64,7 +64,7 @@ public class WebsocketHandler implements Websocket {
                 this.handleEvent(context, nostrMessage, gson);
                 break;
             default:
-                logger.warning("[Nostr] Message type {} not supported yet.", messageType);
+                logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
         }
     }
 
