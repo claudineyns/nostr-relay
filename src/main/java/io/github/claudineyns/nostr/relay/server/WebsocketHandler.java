@@ -153,7 +153,7 @@ public class WebsocketHandler implements Websocket {
             final JsonArray nostrMessage,
             final Gson gson
         ) {
-        final String subscriptionId = nostrMessage.get(1).toString();
+        final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
 
         subscriptions.remove(subscriptionKey);
