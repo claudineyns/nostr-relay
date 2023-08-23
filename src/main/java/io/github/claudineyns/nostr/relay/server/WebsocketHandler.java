@@ -53,7 +53,8 @@ public class WebsocketHandler implements Websocket {
         final JsonArray nostrMessage;
         try {
             nostrMessage = gson.fromJson(message.getMessage(), JsonArray.class);
-        } catch(JsonParseException failure) {
+        // } catch(JsonParseException failure) {
+        } catch(Exception failure) {
             notice.add("error: could not parse data.");
             context.broadcast(gson.toJson(notice));
 
