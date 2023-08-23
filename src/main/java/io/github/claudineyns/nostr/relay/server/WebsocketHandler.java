@@ -1,25 +1,38 @@
 package io.github.claudineyns.nostr.relay.server;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import org.apache.commons.io.IOUtils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
 import io.github.claudineyns.nostr.relay.specs.EventData;
-import io.github.claudineyns.nostr.relay.specs.ReqData;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 import io.github.claudineyns.nostr.relay.websocket.BinaryMessage;
 import io.github.claudineyns.nostr.relay.websocket.TextMessage;
@@ -28,9 +41,12 @@ import io.github.claudineyns.nostr.relay.websocket.WebsocketException;
 
 public class WebsocketHandler implements Websocket {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
+
     private final File directory = new File("/var/nostr/data/");
 
-    private final Map<String, List<ReqData>> subscriptions = new ConcurrentHashMap<>();
+    private ExecutorService eventBroadcaster = Executors.newCachedThreadPool();
+
+    private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
 
     private final Map<String, EventData> ephemeralEvents = new ConcurrentHashMap<>();
 
@@ -126,6 +142,7 @@ public class WebsocketHandler implements Websocket {
 
         if( ! "1a7c9d8ac8a9f50d255573dbe1bacd511677d288a0ba5e2332ae4c15e407f29f".equals(event.getPublicKey())) {
             response.addAll(Arrays.asList(Boolean.FALSE, "blocked: development"));
+
             return context.broadcast(gson.toJson(response));
         }
 
@@ -169,13 +186,13 @@ public class WebsocketHandler implements Websocket {
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
         logger.info("[Nostr] [Message] subscription created: {}", subscriptionKey);
 
-        final List<ReqData> filter = new ArrayList<>();
+        final Collection<JsonObject> filter = new ConcurrentLinkedQueue<>();
 
         for(int i = 2; i < nostrMessage.size(); ++i) {
-            final String json = nostrMessage.get(i).toString();
+            final JsonObject entry = nostrMessage.get(i).getAsJsonObject();
+            final String json = entry.toString();
             logger.info("[Nostr] [Message] filter received:\n{}", json);
-            final ReqData request = gson.fromJson(json, ReqData.class);
-            filter.add(request);
+            filter.add(entry);
         }
 
         subscriptions.put(subscriptionKey, filter);
@@ -183,6 +200,8 @@ public class WebsocketHandler implements Websocket {
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
         notice.add("info: subscription "+subscriptionId+" accepted.");
+
+        eventBroadcaster.submit(() -> fetchAndBroadcastEvents(context, subscriptionId));
 
         return context.broadcast(gson.toJson(notice));
     }
@@ -260,6 +279,52 @@ public class WebsocketHandler implements Websocket {
     private String cacheEvent(final String eventJson, final EventData event) {
         this.ephemeralEvents.put(event.getEventId(), event);
         return null;
+    }
+
+    private synchronized void fetchAndBroadcastEvents(
+            final WebsocketContext context,
+            final String subscriptionId
+    ) {
+        final String subscriptionKey = subscriptionId+":"+context.getContextID();
+        final Collection<JsonObject> filter = this.subscriptions.getOrDefault(subscriptionKey, Collections.emptyList());
+
+        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+        final List<JsonObject> events = new ArrayList<>();
+
+        final File eventsDB = new File(directory, "events");
+        if(eventsDB.exists()) eventsDB.listFiles(new FileFilter() {
+            public boolean accept(File pathname) {
+                if( ! pathname.isDirectory()) return false;
+
+                final File current = new File(pathname, "/current/data.json");
+                if( !current.exists() ) return false;
+
+                try(final InputStream in = new FileInputStream(current)) {
+                    final ByteArrayOutputStream data = new ByteArrayOutputStream();
+                    IOUtils.copy(in, data);
+
+                    events.add(gson.fromJson(new String(data.toByteArray(), StandardCharsets.UTF_8), JsonObject.class));
+                } catch(IOException failure) { /***/ }
+
+                return false;
+            }
+        });
+
+        logger.info("[Nostr] [Event] events fetched:");
+        events.stream().forEach(entry -> logger.info("[Nostr] [Event] {}", gson.toJson(entry)));
+        logger.info("[Nostr] [Event] ^^^^^-----");
+
+        for(final JsonObject entry: filter) {
+            final JsonElement authors = entry.get("authors");
+            final JsonElement ids = entry.get("ids");
+            final JsonElement since = entry.get("since");
+            final JsonElement until = entry.get("until");
+
+            //if(entry.get(subscriptionKey))
+
+        }
+
     }
 
 }
