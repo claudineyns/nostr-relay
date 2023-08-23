@@ -43,6 +43,8 @@ public class WebsocketHandler implements Websocket {
             return;
         }
 
+        logger.info("[Nostr] Parsing event");
+
         final List<EventData> events = new ArrayList<>();
 
         for(int i = 1; i < nostrMessage.size(); ++i) {
@@ -59,6 +61,8 @@ public class WebsocketHandler implements Websocket {
                 event.getSignature()
             );
         }
+
+        logger.info("[Nostr] Event parsed");
         
     }
 
