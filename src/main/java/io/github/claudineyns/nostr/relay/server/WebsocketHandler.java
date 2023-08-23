@@ -31,11 +31,13 @@ public class WebsocketHandler implements Websocket {
     @Override
     public void onMessage(final WebsocketContext context, final TextMessage message) {
         logger.info("[WS] Server received message of type {}", message.getType());
-        logger.info("[WS] Data: {}", message.getMessage());
+        logger.info("[WS] Parsing data");
 
         final Gson gson = new GsonBuilder().create();
         final JsonArray nostrMessage = gson.fromJson(message.getMessage(), JsonArray.class);
         final MessageType nostrMessageType = MessageType.valueOf(nostrMessage.get(0).getAsString());
+
+        logger.info("[Nostr] Message Type: {}", nostrMessageType);
 
         if( ! MessageType.EVENT.equals(nostrMessageType) ) {
             return;
