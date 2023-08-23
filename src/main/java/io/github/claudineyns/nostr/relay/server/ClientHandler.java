@@ -365,6 +365,12 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
+	private byte sendAccessControlAllowOriginHeader() throws IOException{
+		out.write(("Access-Control-Allow-Origin: *" + CRLF).getBytes(StandardCharsets.US_ASCII));
+		
+		return 0;
+	}
+
 	private byte sendUpgradeWebsocketHeader() throws IOException {
 		out.write(("Upgrade: websocket" + CRLF).getBytes(StandardCharsets.US_ASCII));
 
@@ -589,6 +595,7 @@ public class ClientHandler implements Runnable {
 			this.sendConnectionUpgraderHeader();
 			this.sendUpgradeWebsocketHeader();
 			this.sendSecWebsocketAcceptHeader(secWebsocketKey.get(0));
+			this.sendAccessControlAllowOriginHeader();
 			
 			this.websocket = true;
 		} else {
