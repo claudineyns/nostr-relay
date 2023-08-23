@@ -45,7 +45,6 @@ public class WebsocketHandler implements Websocket {
     @Override
     public byte onMessage(final WebsocketContext context, final TextMessage message) {
         logger.info("[WS] Server received message of type {}", message.getType());
-        logger.info("[WS] Parsing data");
 
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
@@ -63,6 +62,7 @@ public class WebsocketHandler implements Websocket {
 
         if( nostrMessage.isEmpty() ) {
             notice.add("warning: empty message.");
+
             return logger.warning("[Nostr] Empty message received.");
         }
 
@@ -70,19 +70,15 @@ public class WebsocketHandler implements Websocket {
 
         switch(messageType) {
             case "EVENT":
-                this.handleEvent(context, nostrMessage, gson);
-                break;
+                return this.handleEvent(context, nostrMessage, gson);
             case "REQ":
-                this.handleSubscriptionRequest(context, nostrMessage, gson);
-                break;
+                return this.handleSubscriptionRequest(context, nostrMessage, gson);
             case "CLOSE":
-                this.handleSubscriptionRemoval(context, nostrMessage, gson);
-                break;
+                return this.handleSubscriptionRemoval(context, nostrMessage, gson);
             default:
-                logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
+                return logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
         }
 
-        return 0;
     }
 
     @Override
@@ -95,7 +91,7 @@ public class WebsocketHandler implements Websocket {
         return logger.info("[WS] Server got error.");
     }
 
-    private void handleEvent(
+    private byte handleEvent(
             final WebsocketContext context,
             final JsonArray nostrMessage,
             final Gson gson
@@ -139,10 +135,10 @@ public class WebsocketHandler implements Websocket {
             () -> response.addAll(Arrays.asList(Boolean.TRUE, ""))
         );
 
-        context.broadcast(gson.toJson(response));
+        return context.broadcast(gson.toJson(response));
     }
 
-    private void handleSubscriptionRequest(
+    private byte handleSubscriptionRequest(
             final WebsocketContext context,
             final JsonArray nostrMessage,
             final Gson gson
@@ -156,7 +152,7 @@ public class WebsocketHandler implements Websocket {
 
         for(int i = 2; i < nostrMessage.size(); ++i) {
             final String json = nostrMessage.get(i).toString();
-            logger.info("[Nostr] [Message] filter received: {}", json);
+            logger.info("[Nostr] [Message] filter received:\n{}", json);
             final ReqData request = gson.fromJson(json, ReqData.class);
             filter.add(request);
         }
@@ -167,10 +163,10 @@ public class WebsocketHandler implements Websocket {
         notice.add("NOTICE");
         notice.add("info: subscription "+subscriptionId+" accepted.");
 
-        context.broadcast(gson.toJson(notice));
+        return context.broadcast(gson.toJson(notice));
     }
 
-    private void handleSubscriptionRemoval(
+    private byte handleSubscriptionRemoval(
             final WebsocketContext context,
             final JsonArray nostrMessage,
             final Gson gson
@@ -186,7 +182,7 @@ public class WebsocketHandler implements Websocket {
         notice.add("NOTICE");
         notice.add("info: subscription "+subscriptionId+" removed.");
 
-        context.broadcast(gson.toJson(notice));        
+        return context.broadcast(gson.toJson(notice));
     }
 
     private String persistEvent(

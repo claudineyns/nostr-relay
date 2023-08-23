@@ -26,6 +26,6 @@ public abstract class WebsocketContext {
         return connected;
     }
 
-    abstract void broadcast(String message);
+    abstract byte broadcast(String message);
     
 }
