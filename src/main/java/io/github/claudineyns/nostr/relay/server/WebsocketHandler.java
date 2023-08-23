@@ -102,6 +102,7 @@ public class WebsocketHandler implements Websocket {
         final File eventsFile = new File(eventsDb, event.getEventId()+".json");
         try (final OutputStream eventRecord = new FileOutputStream(eventsFile)) {
             eventRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
+            logger.warning("[Nostr] [Persistence] Event saved");
 
             response.add(Boolean.TRUE);
             response.add("");
