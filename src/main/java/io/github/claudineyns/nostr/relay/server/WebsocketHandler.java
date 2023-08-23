@@ -8,7 +8,7 @@ import io.github.claudineyns.nostr.relay.websocket.WebsocketException;
 
 public class WebsocketHandler implements Websocket {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
-
+    
     @Override
     public void onOpen(final WebsocketContext context) {
         logger.info("[WS] Server ready to accept data.");
@@ -38,7 +38,6 @@ public class WebsocketHandler implements Websocket {
     @Override
     public void onError(WebsocketException exception) {
         logger.info("[WS] Server got error.");
-        // throw new UnsupportedOperationException("Unimplemented method 'onError'");
     }
     
 }

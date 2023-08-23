@@ -24,5 +24,7 @@ public abstract class WebsocketContext {
     public final synchronized boolean isConnected() {
         return connected;
     }
+
+    abstract void broadcast();
     
 }

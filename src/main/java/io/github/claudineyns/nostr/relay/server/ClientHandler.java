@@ -46,7 +46,10 @@ public class ClientHandler implements Runnable {
 	private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 	private final ScheduledExecutorService pingService = Executors.newScheduledThreadPool(5);
 	private final ExecutorService websocketEventService = Executors.newCachedThreadPool();
-	private final WebsocketContext websocketContext = new WebsocketContext() { };
+	private final WebsocketContext websocketContext = new WebsocketContext() {
+		public synchronized void broadcast() {
+		}
+	};
 
 	private final Socket client;
 	private InputStream in;
@@ -716,6 +719,7 @@ public class ClientHandler implements Runnable {
 
 		int opcode = -1;
 		int current_opcode = -1;
+		Opcode c_opcode = null;
 
 		final int UNMASK = 0b01111111;
 
@@ -734,7 +738,7 @@ public class ClientHandler implements Runnable {
 			if( stage == CHECK_FIN ) {
 				isFinal = (octet & FIN_ON) == FIN_ON;
 				current_opcode = octet & OPCODE_BITSPACE_FLAG;
-				final Opcode c_opcode = Opcode.byCode(current_opcode);
+				c_opcode = Opcode.byCode(current_opcode);
 				logger.info(
 					"[WS] fin/opcode frame received: {}, {}",
 					isFinal,
@@ -806,10 +810,9 @@ public class ClientHandler implements Runnable {
 				/*
 				 * XOR bitwise operation
 				 */
-				// int decoded = (octet ^ decoder[decoderIndex++ & 0x3]);
 				int decoded = (octet ^ decoder[decoderIndex++ % decoder.length]);
 
-				if( (current_opcode & OPCODE_CONTROL_FLAG) == OPCODE_CONTROL_FLAG ) {
+				if( c_opcode.isControl() ) {
 					controlMessage.write(decoded);
 				} else {
 					message.write(decoded);
@@ -845,7 +848,9 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( opcode == Opcode.OPCODE_CLOSE.code() ) {
-			logger.info("[WS] Client sent CLOSE frame. Send back a CLOSE confirmation frame.");
+			final String data = new String(controlMessage.toByteArray(), StandardCharsets.UTF_8);
+			logger.info("[WS] Client sent CLOSE frame with data {}.", data);
+			logger.info("[WS] Send back a CLOSE confirmation frame.");
 			this.sendWebsocketCloseFrame();
 			this.interrupt = true;
 		}
