@@ -9,10 +9,9 @@ import io.github.claudineyns.nostr.relay.factory.ServerSocketFactoryBuilder;
 import io.github.claudineyns.nostr.relay.utilities.AppProperties;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 
-@SuppressWarnings("unused")
 public class ServerHandler implements Runnable {
-	
 	private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
+	private final WebsocketHandler websocketHandler = new WebsocketHandler();
 
     private final ExecutorService clientPool;
 	
@@ -60,7 +59,7 @@ public class ServerHandler implements Runnable {
 				break;
 			}
 
-			clientPool.submit(new ClientHandler(client));
+			clientPool.submit(new ClientHandler(client, websocketHandler));
 		}
     }
 }
