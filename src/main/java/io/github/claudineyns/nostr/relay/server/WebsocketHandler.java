@@ -102,7 +102,7 @@ public class WebsocketHandler implements Websocket {
 
         if( eventsFile.exists() ) {
             response.add(Boolean.FALSE);
-            response.add("duplicate: event has already been consumed.");
+            response.add("duplicate: event has already been registered.");
         } else {
             persistEvent(eventJson, event, response, eventsFile);
         }

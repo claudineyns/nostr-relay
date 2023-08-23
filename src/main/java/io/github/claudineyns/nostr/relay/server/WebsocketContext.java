@@ -7,11 +7,12 @@ import java.util.UUID;
  */
 public abstract class WebsocketContext {
     private final UUID contextID = UUID.randomUUID();
-    private boolean connected = false;
 
     public UUID getContextID() {
         return contextID;
     }
+    
+    private boolean connected = false;
 
     void connect() {
         this.connected = true;

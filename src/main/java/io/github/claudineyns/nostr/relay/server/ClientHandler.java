@@ -855,14 +855,30 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( opcode == Opcode.OPCODE_CLOSE.code() ) {
-			final String data = new String(controlMessage.toByteArray(), StandardCharsets.UTF_8);
-			logger.info("[WS] Client sent CLOSE frame with data {}.", data);
+			final int closeCode = parseCode(controlMessage.toByteArray());
+
+			logger.info("[WS] Client sent CLOSE frame with data {}.", closeCode);
 			logger.info("[WS] Send back a CLOSE confirmation frame.");
 			this.sendWebsocketCloseFrame();
 			this.interrupt = true;
 		}
 
 		return 0;
+	}
+
+	private int parseCode(final byte[] raw) {
+		final StringBuilder parsing = new StringBuilder("");
+		for(final byte q: raw) {
+			final String rawBinary = "00000000"+Integer.toBinaryString(q);
+			final String binary = rawBinary.substring(rawBinary.length() - 8);
+			parsing.append(binary);
+		}
+
+		if(parsing.length() == 0) {
+			return 0;
+		}
+
+		return Integer.parseInt(parsing.toString(), 2);
 	}
 
 	private byte sendWebsocketDataClient(final String message) throws IOException {
