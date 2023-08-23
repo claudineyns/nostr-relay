@@ -143,7 +143,7 @@ public class WebsocketHandler implements Websocket {
 
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
-        notice.add("success: subscription id '"+subscriptionId+"' accepted.");
+        notice.add("success: subscription id "+subscriptionId+" accepted.");
 
         context.broadcast(gson.toJson(notice));
     }
@@ -160,7 +160,7 @@ public class WebsocketHandler implements Websocket {
 
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
-        notice.add("success: subscription id '"+subscriptionId+"' removed.");
+        notice.add("success: subscription id "+subscriptionId+" removed.");
 
         context.broadcast(gson.toJson(notice));        
     }
