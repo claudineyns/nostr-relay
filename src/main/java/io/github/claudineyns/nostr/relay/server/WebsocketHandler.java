@@ -103,6 +103,25 @@ public class WebsocketHandler implements Websocket {
         final File eventsDb = new File(directory, "/events");
         final File eventsFile = new File(eventsDb, event.getEventId()+".json");
 
+        if( eventsFile.exists() ) {
+            response.add(Boolean.FALSE);
+            response.add("duplicate: event has already been consumed.");
+        } else {
+            persistEvent(eventJson, event, response, eventsFile);
+        }
+
+        final String clientData = gson.toJson(response);
+        logger.info("[Nostr] send client response: {}", clientData);
+
+        context.broadcast(clientData);
+    }
+
+    private void persistEvent(
+            final String eventJson,
+            final EventData event,
+            final List<Object> response,
+            final File eventsFile
+    ) {
         try (final OutputStream eventRecord = new FileOutputStream(eventsFile)) {
             eventRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
             logger.warning("[Nostr] [Persistence] Event saved");
@@ -128,13 +147,6 @@ public class WebsocketHandler implements Websocket {
         } catch(IOException failure) {
             logger.warning("[Nostr] [Persistence] [Event] Could not save author: {}", failure.getMessage());
         }
-
-        logger.info("[Nostr] Event parsed");
-
-        final String clientData = gson.toJson(response);
-        logger.info("[Nostr] send client response: {}", clientData);
-
-        context.broadcast(clientData);
     }
     
 }
