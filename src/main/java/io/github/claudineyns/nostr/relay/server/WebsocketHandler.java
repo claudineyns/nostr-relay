@@ -95,7 +95,7 @@ public class WebsocketHandler implements Websocket {
             final Gson gson
         ) {
 
-        final String eventJson = nostrMessage.get(1).toString();
+        final String eventJson = nostrMessage.get(1).getAsString();
         final EventData event = gson.fromJson(eventJson, EventData.class);
 
         logger.info("[Nostr] [Message] event received: {}", event.getEventId());
@@ -127,7 +127,7 @@ public class WebsocketHandler implements Websocket {
             final Gson gson
         ) {
 
-        final String subscriptionId = nostrMessage.get(1).toString();
+        final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
 
         final List<ReqData> filter = new ArrayList<>();
