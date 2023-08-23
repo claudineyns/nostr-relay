@@ -61,8 +61,11 @@ public class WebsocketHandler implements Websocket {
             return logger.warning("[Nostr] could not parse message: {}", message.getMessage());
         }
 
+        logger.info("[Nostr] Message parsed.");
+
         if( nostrMessage.isEmpty() ) {
             notice.add("warning: empty message.");
+            context.broadcast(gson.toJson(notice));
 
             return logger.warning("[Nostr] Empty message received.");
         }
