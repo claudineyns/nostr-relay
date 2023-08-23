@@ -71,10 +71,10 @@ public class WebsocketHandler implements Websocket {
         switch(messageType) {
             case "EVENT":
                 return this.handleEvent(context, nostrMessage, gson);
-            case "REQ":
-                return this.handleSubscriptionRequest(context, nostrMessage, gson);
-            case "CLOSE":
-                return this.handleSubscriptionRemoval(context, nostrMessage, gson);
+            // case "REQ":
+            //     return this.handleSubscriptionRequest(context, nostrMessage, gson);
+            // case "CLOSE":
+            //     return this.handleSubscriptionRemoval(context, nostrMessage, gson);
             default:
                 return logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
         }
