@@ -1,17 +1,14 @@
 package io.github.claudineyns.nostr.relay.server;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-
 import io.github.claudineyns.nostr.relay.specs.EventData;
-import io.github.claudineyns.nostr.relay.specs.MessageType;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 import io.github.claudineyns.nostr.relay.websocket.BinaryMessage;
 import io.github.claudineyns.nostr.relay.websocket.TextMessage;
@@ -37,44 +34,27 @@ public class WebsocketHandler implements Websocket {
         logger.info("[WS] Parsing data");
 
         final Gson gson = new GsonBuilder().create();
-        final JsonArray nostrMessage = gson.fromJson(message.getMessage(), JsonArray.class);
-        final MessageType nostrMessageType = MessageType.valueOf(nostrMessage.get(0).getAsString());
-
-        logger.info("[Nostr] Message Type: {}", nostrMessageType);
-
-        if( ! MessageType.EVENT.equals(nostrMessageType) ) {
+        final JsonArray nostrMessage;
+        try {
+            nostrMessage = gson.fromJson(message.getMessage(), JsonArray.class);
+        } catch(JsonParseException failure) {
+            logger.warning("[Nostr] could not parse message");
             return;
         }
 
-        logger.info("[Nostr] Parsing event");
-
-        final List<EventData> events = new ArrayList<>();
-
-        for(int i = 1; i < nostrMessage.size(); ++i) {
-            final EventData event;
-            try {
-                event = gson.fromJson(nostrMessage.get(i).toString(), EventData.class);
-            } catch(Exception e) {
-                e.printStackTrace();
-                continue;
-            }
-
-            logger.info("[Nostr] Debugging Event data");
-
-            events.add(event);
-
-            logger.info("[Nostr] [Event]\nID:{}\nPublic Key:{}\nKind:{}\nCreated At:{}\nContent:{}\nSignature:{}",
-                event.getEventId(),
-                event.getPublicKey(),
-                event.getKind(),
-                event.getCreatedAt(),
-                event.getContent(),
-                event.getSignature()
-            );
+        if( nostrMessage.isEmpty() ) {
+            logger.warning("[Nostr] Empty message received.");
         }
 
-        logger.info("[Nostr] Event parsed");
-        
+        final String messageType = nostrMessage.get(0).getAsString();
+
+        switch(messageType) {
+            case "EVENT":
+                this.handleEvent(context, nostrMessage, gson);
+                break;
+            default:
+                logger.warning("[Nostr] Message type {} not supported yet.", messageType);
+        }
     }
 
     @Override
@@ -85,6 +65,39 @@ public class WebsocketHandler implements Websocket {
     @Override
     public void onError(WebsocketException exception) {
         logger.info("[WS] Server got error.");
+    }
+
+    private void handleEvent(
+            final WebsocketContext context,
+            final JsonArray nostrMessage,
+            final Gson gson
+        ) {
+
+        logger.info("[Nostr] Parsing EVENT");
+
+        final EventData event = gson.fromJson(nostrMessage.get(1).toString(), EventData.class);
+
+        logger.info("[Nostr] [Event]\nID:{}\nPublic Key:{}\nKind:{}\nCreated At:{}\nContent:{}\nSignature:{}",
+            event.getEventId(),
+            event.getPublicKey(),
+            event.getKind(),
+            event.getCreatedAt(),
+            event.getContent(),
+            event.getSignature()
+        );
+
+        logger.info("[Nostr] Event parsed");
+
+        final List<Object> response = new ArrayList<>();
+        response.add("OK");
+        response.add(event.getEventId());
+        response.add(Boolean.FALSE);
+        response.add("error: Development in progress.");
+
+        final String clientData = gson.toJson(response);
+        logger.info("[Nostr] send client response: {}", clientData);
+
+        context.broadcast(clientData);
     }
     
 }

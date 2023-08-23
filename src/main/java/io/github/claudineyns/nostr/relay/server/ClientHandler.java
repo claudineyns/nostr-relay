@@ -44,10 +44,16 @@ import static io.github.claudineyns.nostr.relay.utilities.Utils.secWebsocketAcce
 @SuppressWarnings("unused")
 public class ClientHandler implements Runnable {
 	private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
+
 	private final ScheduledExecutorService pingService = Executors.newScheduledThreadPool(5);
+
 	private final ExecutorService websocketEventService = Executors.newCachedThreadPool();
+	
 	private final WebsocketContext websocketContext = new WebsocketContext() {
-		public synchronized void broadcast() {
+		public synchronized void broadcast(final String message) {
+			try {
+				sendWebsocketDataClient(message);
+			} catch (IOException e) { /***/ }
 		}
 	};
 

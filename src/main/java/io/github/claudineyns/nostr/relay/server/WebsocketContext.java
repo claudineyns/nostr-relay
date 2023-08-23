@@ -1,5 +1,6 @@
 package io.github.claudineyns.nostr.relay.server;
 
+import java.io.IOException;
 import java.util.UUID;
 
 /**
@@ -25,6 +26,6 @@ public abstract class WebsocketContext {
         return connected;
     }
 
-    abstract void broadcast();
+    abstract void broadcast(String message);
     
 }
