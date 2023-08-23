@@ -71,6 +71,9 @@ public class WebsocketHandler implements Websocket {
             case "REQ":
                 this.handleSubscriptionRequest(context, nostrMessage, gson);
                 break;
+            case "CLOSE":
+                this.handleSubscriptionRemoval(context, nostrMessage, gson);
+                break;
             default:
                 logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
         }
@@ -140,9 +143,26 @@ public class WebsocketHandler implements Websocket {
 
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
-        notice.add("success: subscription id '"+subscriptionId+"' accepted");
+        notice.add("success: subscription id '"+subscriptionId+"' accepted.");
 
         context.broadcast(gson.toJson(notice));
+    }
+
+    private void handleSubscriptionRemoval(
+            final WebsocketContext context,
+            final JsonArray nostrMessage,
+            final Gson gson
+        ) {
+        final String subscriptionId = nostrMessage.get(1).toString();
+        final String subscriptionKey = subscriptionId+":"+context.getContextID();
+
+        subscriptions.remove(subscriptionKey);
+
+        final List<String> notice = new ArrayList<>();
+        notice.add("NOTICE");
+        notice.add("success: subscription id '"+subscriptionId+"' removed.");
+
+        context.broadcast(gson.toJson(notice));        
     }
 
     private void persistEvent(
