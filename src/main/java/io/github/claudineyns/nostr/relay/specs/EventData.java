@@ -27,6 +27,9 @@ public class EventData {
     @SerializedName("sig")
     private String signature;
 
+    @SerializedName("ots")
+    private String ots;
+
     public String getEventId() {
         return eventId;
     }

@@ -53,7 +53,7 @@ public class WebsocketHandler implements Websocket {
         } catch(JsonParseException failure) {
             logger.warning("[Nostr] could not parse message");
 
-            notice.add("Could not parse data");
+            notice.add("error: could not parse data");
             context.broadcast(gson.toJson(notice));
             return;
         }
@@ -97,6 +97,8 @@ public class WebsocketHandler implements Websocket {
 
         final String eventJson = nostrMessage.get(1).getAsString();
         final EventData event = gson.fromJson(eventJson, EventData.class);
+
+        //TODO: Implementar NIP-09 (Event Deletion): https://github.com/nostr-protocol/nips/blob/master/09.md
 
         logger.info("[Nostr] [Message] event received: {}", event.getEventId());
 
@@ -144,7 +146,7 @@ public class WebsocketHandler implements Websocket {
 
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
-        notice.add("success: subscription "+subscriptionId+" accepted.");
+        notice.add("info: subscription "+subscriptionId+" accepted.");
 
         context.broadcast(gson.toJson(notice));
     }
@@ -163,7 +165,7 @@ public class WebsocketHandler implements Websocket {
 
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
-        notice.add("success: subscription "+subscriptionId+" removed.");
+        notice.add("info: subscription "+subscriptionId+" removed.");
 
         context.broadcast(gson.toJson(notice));        
     }
