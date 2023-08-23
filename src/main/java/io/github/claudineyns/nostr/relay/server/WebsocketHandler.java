@@ -1,5 +1,14 @@
 package io.github.claudineyns.nostr.relay.server;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+
+import io.github.claudineyns.nostr.relay.specs.EventData;
+import io.github.claudineyns.nostr.relay.specs.MessageType;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 import io.github.claudineyns.nostr.relay.websocket.BinaryMessage;
 import io.github.claudineyns.nostr.relay.websocket.TextMessage;
@@ -23,16 +32,37 @@ public class WebsocketHandler implements Websocket {
     public void onMessage(final WebsocketContext context, final TextMessage message) {
         logger.info("[WS] Server received message of type {}", message.getType());
         logger.info("[WS] Data: {}", message.getMessage());
+
+        final Gson gson = new GsonBuilder().create();
+        final JsonArray nostrMessage = gson.fromJson(message.getMessage(), JsonArray.class);
+        final MessageType nostrMessageType = MessageType.valueOf(nostrMessage.get(0).getAsString());
+
+        if( ! MessageType.EVENT.equals(nostrMessageType) ) {
+            return;
+        }
+
+        final List<EventData> events = new ArrayList<>();
+
+        for(int i = 1; i < nostrMessage.size(); ++i) {
+            final EventData event = gson.fromJson(gson.toJson(nostrMessage.get(i).getAsString()), EventData.class);
+            events.add(event);
+
+            logger.info("[Nostr] [Event]\nID:{}\nPublic Key:{}\nKind:{}\nCreated At:{}\nContent:{}\nSignature:{}",
+                event.getEventId(),
+                event.getPublicKey(),
+                event.getKind(),
+                // event.getTags(),
+                event.getCreatedAt(),
+                event.getContent(),
+                event.getSignature()
+            );
+        }
+        
     }
 
     @Override
     public void onMessage(final WebsocketContext context, final BinaryMessage message) {
         logger.info("[WS] Server received message of type {}", message.getType());
-        final StringBuilder raw = new StringBuilder("");
-        for(final byte b: message.getData()) {
-            raw.append(String.format("%d, ", b));
-        }
-        logger.info("[WS] Raw data: {}", raw);
     }
 
     @Override

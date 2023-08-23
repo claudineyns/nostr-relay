@@ -1,0 +1,56 @@
+[
+    "REQ",
+    "REQ-19809222",
+    {
+        "kinds": [
+            4
+        ],
+        "authors": [
+            "1a7c9d8ac8a9f50d255573dbe1bacd511677d288a0ba5e2332ae4c15e407f29f"
+        ],
+        "limit": 1
+    },
+    {
+        "kinds": [
+            4
+        ],
+        "#p": [
+            "1a7c9d8ac8a9f50d255573dbe1bacd511677d288a0ba5e2332ae4c15e407f29f"
+        ],
+        "limit": 1
+    },
+    {
+        "kinds": [
+            42
+        ],
+        "#e": [],
+        "limit": 1
+    },
+    {
+        "kinds": [
+            1,
+            1985,
+            30023,
+            1063,
+            9802
+        ],
+        "#p": [
+            "1a7c9d8ac8a9f50d255573dbe1bacd511677d288a0ba5e2332ae4c15e407f29f"
+        ],
+        "limit": 1
+    },
+    {
+        "kinds": [
+            1,
+            1985,
+            30023,
+            1063,
+            9802
+        ],
+        "#e": [
+            "f8472ef76f79758dcce12acbc7af50b6dd54f4a36c23a97d3338ed725594ffba",
+            "d6afd1ea5de516a18a721b35523c328af185aecedbda60d30cd6ec766260a655"
+        ],
+        "limit": 1
+    }
+]

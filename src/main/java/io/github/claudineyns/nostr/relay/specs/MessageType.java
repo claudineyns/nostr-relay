@@ -1,5 +1,5 @@
 package io.github.claudineyns.nostr.relay.specs;
 
-public class NostrRequest {
-    
+public enum MessageType {
+    EVENT, REQ, CLOSE;
 }
