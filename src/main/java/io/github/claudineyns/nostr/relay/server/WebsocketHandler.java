@@ -8,6 +8,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 
 import io.github.claudineyns.nostr.relay.specs.EventData;
 import io.github.claudineyns.nostr.relay.specs.MessageType;
@@ -53,7 +54,14 @@ public class WebsocketHandler implements Websocket {
             final JsonObject object = nostrMessage.get(i).getAsJsonObject();
             logger.info("[Nostr] Json Object: {}", object);
 
-            final EventData event = gson.fromJson(gson.toJson(object.getAsString()), EventData.class);
+            final EventData event;
+            try {
+                event = gson.fromJson(gson.toJson(object.getAsString()), EventData.class);
+            } catch(JsonParseException e) {
+                e.printStackTrace();
+                continue;
+            }
+
             events.add(event);
 
             logger.info("[Nostr] [Event]\nID:{}\nPublic Key:{}\nKind:{}\nCreated At:{}\nContent:{}\nSignature:{}",
