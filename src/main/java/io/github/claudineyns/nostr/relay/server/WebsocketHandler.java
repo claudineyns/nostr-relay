@@ -327,7 +327,7 @@ public class WebsocketHandler implements Websocket {
 
         final List<JsonObject> selectedEvents = new ArrayList<>();
 
-        final AtomicInteger limit = new AtomicInteger(1);
+        final int[] limit = new int[]{1};
 
         for(final JsonObject entry: filter) {
             final JsonElement authors = entry.get("authors");
@@ -346,23 +346,21 @@ public class WebsocketHandler implements Websocket {
                 .forEachRemaining( element -> eventIdList.add(element.getAsString()) )
             );
 
-            final Number startTime = Optional
+            final int[] since = new int[] {0};
+            Optional
                 .ofNullable(entry.get("since"))
-                .orElseGet(()->JsonNull.INSTANCE)
-                .getAsNumber();
+                .ifPresent(time -> since[0] = time.getAsInt());
 
-            final Number endTime = Optional
+            final int[] until = new int[] {0};
+            Optional
                 .ofNullable(entry.get("until"))
-                .orElseGet(()->JsonNull.INSTANCE)
-                .getAsNumber();
+                .ifPresent(time -> until[0] = time.getAsInt());
 
             Optional
                 .ofNullable(entry.get("limit"))
                 .ifPresent(q -> {
                     final int v = q.getAsInt();
-                    if( v > limit.get() ) {
-                        limit.set(v);
-                    }
+                    if( v > limit[0] ) limit[0] = v;
                 });
 
             events.stream().forEach(data -> {
@@ -373,15 +371,15 @@ public class WebsocketHandler implements Websocket {
                 boolean include = true;
                 include = include && (eventIdList.isEmpty()  || eventIdList.contains(eventId));
                 include = include && (authorIdList.isEmpty() || authorIdList.contains(authorId));
-                include = include && (startTime == null      || createdAt.intValue() >= startTime.intValue() );
-                include = include && (endTime == null        || createdAt.intValue() <= endTime.intValue() );
+                include = include && (since[0] == 0          || createdAt.intValue() >= since[0] );
+                include = include && (until[0] == 0          || createdAt.intValue() <= until[0] );
 
                 if( !selectedEvents.contains(data) ) selectedEvents.add(data);                
             });
 
         }
 
-        final int stop = limit.get() - 1;
+        final int stop = limit[0] - 1;
         for(int q = selectedEvents.size() - 1; q >= 0 && q > stop; --q) {
             selectedEvents.remove(q);
         }
