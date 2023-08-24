@@ -304,7 +304,7 @@ public class WebsocketHandler implements Websocket {
                         eventsMarkedForDeletion.add(data);
                     }
                 } catch(IOException failure) {
-                    logger.warning("[Nostr] [Event] [Removal] Could not load event from db: {}", failure.getMessage());
+                    logger.warning("[Nostr] [Persistence] [Event] Could not load event: {}", failure.getMessage());
                 }
 
                 return false;
@@ -321,7 +321,7 @@ public class WebsocketHandler implements Websocket {
                 try {
                      eventVersionFile.createNewFile();
                 } catch(IOException failure) {
-                    logger.warning("[Nostr] [Event] [Removal] Could not delete event {}: {}", deletionEventId, failure.getMessage());
+                    logger.warning("[Nostr] [Persistence] [Event] Could not delete event {}: {}", deletionEventId, failure.getMessage());
                     return;
                 }
             }
@@ -329,7 +329,7 @@ public class WebsocketHandler implements Websocket {
             final File eventFile = new File(directory, "/events/" + deletionEventId + "/current/data.json");
             if(eventFile.exists()) eventFile.delete();
 
-            logger.info("[Nostr] [Event] [Removal] event {} deleted.", deletionEventId);
+            logger.info("[Nostr] [Persistence] [Event] event {} deleted.", deletionEventId);
         });
 
         return 0;
