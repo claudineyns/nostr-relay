@@ -187,13 +187,9 @@ public class WebsocketHandler implements Websocket {
 
         subscriptions.put(subscriptionKey, filter);
 
-        final List<String> notice = new ArrayList<>();
-        notice.add("NOTICE");
-        notice.add("info: subscription "+subscriptionId+" accepted.");
-
         eventBroadcaster.submit(() -> fetchAndBroadcastEvents(context, subscriptionId));
 
-        return context.broadcast(gson.toJson(notice));
+        return 0;
     }
 
     private byte handleSubscriptionRemoval(final WebsocketContext context, final JsonArray nostrMessage) {
@@ -205,11 +201,7 @@ public class WebsocketHandler implements Websocket {
 
         subscriptions.remove(subscriptionKey);
 
-        final List<String> notice = new ArrayList<>();
-        notice.add("NOTICE");
-        notice.add("info: subscription "+subscriptionId+" removed.");
-
-        return context.broadcast(gson.toJson(notice));
+        return 0;
     }
 
     private String persistEvent(
@@ -366,7 +358,9 @@ public class WebsocketHandler implements Websocket {
 
         }
 
-        selectedEvents.sort((a, b) -> b.get("created_at").getAsInt() - a.get("created_at").getAsInt());
+        selectedEvents.sort((a, b) -> 
+            b.get("created_at").getAsInt() - a.get("created_at").getAsInt()
+        );
 
         final int stop = limit[0] - 1;
         for(int q = selectedEvents.size() - 1; q >= 0 && q > stop; --q) {
