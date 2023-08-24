@@ -355,7 +355,7 @@ public class WebsocketHandler implements Websocket {
 
                 if( include && !selectedEvents.contains(data) ){
                     selectedEvents.add(data);
-                    logger.info("[Nostr] [Subscription] event {} match by filter {}", data.toString(), entry.toString());
+                    logger.info("[Nostr] [Subscription]\nevent\n{}\nmatch by filter\n{}", data.toString(), entry.toString());
                 }
             });
 
