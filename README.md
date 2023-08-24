@@ -1,6 +1,8 @@
 # nostr-relay
 
-Nostr relay written in Java
+Nostr relay written in Java.
+
+This is a work-in-progress project.
 
 ## Getting Started
 
