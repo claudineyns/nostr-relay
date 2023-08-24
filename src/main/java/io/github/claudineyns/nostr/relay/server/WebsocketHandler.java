@@ -294,8 +294,6 @@ public class WebsocketHandler implements Websocket {
 
         final Gson gson = new GsonBuilder().create();
 
-        logger.info("[Nostr] [Subscription] fetching events");
-
         final List<JsonObject> events = new ArrayList<>();
         events.addAll(ephemeralEvents);
 
@@ -378,9 +376,6 @@ public class WebsocketHandler implements Websocket {
         for(int q = selectedEvents.size() - 1; q >= 0 && q > stop; --q) {
             selectedEvents.remove(q);
         }
-
-        logger.info("[Nostr] [Subscription] Selected events");
-        selectedEvents.stream().forEach(q -> System.out.println(gson.toJson(q)));
 
         final List<Object> subscriptionResponse = new ArrayList<>();
         subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
