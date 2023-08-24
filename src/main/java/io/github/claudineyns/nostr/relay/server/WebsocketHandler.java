@@ -379,7 +379,7 @@ public class WebsocketHandler implements Websocket {
         subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
         subscriptionResponse.addAll(selectedEvents);
 
-        context.broadcast(gson.toJson(subscriptionResponse));
+        if( ! selectedEvents.isEmpty() ) context.broadcast(gson.toJson(subscriptionResponse));
     }
 
 }
