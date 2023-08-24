@@ -26,7 +26,7 @@ Once started the websocket server will listen on `wss://localhost:8443` and the 
 | ------------- | ------------- |
 | `/`  | GET  |
 
-## NIPS Implemented
+## Implemented NIPS
 
 * [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md)
 * [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md)
