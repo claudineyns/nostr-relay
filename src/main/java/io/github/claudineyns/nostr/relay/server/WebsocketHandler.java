@@ -310,18 +310,25 @@ public class WebsocketHandler implements Websocket {
         final int[] limit = new int[]{1};
 
         for(final JsonObject entry: filter) {
-            final List<String> authorIdList = new ArrayList<>();
-            Optional.ofNullable(entry.get("authors")).ifPresent(q -> q
-                .getAsJsonArray()
-                .iterator()
-                .forEachRemaining( element -> authorIdList.add(element.getAsString()) )
-            );
-
             final List<String> eventIdList = new ArrayList<>();
             Optional.ofNullable(entry.get("ids")).ifPresent(q -> q
                 .getAsJsonArray()
                 .iterator()
                 .forEachRemaining( element -> eventIdList.add(element.getAsString()) )
+            );
+
+            final List<Integer> kindList = new ArrayList<>();
+            Optional.ofNullable(entry.get("kinds")).ifPresent(q -> q
+                .getAsJsonArray()
+                .iterator()
+                .forEachRemaining( element -> kindList.add(element.getAsInt()) )
+            );
+
+            final List<String> authorIdList = new ArrayList<>();
+            Optional.ofNullable(entry.get("authors")).ifPresent(q -> q
+                .getAsJsonArray()
+                .iterator()
+                .forEachRemaining( element -> authorIdList.add(element.getAsString()) )
             );
 
             final int[] since = new int[] {0};
@@ -344,11 +351,13 @@ public class WebsocketHandler implements Websocket {
             events.stream().forEach(data -> {
                 final String eventId   = data.get("id").getAsString();
                 final String authorId  = data.get("pubkey").getAsString();
+                final int kind         = data.get("kind").getAsInt();
                 final Number createdAt = data.get("created_at").getAsNumber();
 
                 boolean include = true;
                 include = include && (eventIdList.isEmpty()  || eventIdList.contains(eventId));
                 include = include && (authorIdList.isEmpty() || authorIdList.contains(authorId));
+                include = include && (kindList.isEmpty()     || kindList.contains(kind));
                 include = include && (since[0] == 0          || createdAt.intValue() >= since[0] );
                 include = include && (until[0] == 0          || createdAt.intValue() <= until[0] );
 
