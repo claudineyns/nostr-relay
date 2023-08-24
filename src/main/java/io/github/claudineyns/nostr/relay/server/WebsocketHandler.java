@@ -310,17 +310,15 @@ public class WebsocketHandler implements Websocket {
         final int[] limit = new int[]{1};
 
         for(final JsonObject entry: filter) {
-            final JsonElement authors = entry.get("authors");
-            if ( authors == null ) continue;
-
             final List<String> authorIdList = new ArrayList<>();
-            authors.getAsJsonArray()
+            Optional.ofNullable(entry.get("authors")).ifPresent(q -> q
+                .getAsJsonArray()
                 .iterator()
-                .forEachRemaining(element -> authorIdList.add(element.getAsString()));
+                .forEachRemaining( element -> authorIdList.add(element.getAsString()) )
+            );
 
             final List<String> eventIdList = new ArrayList<>();
-            final JsonElement ids = entry.get("ids");
-            Optional.ofNullable(ids).ifPresent(q -> q
+            Optional.ofNullable(entry.get("ids")).ifPresent(q -> q
                 .getAsJsonArray()
                 .iterator()
                 .forEachRemaining( element -> eventIdList.add(element.getAsString()) )
