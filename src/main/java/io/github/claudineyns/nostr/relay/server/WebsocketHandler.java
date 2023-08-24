@@ -283,6 +283,20 @@ public class WebsocketHandler implements Websocket {
             final WebsocketContext context,
             final String subscriptionId
     ) {
+        try {
+            this.computeAndBroadcastEvents(context, subscriptionId);
+        } catch(Exception failure) {
+            logger.warning("[Nostr] [Subscription] failed fetching events");
+            failure.printStackTrace();
+        }
+
+    }
+
+    private void computeAndBroadcastEvents(
+            final WebsocketContext context,
+            final String subscriptionId
+    ) {
+
         final Gson gson = new GsonBuilder().create();
 
         logger.info("[Nostr] [Subscription] fetching events");
