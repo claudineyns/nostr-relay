@@ -299,8 +299,13 @@ public class WebsocketHandler implements Websocket {
 
                     final String qAuthorId = data.get("pubkey").getAsString();
                     final String qEventId  = data.get("id").getAsString();
+                    final int qEventKind   = data.get("kind").getAsInt();
+                    final EventState state = EventState.byKind(qEventKind);
 
-                    if( qAuthorId.equals(authorId) && linkedEventId.contains(qEventId) ) {
+                    if( EventState.REGULAR.equals(state) 
+                            && qAuthorId.equals(authorId)
+                            && linkedEventId.contains(qEventId)
+                    ) {
                         eventsMarkedForDeletion.add(data);
                     }
                 } catch(IOException failure) {
