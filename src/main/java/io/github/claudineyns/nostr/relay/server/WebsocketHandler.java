@@ -353,7 +353,10 @@ public class WebsocketHandler implements Websocket {
                 include = include && (since[0] == 0          || createdAt.intValue() >= since[0] );
                 include = include && (until[0] == 0          || createdAt.intValue() <= until[0] );
 
-                if( include && !selectedEvents.contains(data) ) selectedEvents.add(data);                
+                if( include && !selectedEvents.contains(data) ){
+                    selectedEvents.add(data);
+                    logger.info("[Nostr] [Subscription] event {} match by filter {}", data.toString(), entry.toString());
+                }
             });
 
         }
