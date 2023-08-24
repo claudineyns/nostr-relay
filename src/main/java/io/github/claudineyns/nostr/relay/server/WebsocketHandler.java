@@ -370,6 +370,9 @@ public class WebsocketHandler implements Websocket {
             selectedEvents.remove(q);
         }
 
+        logger.info("[Nostr] [Subscription] Selected events");
+        selectedEvents.stream().forEach(q -> logger.info(gson.toJson(q)));
+
         final List<Object> subscriptionResponse = new ArrayList<>();
         subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
         subscriptionResponse.addAll(selectedEvents);
