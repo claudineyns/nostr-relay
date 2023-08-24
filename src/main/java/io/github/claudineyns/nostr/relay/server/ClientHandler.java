@@ -577,6 +577,7 @@ public class ClientHandler implements Runnable {
 		this.sendStatusLine(HttpStatus.OK);
 
 		this.sendDateHeader();
+		this.sendAccessControlAllowOriginHeader();		
 		this.sendETagHeader();
 		this.sendCustomHeaders();
 		this.sendConnectionCloseHeader();
@@ -622,6 +623,7 @@ public class ClientHandler implements Runnable {
 
 		this.sendStatusLine(status);
 		this.sendDateHeader();
+		this.sendAccessControlAllowOriginHeader();
 
 		if( status.code() == HttpStatus.UPGRADE_REQUIRED.code() ) {
 			this.sendUpgradeWebsocketHeader();
@@ -635,7 +637,6 @@ public class ClientHandler implements Runnable {
 			this.sendConnectionUpgraderHeader();
 			this.sendUpgradeWebsocketHeader();
 			this.sendSecWebsocketAcceptHeader(secWebsocketKey.get(0));
-			this.sendAccessControlAllowOriginHeader();
 
 			this.websocket = true;
 		} else {
