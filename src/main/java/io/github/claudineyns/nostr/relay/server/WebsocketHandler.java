@@ -376,11 +376,13 @@ public class WebsocketHandler implements Websocket {
         subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
         subscriptionResponse.addAll(selectedEvents);
 
-        if(! selectedEvents.isEmpty()) {
-            return context.broadcast(gson.toJson(subscriptionResponse));
+        if( ! selectedEvents.isEmpty() ) {
+            context.broadcast(gson.toJson(subscriptionResponse));
         }
 
-        this.eventBroadcaster.submit(() -> this.filterAndBroadcastEvents(context, subscriptionId, sendLater));
+        if( ! sendLater.isEmpty() ) {
+            this.eventBroadcaster.submit(() -> this.filterAndBroadcastEvents(context, subscriptionId, sendLater));
+        }
 
         return 0;
     }
