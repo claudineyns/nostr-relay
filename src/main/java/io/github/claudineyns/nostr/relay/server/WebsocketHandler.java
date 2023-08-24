@@ -285,6 +285,8 @@ public class WebsocketHandler implements Websocket {
     ) {
         final Gson gson = new GsonBuilder().create();
 
+        logger.info("[Nostr] [Subscription] fetching events");
+
         final List<JsonObject> events = new ArrayList<>();
         events.addAll(ephemeralEvents);
 
