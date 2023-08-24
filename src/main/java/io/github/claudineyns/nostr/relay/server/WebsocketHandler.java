@@ -177,7 +177,7 @@ public class WebsocketHandler implements Websocket {
 
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
-        logger.info("[Nostr] [Message] subscription created: {}", subscriptionKey);
+        logger.info("[Nostr] [Message] subscription registered: {}", subscriptionKey);
 
         final Collection<JsonObject> filter = new ConcurrentLinkedQueue<>();
 
@@ -198,7 +198,7 @@ public class WebsocketHandler implements Websocket {
 
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
-        logger.info("[Nostr] [Message] subscription deleted: {}", subscriptionKey);
+        logger.info("[Nostr] [Message] subscription unregistered: {}", subscriptionKey);
 
         subscriptions.remove(subscriptionKey);
 
