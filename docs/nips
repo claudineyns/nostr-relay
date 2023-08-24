@@ -1,0 +1,6 @@
+# NIP-65: Relay List Metadata 
+
+Defines a replaceable event using kind:10002 to advertise preferred relays for discovering a user's content and receiving fresh content from others.
+
+[NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md)
+

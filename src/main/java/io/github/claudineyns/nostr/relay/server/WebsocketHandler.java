@@ -43,8 +43,6 @@ public class WebsocketHandler implements Websocket {
 
     private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
 
-    private final Collection<JsonObject> ephemeralEvents = new ConcurrentLinkedQueue<>();
-
     @Override
     public byte onOpen(final WebsocketContext context) {
         return logger.info("[WS] Server ready to accept data.");
@@ -155,7 +153,7 @@ public class WebsocketHandler implements Websocket {
         } else if( EventData.State.REPLACEABLE.equals(event.getState()) ) {
             responseText = persistEvent(eventRawJson, event, eventDB);
         } else if( EventData.State.EPHEMERAL.equals(event.getState()) ) {
-            responseText = cacheEvent(eventJson);
+            responseText = consumeEphemeralEvent(eventJson);
         } else {
             responseText = "error: Could not update database";
         }
@@ -267,8 +265,7 @@ public class WebsocketHandler implements Websocket {
         return null;
     }
 
-    private String cacheEvent(final JsonObject eventJson) {
-        this.ephemeralEvents.add(eventJson);
+    private String consumeEphemeralEvent(final JsonObject eventJson) {
         return null;
     }
 
@@ -276,24 +273,10 @@ public class WebsocketHandler implements Websocket {
             final WebsocketContext context,
             final String subscriptionId
     ) {
-    //     try {
-    //         this.computeAndBroadcastEvents(context, subscriptionId);
-    //     } catch(Exception failure) {
-    //         logger.warning("[Nostr] [Subscription] failed fetching events");
-    //         failure.printStackTrace();
-    //     }
-//
-    // }
-//
-    // private void computeAndBroadcastEvents(
-    //         final WebsocketContext context,
-    //         final String subscriptionId
-    // ) {
 
         final Gson gson = new GsonBuilder().create();
 
         final List<JsonObject> events = new ArrayList<>();
-        events.addAll(ephemeralEvents);
 
         final File eventsDB = new File(directory, "events");
         if(eventsDB.exists()) eventsDB.listFiles(new FileFilter() {
