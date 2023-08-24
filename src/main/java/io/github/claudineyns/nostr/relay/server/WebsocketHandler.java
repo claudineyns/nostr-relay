@@ -20,13 +20,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
@@ -60,7 +57,7 @@ public class WebsocketHandler implements Websocket {
 
     @Override
     public byte onMessage(final WebsocketContext context, final TextMessage message) {
-        logger.info("[WS] Server received message of type {}\n{}", message.getType(), message.getMessage());
+        logger.info("[WS] Server received message of type {}", message.getType());
 
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
