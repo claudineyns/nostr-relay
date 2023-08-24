@@ -20,11 +20,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
@@ -44,7 +46,7 @@ public class WebsocketHandler implements Websocket {
 
     private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
 
-    private final Map<String, EventData> ephemeralEvents = new ConcurrentHashMap<>();
+    private final Collection<JsonObject> ephemeralEvents = new ConcurrentLinkedQueue<>();
 
     @Override
     public byte onOpen(final WebsocketContext context) {
@@ -158,7 +160,7 @@ public class WebsocketHandler implements Websocket {
         } else if( EventData.State.REPLACEABLE.equals(event.getState()) ) {
             responseText = persistEvent(eventRawJson, event, eventDB);
         } else if( EventData.State.EPHEMERAL.equals(event.getState()) ) {
-            responseText = cacheEvent(eventRawJson, event);
+            responseText = cacheEvent(eventJson);
         } else {
             responseText = "error: Could not update database";
         }
@@ -272,8 +274,8 @@ public class WebsocketHandler implements Websocket {
         return null;
     }
 
-    private String cacheEvent(final String eventJson, final EventData event) {
-        this.ephemeralEvents.put(event.getEventId(), event);
+    private String cacheEvent(final JsonObject eventJson) {
+        this.ephemeralEvents.add(eventJson);
         return null;
     }
 
@@ -281,13 +283,10 @@ public class WebsocketHandler implements Websocket {
             final WebsocketContext context,
             final String subscriptionId
     ) {
-        final String subscriptionKey = subscriptionId+":"+context.getContextID();
-        final Collection<JsonObject> filter = this.subscriptions
-            .getOrDefault(subscriptionKey, Collections.emptyList());
-
-        final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        final Gson gson = new GsonBuilder().create();
 
         final List<JsonObject> events = new ArrayList<>();
+        events.addAll(ephemeralEvents);
 
         final File eventsDB = new File(directory, "events");
         if(eventsDB.exists()) eventsDB.listFiles(new FileFilter() {
@@ -306,19 +305,76 @@ public class WebsocketHandler implements Websocket {
             }
         });
 
-        logger.info("[Nostr] [Event] events fetched:");
-        events.stream().forEach(entry -> logger.info("[Nostr] [Event] {}", gson.toJson(entry)));
-        logger.info("[Nostr] [Event] ^^^^^-----");
+        final String subscriptionKey = subscriptionId+":"+context.getContextID();
+        final Collection<JsonObject> filter = this.subscriptions
+            .getOrDefault(subscriptionKey, Collections.emptyList());
+
+        final List<JsonObject> selectedEvents = new ArrayList<>();
+
+        final AtomicInteger limit = new AtomicInteger(1);
 
         for(final JsonObject entry: filter) {
             final JsonElement authors = entry.get("authors");
-            final JsonElement ids = entry.get("ids");
-            final JsonElement since = entry.get("since");
-            final JsonElement until = entry.get("until");
+            if ( authors == null ) continue;
 
-            //if(entry.get(subscriptionKey))
+            final List<String> authorIdList = new ArrayList<>();
+            authors.getAsJsonArray()
+                .iterator()
+                .forEachRemaining(element -> authorIdList.add(element.getAsString()));
+
+            final List<String> eventIdList = new ArrayList<>();
+            final JsonElement ids = entry.get("ids");
+            Optional.ofNullable(ids).ifPresent(q -> q
+                .getAsJsonArray()
+                .iterator()
+                .forEachRemaining( element -> eventIdList.add(element.getAsString()) )
+            );
+
+            final Number startTime = Optional
+                .ofNullable(entry.get("since"))
+                .orElseGet(()->JsonNull.INSTANCE)
+                .getAsNumber();
+
+            final Number endTime = Optional
+                .ofNullable(entry.get("until"))
+                .orElseGet(()->JsonNull.INSTANCE)
+                .getAsNumber();
+
+            Optional
+                .ofNullable(entry.get("limit"))
+                .ifPresent(q -> {
+                    final int v = q.getAsInt();
+                    if( v > limit.get() ) {
+                        limit.set(v);
+                    }
+                });
+
+            events.stream().forEach(data -> {
+                final String eventId   = data.get("id").getAsString();
+                final String authorId  = data.get("pubkey").getAsString();
+                final Number createdAt = data.get("created_at").getAsNumber();
+
+                boolean include = true;
+                include = include && (eventIdList.isEmpty()  || eventIdList.contains(eventId));
+                include = include && (authorIdList.isEmpty() || authorIdList.contains(authorId));
+                include = include && (startTime == null      || createdAt.intValue() >= startTime.intValue() );
+                include = include && (endTime == null        || createdAt.intValue() <= endTime.intValue() );
+
+                if( !selectedEvents.contains(data) ) selectedEvents.add(data);                
+            });
+
         }
 
+        final int stop = limit.get() - 1;
+        for(int q = selectedEvents.size() - 1; q >= 0 && q > stop; --q) {
+            selectedEvents.remove(q);
+        }
+
+        final List<Object> subscriptionResponse = new ArrayList<>();
+        subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
+        subscriptionResponse.addAll(selectedEvents);
+
+        context.broadcast(gson.toJson(subscriptionResponse));
     }
 
 }
