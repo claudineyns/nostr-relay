@@ -27,13 +27,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
-import io.github.claudineyns.nostr.relay.specs.EventData;
+import io.github.claudineyns.nostr.relay.specs.EventState;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 import io.github.claudineyns.nostr.relay.websocket.BinaryMessage;
 import io.github.claudineyns.nostr.relay.websocket.TextMessage;
 import io.github.claudineyns.nostr.relay.websocket.Websocket;
 import io.github.claudineyns.nostr.relay.websocket.WebsocketException;
 
+@SuppressWarnings("unused")
 public class WebsocketHandler implements Websocket {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
@@ -84,9 +85,9 @@ public class WebsocketHandler implements Websocket {
             case "EVENT":
                 return this.handleEvent(context, nostrMessage, gson);
             case "REQ":
-                return this.handleSubscriptionRequest(context, nostrMessage, gson);
+                return this.handleSubscriptionRequest(context, nostrMessage);
             case "CLOSE":
-                return this.handleSubscriptionRemoval(context, nostrMessage, gson);
+                return this.handleSubscriptionRemoval(context, nostrMessage);
             default:
                 return logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
         }
@@ -103,6 +104,9 @@ public class WebsocketHandler implements Websocket {
         return logger.info("[WS] Server got error.");
     }
 
+    private static int METADATA = 0;
+    private static int TEXT_NOTE = 1;
+
     private byte handleEvent(
             final WebsocketContext context,
             final JsonArray nostrMessage,
@@ -111,11 +115,9 @@ public class WebsocketHandler implements Websocket {
 
         final JsonObject eventJson;
         final String eventRawJson;
-        final EventData event;
         try {
             eventJson = nostrMessage.get(1).getAsJsonObject();
             eventRawJson = eventJson.toString();
-            event = gson.fromJson(eventRawJson, EventData.class);
         } catch(Exception failure) {
             return logger.info(
                 "[Nostr] [Message] could not parse event\n{}: {}",
@@ -123,36 +125,29 @@ public class WebsocketHandler implements Websocket {
                 failure.getMessage());
         }
 
-        //TODO: Implementar NIP-09 (Event Deletion): https://github.com/nostr-protocol/nips/blob/master/09.md
+        final String eventId = eventJson.get("id").getAsString();
+        final String authorId = eventJson.get("pubkey").getAsString();
+        final int kind = eventJson.get("kind").getAsInt();
+        final EventState state = EventState.byKind(kind);
 
-        logger.info("[Nostr] [Message] event received: {}.", event.getEventId());
+        logger.info("[Nostr] [Message] event ID received: {}.", eventId);
 
         final List<Object> response = new ArrayList<>();
         response.add("OK");
-        response.add(event.getEventId());
+        response.add(eventId);
 
-        if( ! "1a7c9d8ac8a9f50d255573dbe1bacd511677d288a0ba5e2332ae4c15e407f29f".equals(event.getPublicKey())) {
+        if( ! "1a7c9d8ac8a9f50d255573dbe1bacd511677d288a0ba5e2332ae4c15e407f29f".equals(authorId)) {
             response.addAll(Arrays.asList(Boolean.FALSE, "blocked: development"));
 
             return context.broadcast(gson.toJson(response));
         }
 
-        /*
-         * Saving event
-         */
-
-        final File eventDB = new File(directory, "/events/"+event.getEventId());
-
         final String responseText;
-        if( EventData.State.REGULAR.equals(event.getState()) ) {
-            if( eventDB.exists() ) {
-                responseText = "duplicate: event has already been registered.";
-            } else {
-                responseText = persistEvent(eventRawJson, event, eventDB);
-            }
-        } else if( EventData.State.REPLACEABLE.equals(event.getState()) ) {
-            responseText = persistEvent(eventRawJson, event, eventDB);
-        } else if( EventData.State.EPHEMERAL.equals(event.getState()) ) {
+        if( EventState.REGULAR.equals(state) ) {
+            responseText = persistEvent(eventId, authorId, state, eventRawJson);
+        } else if( EventState.REPLACEABLE.equals(state) ) {
+            responseText = persistEvent(eventId, authorId, state, eventRawJson);
+        } else if( EventState.EPHEMERAL.equals(state) ) {
             responseText = consumeEphemeralEvent(eventJson);
         } else {
             responseText = "error: Could not update database";
@@ -164,14 +159,20 @@ public class WebsocketHandler implements Websocket {
             () -> response.addAll(Arrays.asList(Boolean.TRUE, ""))
         );
 
+        this.subscriptions.keySet()
+        .stream()
+        .filter(key -> key.endsWith(":"+context.getContextID()))
+        .forEach(key -> {
+            final String subscriptionId = key.substring(0, key.lastIndexOf(":"));
+
+            this.eventBroadcaster.submit(() -> this.filterAndBroadcastEvents(context, subscriptionId, Collections.singletonList(eventJson)));
+        });
+
         return context.broadcast(gson.toJson(response));
     }
 
-    private byte handleSubscriptionRequest(
-            final WebsocketContext context,
-            final JsonArray nostrMessage,
-            final Gson gson
-        ) {
+    private byte handleSubscriptionRequest(final WebsocketContext context, final JsonArray nostrMessage) {
+        final Gson gson = new GsonBuilder().create();
 
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
@@ -195,11 +196,8 @@ public class WebsocketHandler implements Websocket {
         return context.broadcast(gson.toJson(notice));
     }
 
-    private byte handleSubscriptionRemoval(
-            final WebsocketContext context,
-            final JsonArray nostrMessage,
-            final Gson gson
-        ) {
+    private byte handleSubscriptionRemoval(final WebsocketContext context, final JsonArray nostrMessage) {
+        final Gson gson = new GsonBuilder().create();
 
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
@@ -215,13 +213,16 @@ public class WebsocketHandler implements Websocket {
     }
 
     private String persistEvent(
-            final String eventJson,
-            final EventData event,
-            final File eventDB
+        final String eventId,
+        final String authorId,
+        final EventState state,
+        final String eventJson
     ) {
-        /**
-         * Save event version
-         */
+        final File eventDB = new File(directory, "/events/"+eventId);
+        if( EventState.REGULAR.equals(state) && eventDB.exists() ) {
+            return "duplicate: event has already been registered.";
+        }
+
         final File eventVersionDB = new File(eventDB, "/version");
         if ( ! eventVersionDB.exists() ) eventVersionDB.mkdirs();
         final File eventVersion = new File(eventVersionDB, "data-" + System.currentTimeMillis() + ".json");
@@ -233,9 +234,6 @@ public class WebsocketHandler implements Websocket {
             return "error: Development in progress.";
         }
 
-        /**
-         * Update event with current data
-         */
         final File eventCurrentDB = new File(eventDB, "/current");
         if( ! eventCurrentDB.exists() ) eventCurrentDB.mkdirs();
         final File eventData = new File(eventCurrentDB, "data.json");
@@ -246,19 +244,18 @@ public class WebsocketHandler implements Websocket {
             logger.warning("[Nostr] [Persistence] [Event] Could not update data: {}", failure.getMessage());
         }
 
-        /*
-         * Save author
-         */
-        final File authorDb = new File(directory, "/authors/" + event.getPublicKey() + "/events");
+        final File authorDb = new File(directory, "/authors/" + authorId + "/events");
         if( ! authorDb.exists() ) authorDb.mkdirs();
 
-        final File eventsAuthorFile = new File(authorDb, event.getEventId());
+        final File eventsAuthorFile = new File(authorDb, eventId);
         if( ! eventsAuthorFile.exists() ) {
             try {
                 eventsAuthorFile.createNewFile();
                 logger.info("[Nostr] [Persistence] [Event] Author linked");
             } catch(IOException failure) {
-                logger.warning("[Nostr] [Persistence] [Event] Could not link author: {}", failure.getMessage());
+                logger.warning(
+                    "[Nostr] [Persistence] [Event] Could not link author: {}",
+                    failure.getMessage());
             }
         }
 
@@ -269,11 +266,10 @@ public class WebsocketHandler implements Websocket {
         return null;
     }
 
-    private synchronized void fetchAndBroadcastEvents(
+    private synchronized byte fetchAndBroadcastEvents(
             final WebsocketContext context,
             final String subscriptionId
     ) {
-
         final Gson gson = new GsonBuilder().create();
 
         final List<JsonObject> events = new ArrayList<>();
@@ -294,6 +290,16 @@ public class WebsocketHandler implements Websocket {
                 return false;
             }
         });
+
+        return this.filterAndBroadcastEvents(context, subscriptionId, events);
+    }
+
+    private byte filterAndBroadcastEvents(
+        final WebsocketContext context,
+        final String subscriptionId,
+        final Collection<JsonObject> events
+    ) {
+        final Gson gson = new GsonBuilder().create();
 
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
         final Collection<JsonObject> filter = this.subscriptions
@@ -362,7 +368,11 @@ public class WebsocketHandler implements Websocket {
         subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
         subscriptionResponse.addAll(selectedEvents);
 
-        if( ! selectedEvents.isEmpty() ) context.broadcast(gson.toJson(subscriptionResponse));
+        if(! selectedEvents.isEmpty()) {
+            return context.broadcast(gson.toJson(subscriptionResponse));
+        }
+
+        return 0;
     }
 
 }

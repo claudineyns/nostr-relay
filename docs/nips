@@ -1,3 +1,7 @@
+# NIP-09: Event Deletion
+
+[NIP-09] (https://github.com/nostr-protocol/nips/blob/master/09.md)
+
 # NIP-65: Relay List Metadata 
 
 Defines a replaceable event using kind:10002 to advertise preferred relays for discovering a user's content and receiving fresh content from others.
