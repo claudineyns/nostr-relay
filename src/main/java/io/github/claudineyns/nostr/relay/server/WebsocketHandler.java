@@ -188,8 +188,6 @@ public class WebsocketHandler implements Websocket {
 
         for(int i = 2; i < nostrMessage.size(); ++i) {
             final JsonObject entry = nostrMessage.get(i).getAsJsonObject();
-            final String json = entry.toString();
-            logger.info("[Nostr] [Message] filter received:\n{}", json);
             filter.add(entry);
         }
 
@@ -385,7 +383,7 @@ public class WebsocketHandler implements Websocket {
         }
 
         logger.info("[Nostr] [Subscription] Selected events");
-        selectedEvents.stream().forEach(q -> logger.info(gson.toJson(q)));
+        selectedEvents.stream().forEach(q -> System.out.println(gson.toJson(q)));
 
         final List<Object> subscriptionResponse = new ArrayList<>();
         subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
