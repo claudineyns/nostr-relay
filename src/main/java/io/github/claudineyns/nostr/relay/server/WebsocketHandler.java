@@ -107,6 +107,7 @@ public class WebsocketHandler implements Websocket {
 
     private static int METADATA = 0;
     private static int TEXT_NOTE = 1;
+    private static int DELETION = 5;
 
     private byte handleEvent(
             final WebsocketContext context,
@@ -169,7 +170,13 @@ public class WebsocketHandler implements Websocket {
             this.eventBroadcaster.submit(() -> this.filterAndBroadcastEvents(context, subscriptionId, Collections.singletonList(eventJson)));
         });
 
-        return context.broadcast(gson.toJson(response));
+        this.eventBroadcaster.submit(() -> context.broadcast(gson.toJson(response)));
+
+        if( kind == DELETION ) {
+            this.removeEventsForDeletionEvent(eventId, authorId, eventJson);
+        }
+
+        return 0;
     }
 
     private byte handleSubscriptionRequest(final WebsocketContext context, final JsonArray nostrMessage) {
@@ -253,6 +260,75 @@ public class WebsocketHandler implements Websocket {
         }
 
         return null;
+    }
+
+    private byte removeEventsForDeletionEvent(
+        final String eventId,
+        final String authorId,
+        final JsonObject deletionEvent
+    ) {
+        final Gson gson = new GsonBuilder().create();
+        final List<String> linkedEventId = new ArrayList<>();
+        Optional
+            .ofNullable(deletionEvent.get("tags"))
+            .ifPresent(element -> element
+                .getAsJsonArray()
+                .forEach(entry -> {
+                    final JsonArray subItem = entry.getAsJsonArray();
+                    final String tagName = subItem.get(0).getAsString();
+                    if( ! "e".equals(tagName) ) return;
+
+                    linkedEventId.add(subItem.get(1).getAsString());
+                })
+        );
+
+        final File eventDB = new File(directory, "/events");
+
+        final List<JsonObject> eventsMarkedForDeletion = new ArrayList<>();
+        eventDB.listFiles(new FileFilter() {
+            public boolean accept(File pathname) {
+                if( !pathname.isDirectory() ) return false;
+
+                try (final InputStream in = new FileInputStream(new File(pathname, "/current/data.json")) ) {
+                    final JsonObject data = gson.fromJson(new InputStreamReader(in), JsonObject.class);
+
+                    final String qAuthorId = data.get("pubkey").getAsString();
+                    final String qEventId  = data.get("id").getAsString();
+
+                    if( qAuthorId.equals(authorId) && linkedEventId.contains(qEventId) ) {
+                        eventsMarkedForDeletion.add(data);
+                    }
+
+                } catch(IOException failure) {
+                    logger.warning("[Nostr] [Event] [Removal] Could not load event from db: {}", failure.getMessage());
+                }
+
+                return false;
+            }
+        });
+
+        eventsMarkedForDeletion.stream().forEach(event -> {
+            final String deletionEventId = event.get("id").getAsString();
+
+            final File eventVersionDB = new File(directory, "/events/" + deletionEventId + "/version");
+            if( !eventVersionDB.exists() ) eventVersionDB.mkdirs();
+            final File eventVersionFile = new File(eventVersionDB, "data-" + System.currentTimeMillis() + "-deleted.json");
+            if( ! eventVersionFile.exists() ) {
+                try {
+                     eventVersionFile.createNewFile();
+                } catch(IOException failure) {
+                    logger.warning("[Nostr] [Event] [Removal] Could not delete event {}: {}", deletionEventId, failure.getMessage());
+                    return;
+                }
+            }
+
+            final File eventFile = new File(directory, "/events/" + deletionEventId + "/current/data.json");
+            if(eventFile.exists()) eventFile.delete();
+
+            logger.info("[Nostr] [Event] [Removal] event {} deleted.", deletionEventId);
+        });
+
+        return 0;
     }
 
     private String consumeEphemeralEvent(final JsonObject eventJson) {

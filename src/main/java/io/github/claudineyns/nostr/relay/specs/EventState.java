@@ -4,12 +4,17 @@ public enum EventState {
 
     REGULAR, REPLACEABLE, EPHEMERAL, PARAMETERIZED_REPLACEABLE;
 
+    static final int METADATA = 0;
+    static final int TEXT_NOTE = 1;
+    static final int CONTACTS = 3;
+    static final int DELETION = 5;
+
     public static EventState byKind(final int n) {
-        if ((10000 <= n && n < 20000) || (n == 0) || (n == 1) || (n == 3)) {
+        if ((10000 <= n && n < 20000) || (n == METADATA) || (n == CONTACTS)) {
             return REPLACEABLE;
         }
 
-        if (1000 <= n && n < 10000) {
+        if ((1000 <= n && n < 10000) || (n == TEXT_NOTE) || (n == DELETION) ) {
             return REGULAR;
         }
 
