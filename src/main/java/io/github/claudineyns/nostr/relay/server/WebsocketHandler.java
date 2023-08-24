@@ -303,6 +303,7 @@ public class WebsocketHandler implements Websocket {
                     final EventState state = EventState.byKind(qEventKind);
 
                     if( EventState.REGULAR.equals(state) 
+                            && qEventKind != DELETION
                             && qAuthorId.equals(authorId)
                             && linkedEventId.contains(qEventId)
                     ) {
