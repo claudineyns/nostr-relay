@@ -167,7 +167,9 @@ public class WebsocketHandler implements Websocket {
         .forEach(key -> {
             final String subscriptionId = key.substring(0, key.lastIndexOf(":"));
 
-            this.eventBroadcaster.submit(() -> this.filterAndBroadcastEvents(context, subscriptionId, Collections.singletonList(eventJson)));
+            this.eventBroadcaster.submit(() -> this.filterAndBroadcastEvents(
+                context, subscriptionId, Collections.singletonList(eventJson)
+            ));
         });
 
         this.eventBroadcaster.submit(() -> context.broadcast(gson.toJson(response)));
@@ -289,7 +291,10 @@ public class WebsocketHandler implements Websocket {
             public boolean accept(File pathname) {
                 if( !pathname.isDirectory() ) return false;
 
-                try (final InputStream in = new FileInputStream(new File(pathname, "/current/data.json")) ) {
+                final File eventFile = new File(pathname, "/current/data.json");
+                if (!eventFile.exists()) return false;
+
+                try (final InputStream in = new FileInputStream(eventFile) ) {
                     final JsonObject data = gson.fromJson(new InputStreamReader(in), JsonObject.class);
 
                     final String qAuthorId = data.get("pubkey").getAsString();
@@ -298,7 +303,6 @@ public class WebsocketHandler implements Websocket {
                     if( qAuthorId.equals(authorId) && linkedEventId.contains(qEventId) ) {
                         eventsMarkedForDeletion.add(data);
                     }
-
                 } catch(IOException failure) {
                     logger.warning("[Nostr] [Event] [Removal] Could not load event from db: {}", failure.getMessage());
                 }
