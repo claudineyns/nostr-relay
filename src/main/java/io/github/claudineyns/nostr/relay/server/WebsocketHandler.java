@@ -40,7 +40,8 @@ public class WebsocketHandler implements Websocket {
 
     private final File directory = new File("/var/nostr/data/");
 
-    private ExecutorService eventBroadcaster = Executors.newCachedThreadPool();
+    // [ENFORCEMENT] Keep this executor with only a single thread
+    private ExecutorService eventBroadcaster = Executors.newSingleThreadExecutor();
 
     private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
 
@@ -301,50 +302,50 @@ public class WebsocketHandler implements Websocket {
 
         final int[] limit = new int[]{1};
 
-        for(final JsonObject entry: filter) {
-            final List<String> eventIdList = new ArrayList<>();
-            Optional.ofNullable(entry.get("ids")).ifPresent(q -> q
-                .getAsJsonArray()
-                .iterator()
-                .forEachRemaining( element -> eventIdList.add(element.getAsString()) )
-            );
+        events.stream().forEach(data -> {
+            final String eventId   = data.get("id").getAsString();
+            final String authorId  = data.get("pubkey").getAsString();
+            final int kind         = data.get("kind").getAsInt();
+            final Number createdAt = data.get("created_at").getAsNumber();
 
-            final List<Integer> kindList = new ArrayList<>();
-            Optional.ofNullable(entry.get("kinds")).ifPresent(q -> q
-                .getAsJsonArray()
-                .iterator()
-                .forEachRemaining( element -> kindList.add(element.getAsInt()) )
-            );
+            for(final JsonObject entry: filter) {
+                final List<String> eventIdList = new ArrayList<>();
+                Optional.ofNullable(entry.get("ids")).ifPresent(q -> q
+                    .getAsJsonArray()
+                    .iterator()
+                    .forEachRemaining( element -> eventIdList.add(element.getAsString()) )
+                );
 
-            final List<String> authorIdList = new ArrayList<>();
-            Optional.ofNullable(entry.get("authors")).ifPresent(q -> q
-                .getAsJsonArray()
-                .iterator()
-                .forEachRemaining( element -> authorIdList.add(element.getAsString()) )
-            );
+                final List<Integer> kindList = new ArrayList<>();
+                Optional.ofNullable(entry.get("kinds")).ifPresent(q -> q
+                    .getAsJsonArray()
+                    .iterator()
+                    .forEachRemaining( element -> kindList.add(element.getAsInt()) )
+                );
 
-            final int[] since = new int[] {0};
-            Optional
-                .ofNullable(entry.get("since"))
-                .ifPresent(time -> since[0] = time.getAsInt());
+                final List<String> authorIdList = new ArrayList<>();
+                Optional.ofNullable(entry.get("authors")).ifPresent(q -> q
+                    .getAsJsonArray()
+                    .iterator()
+                    .forEachRemaining( element -> authorIdList.add(element.getAsString()) )
+                );
 
-            final int[] until = new int[] {0};
-            Optional
-                .ofNullable(entry.get("until"))
-                .ifPresent(time -> until[0] = time.getAsInt());
+                final int[] since = new int[] {0};
+                Optional
+                    .ofNullable(entry.get("since"))
+                    .ifPresent(time -> since[0] = time.getAsInt());
 
-            Optional
-                .ofNullable(entry.get("limit"))
-                .ifPresent(q -> {
-                    final int v = q.getAsInt();
-                    if( v > limit[0] ) limit[0] = v;
-                });
+                final int[] until = new int[] {0};
+                Optional
+                    .ofNullable(entry.get("until"))
+                    .ifPresent(time -> until[0] = time.getAsInt());
 
-            events.stream().forEach(data -> {
-                final String eventId   = data.get("id").getAsString();
-                final String authorId  = data.get("pubkey").getAsString();
-                final int kind         = data.get("kind").getAsInt();
-                final Number createdAt = data.get("created_at").getAsNumber();
+                Optional
+                    .ofNullable(entry.get("limit"))
+                    .ifPresent(q -> {
+                        final int v = q.getAsInt();
+                        if( v > limit[0] ) limit[0] = v;
+                    });
 
                 boolean include = true;
                 include = include && (eventIdList.isEmpty()  || eventIdList.contains(eventId));
@@ -353,13 +354,15 @@ public class WebsocketHandler implements Websocket {
                 include = include && (since[0] == 0          || createdAt.intValue() >= since[0] );
                 include = include && (until[0] == 0          || createdAt.intValue() <= until[0] );
 
-                if( include && !selectedEvents.contains(data) ){
+                if( include ) {
                     selectedEvents.add(data);
                     logger.info("[Nostr] [Subscription]\nevent\n{}\nmatch by filter\n{}", data.toString(), entry.toString());
+                    break;
                 }
-            });
 
-        }
+            }
+
+        });
 
         selectedEvents.sort((a, b) -> 
             b.get("created_at").getAsInt() - a.get("created_at").getAsInt()
@@ -389,6 +392,9 @@ public class WebsocketHandler implements Websocket {
         });
 
         packetList.stream().forEach(packet -> this.eventBroadcaster.submit(() -> context.broadcast(packet)));
+
+        final String endOfStoredEvents = gson.toJson(Arrays.asList("EOSE", subscriptionId));
+        this.eventBroadcaster.submit(()-> context.broadcast(endOfStoredEvents));
 
         return 0;
     }
