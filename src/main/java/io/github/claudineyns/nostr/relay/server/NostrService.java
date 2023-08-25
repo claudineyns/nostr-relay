@@ -282,21 +282,6 @@ public class NostrService {
             logger.warning("[Nostr] [Persistence] [Event] Could not update data: {}", failure.getMessage());
         }
 
-        final File authorDb = new File(directory, "/authors/" + authorId + "/events");
-        if( ! authorDb.exists() ) authorDb.mkdirs();
-
-        final File eventsAuthorFile = new File(authorDb, eventId);
-        if( ! eventsAuthorFile.exists() ) {
-            try {
-                eventsAuthorFile.createNewFile();
-                logger.info("[Nostr] [Persistence] [Event] Author linked");
-            } catch(IOException failure) {
-                logger.warning(
-                    "[Nostr] [Persistence] [Event] Could not link author: {}",
-                    failure.getMessage());
-            }
-        }
-
         return null;
     }
 
