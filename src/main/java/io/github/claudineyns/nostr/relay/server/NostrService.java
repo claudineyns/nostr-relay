@@ -355,7 +355,7 @@ public class NostrService {
                 return "error: Could not update database.";
             }
 
-            final File paramCurrentDB = new File(dataDB, "/current");
+            final File paramCurrentDB = new File(dataDB, param + "/current");
             if( ! paramCurrentDB.exists() ) paramCurrentDB.mkdirs();
 
             final File paramData = new File(paramCurrentDB, "data.json");
