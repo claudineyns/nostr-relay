@@ -6,7 +6,7 @@ public final class Constants {
 	public static final String PROPERTY_PORT  = 
 		"nostr.server.port";
 	public static final String PROPERTY_TLS_PORT = 
-		"nostr.server.tls-port";
+		"nostr.server.tls.port";
 	public static final String PROPERTY_TLS_ACTIVE = 
 		"nostr.server.tls";
 	public static final String PROPERTY_HOSTNAME = 
