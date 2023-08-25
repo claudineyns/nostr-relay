@@ -1,12 +1,24 @@
-[
-    "EVENT",
-    {
-        "id":     "41ce9bc50da77dda5542f020370ecc2b056d8f2be93c1cedf1bf57efcab095b0",
-        "pubkey": "5a462fa6044b4b8da318528a6987a45e3adf832bd1c64bd6910eacfecdf07541",
-        "created_at": 1640305962,
-        "kind": 1,
-        "tags": [],
-        "content": "running branle",
-        "sig":    "08e6303565e9282f32bed41eee4136f45418f366c0ec489ef4f90d13de1b3b9fb45e14c74f926441f8155236fb2f6fef5b48a5c52b19298a0585a2c06afe39ed"
-    }
-]
+{
+    "kind": 30078,
+    "content": "7EshsD85XdqDwb5+tw9Ew9R77wJL9FHwCnKD+h9fUNYhn9ACUbPfFHyvuPANdCco/CGGwV2rCsOhjdi+dzHNASjIZ9TOEjjrUG7pMU7Ft3Y=?iv=F/zVHSDNy37SburpXwEdNA==",
+    "tags": [
+        [
+            "d",
+            "nostr-engine/Nip28/last_checked/v1"
+        ],
+        [
+            "client",
+            "coracle"
+        ]
+    ],
+    "created_at": 1693003216,
+    "pubkey": "1a7c9d8ac8a9f50d255573dbe1bacd511677d288a0ba5e2332ae4c15e407f29f",
+    "id": "5195bc5c9e8bc6595ff95fe032451f3194819c3d1644b583ac7ad46845c61d6a",
+    "sig": "1fb05798ecc8216b356a35dba97fcf769c16265e2a3558f3ad88510f185a638cf49f86848404e77cb24b6405708dec70acac58fe1222a59e998e64e3592779f0",
+    "response": [
+        "OK",
+        "5195bc5c9e8bc6595ff95fe032451f3194819c3d1644b583ac7ad46845c61d6a",
+        false,
+        "error: Could not update database"
+    ]
+}

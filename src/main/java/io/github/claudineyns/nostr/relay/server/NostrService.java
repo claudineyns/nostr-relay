@@ -11,6 +11,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -22,6 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import org.apache.commons.codec.binary.Hex;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -182,6 +186,8 @@ public class NostrService {
             } else {
                 responseText = persistEvent(kind, eventId, authorId, state, eventRawJson);
             }
+        } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(state) ) {
+            responseText = persistParameterizedReplaceable(kind, eventId, authorId, eventJson, eventRawJson);
         } else if( EventState.EPHEMERAL.equals(state) ) {
             responseText = consumeEphemeralEvent(eventJson);
         } else {
@@ -263,7 +269,7 @@ public class NostrService {
             logger.info("[Nostr] [Persistence] [Event] Version saved");
         } catch(IOException failure) {
             logger.warning("[Nostr] [Persistence] [Event] Could not save version: {}", failure.getMessage());
-            return "error: Development in progress.";
+            return "error: Could not update database.";
         }
 
         final File eventCurrentDB = new File(eventDB, "/current");
@@ -307,7 +313,7 @@ public class NostrService {
             logger.info("[Nostr] [Persistence] [Profile] Version saved");
         } catch(IOException failure) {
             logger.warning("[Nostr] [Persistence] [Profile] Could not save version: {}", failure.getMessage());
-            return "error: Development in progress.";
+            return "error: Could not update database.";
         }
 
         final File profileCurrentDB = new File(profileDB, "/current");
@@ -318,6 +324,64 @@ public class NostrService {
             logger.info("[Nostr] [Persistence] [Profile] data updated");
         } catch(IOException failure) {
             logger.warning("[Nostr] [Persistence] [Profile] Could not update data: {}", failure.getMessage());
+            return "error: Could not update database.";
+        }
+
+        return null;
+    }
+
+    private String persistParameterizedReplaceable(
+        final int kind,
+        final String eventId,
+        final String authorId,
+        final JsonObject eventData,
+        final String eventJson
+    ) {
+        final List<String> dTagList = new ArrayList<>();
+        Optional.ofNullable(eventData.get("tags"))
+        .ifPresent(tagEL -> tagEL.getAsJsonArray().forEach(tagEntry -> {
+            final JsonArray tagArray = tagEntry.getAsJsonArray();
+            if(tagArray.size() < 2) return;
+
+            final String tagName = tagArray.get(0).getAsString();
+            if( !"d".equals(tagName)) return;
+
+            final String value = sha256(tagArray.get(1).getAsString().getBytes(StandardCharsets.UTF_8));
+            dTagList.add(value);
+        }));
+
+        if( dTagList.isEmpty() ) {
+            return "blocked: event must contain 'd' tag entry";
+        }
+
+        final File dataDB = new File(directory, "/parameter/"+authorId+"/kind/"+kind+"/data");
+        if( ! dataDB.exists() ) dataDB.mkdirs();
+
+        for(final String param: dTagList) {
+            final File paramVersionDB = new File(dataDB, param + "/version");
+            if ( ! paramVersionDB.exists() ) paramVersionDB.mkdirs();
+
+            final File paramVersion = new File(paramVersionDB, "data-" + System.currentTimeMillis() + ".json");
+            try (final OutputStream paramRecord = new FileOutputStream(paramVersion)) {
+                paramRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
+                logger.info("[Nostr] [Persistence] [Parameter] Version saved");
+            } catch(IOException failure) {
+                logger.warning("[Nostr] [Persistence] [Parameter] Could not save version: {}", failure.getMessage());
+                return "error: Could not update database.";
+            }
+
+            final File paramCurrentDB = new File(dataDB, "/current");
+            if( ! paramCurrentDB.exists() ) paramCurrentDB.mkdirs();
+
+            final File paramData = new File(paramCurrentDB, "data.json");
+            try (final OutputStream paramRecord = new FileOutputStream(paramData)) {
+                paramRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
+                logger.info("[Nostr] [Persistence] [Parameter] data updated");
+            } catch(IOException failure) {
+                logger.warning("[Nostr] [Persistence] [Parameter] Could not update data: {}", failure.getMessage());
+                return "error: Could not update database.";
+            }
+
         }
 
         return null;
@@ -412,6 +476,7 @@ public class NostrService {
         final List<JsonObject> events = new ArrayList<>();
         fetchEvents(events);
         fetchProfile(events);
+        fetchParameters(events);
 
         final boolean newEvents = false;
         return this.filterAndBroadcastEvents(context, subscriptionId, events, newEvents);
@@ -423,6 +488,41 @@ public class NostrService {
 
     private byte fetchProfile(final List<JsonObject> events) {
         return this.fetchCurrent(events, new File(directory, "profile"));
+    }
+
+    private byte fetchParameters(final List<JsonObject> events) {
+        final List<File> parameters = new ArrayList<>();
+
+        //new File(directory, "/parameter/"+authorId+"/kind/"+kind+"/data");
+        final File authorDB = new File(directory, "/parameter");
+        if(authorDB.exists()) authorDB.listFiles(new FileFilter() {
+            public boolean accept(final File pathname) {
+                if( ! pathname.isDirectory() ) return false;
+
+                final File kindDB = new File(pathname, "/kind");
+                if(kindDB.exists()) kindDB.listFiles(new FileFilter() {
+                    public boolean accept(final File pathname2) {
+                        if( ! pathname2.isDirectory() ) return false;
+
+                        final File currentDB = new File(pathname2, "/data");
+                        final List<JsonObject> events2 = new ArrayList<>();
+                        fetchCurrent(events2, currentDB);
+                        events.addAll(events2);
+
+                        for(final JsonObject q: events2) {
+                            logger.info("[Nostr] [Persistent] [Parameter] [Fetch]\n{}", q);
+                        }
+
+                        return false;
+                    }
+                });
+
+                return false;
+            }
+        });
+        
+
+        return 0;
     }
 
     private byte fetchCurrent(final List<JsonObject> events, final File dataDB) {
@@ -592,6 +692,16 @@ public class NostrService {
         });
 
         return 0;
+    }
+
+    private static String sha256(final byte[] source) {
+        final MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("SHA-256");
+            return Hex.encodeHexString(md.digest(source));
+        } catch(NoSuchAlgorithmException e) {
+            return "0".repeat(64);
+        }
     }
     
 }
