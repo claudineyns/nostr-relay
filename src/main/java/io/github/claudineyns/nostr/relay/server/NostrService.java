@@ -35,6 +35,7 @@ import io.github.claudineyns.nostr.relay.specs.EventState;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 import io.github.claudineyns.nostr.relay.websocket.TextMessage;
 
+@SuppressWarnings("unused")
 public class NostrService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
@@ -46,8 +47,13 @@ public class NostrService {
     private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
 
     private static int METADATA = 0;
-    //private static int TEXT_NOTE = 1;
+    private static int TEXT_NOTE = 1;
     private static int DELETION = 5;
+    private static int CHANNEL_CREATE = 40;
+    private static int CHANNEL_METADATA = 41;
+    private static int CHANNEL_MESSAGE = 42;
+    private static int CHANNEL_HIDE = 43;
+    private static int CHANNEL_MUTE_USER = 44;
 
     private EventValidation validate(final String eventJson) throws IOException {
         final Gson gson = new GsonBuilder().create();
@@ -179,7 +185,7 @@ public class NostrService {
         } else if( EventState.EPHEMERAL.equals(state) ) {
             responseText = consumeEphemeralEvent(eventJson);
         } else {
-            responseText = "error: Could not update database";
+            responseText = "error: Not supported yet";
         }
 
         Optional.ofNullable(responseText)

@@ -524,34 +524,21 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendIndexPage() throws IOException {
-		final String html = 
-				  "<!DOCTYPE html><html><head>"
-				+ "<meta charset=\"UTF-8\">"
-				+ "<title>Decentralized Social Network</title>"
-				+ "<style type=\"text/css\">.h {margin: 0 0 .5em 0; padding: 0; font-family: Courier, monospace; text-align: center; font-weight: normal;}</style>"
-				+ "</head><body>"
-				+ "<h3 class=\"h\">&nbsp;</h3>"
-				+ "<h3 class=\"h\" id=\"box1\"></h3>"
-				+ "<h3 class=\"h\" id=\"box2\" style=\"display: none;\">Get to know <a href=\"https://nostr.com\" target=\"_blank\">here</a>.</h3>"
-				+ "<script type=\"text/javascript\">"
-				+ "(function() { "
-				+ "const box1 = document.querySelector('#box1'); "
-				+ "const title = ('Social'+' '.repeat(5)+'Network.'+' '.repeat(10)+'Decentralized.'+' '.repeat(10)+'Censorship-resistant.'+' '.repeat(20)).split(''); "
-				+ "let c = 0; let q = setInterval(()=>{ "
-				+ "if(c++ < title.length) {"
-				+ " p = title[c-1]; "
-				+ " const g = document.createElement('span');"
-				+ " g.appendChild(document.createTextNode(p));"
-				+ " box1.appendChild(g);"
-				+ "} else { clearInterval(q); document.querySelector('#box2').style.display=''; } }, 110);"
-				+ "})();"
-				+ "</script>"
-				+ "</body>"
-				+ "</html>\n";
-		final byte[] raw = html.getBytes(StandardCharsets.UTF_8);
+		final StringBuilder page = new StringBuilder("");
+		final ByteArrayOutputStream html = new ByteArrayOutputStream();
+		try(final InputStream in = getClass()
+				.getResourceAsStream("/META-INF/resources/index.html")) {
+			IOUtils.copy(in, html);
+			page.append(new String(html.toByteArray(), StandardCharsets.UTF_8)
+				.replaceAll("[\\r\\n]", "")
+				.replaceAll("\\s+", " ")
+			);
+		}
 
-		this.httpResponseHeaders.put("Content-Type", Collections.singletonList("text/html; charset=UTF-8"));
-		this.httpResponseHeaders.put("Content-Length", Collections.singletonList(Integer.toString(raw.length)));
+		final byte[] raw = page.toString().getBytes(StandardCharsets.UTF_8);
+
+		this.httpResponseHeaders.put("Content-Type", Arrays.asList("text/html; charset=UTF-8"));
+		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
 		this.httpResponseBody.write(raw);
 
 		return 0;
@@ -560,8 +547,8 @@ public class ClientHandler implements Runnable {
 	private byte sendFavicon() throws IOException {
 		final byte[] raw = new byte[] {};
 
-		this.httpResponseHeaders.put("Content-Type", Collections.singletonList("image/icon"));
-		this.httpResponseHeaders.put("Content-Length", Collections.singletonList(Integer.toString(raw.length)));
+		this.httpResponseHeaders.put("Content-Type", Arrays.asList("image/icon"));
+		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
 		this.httpResponseBody.write(raw);
 
 		return 0;
