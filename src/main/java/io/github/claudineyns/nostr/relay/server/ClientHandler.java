@@ -696,6 +696,7 @@ public class ClientHandler implements Runnable {
 
 		this.sendStatusLine(status);
 		this.sendDateHeader();
+		this.sendPoweredByHeader();
 		this.sendAccessControlAllowOriginHeader();
 
 		if( status.code() == HttpStatus.UPGRADE_REQUIRED.code() ) {
@@ -707,7 +708,6 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( status.code() == HttpStatus.SWITCHING_PROTOCOL.code() ) {
-			this.sendPoweredByHeader();
 			this.sendConnectionUpgraderHeader();
 			this.sendUpgradeWebsocketHeader();
 			this.sendSecWebsocketAcceptHeader(secWebsocketKey.get(0));
