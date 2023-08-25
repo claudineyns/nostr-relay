@@ -456,6 +456,10 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
+	private byte sendPoweredByHeader() throws IOException {
+		return this.sendBytes(("X-Powered-By: nostr-protocol" + CRLF).getBytes(StandardCharsets.US_ASCII));
+	}
+
 	private byte sendAccessControlAllowOriginHeader() throws IOException{
 		return this.sendBytes(("Access-Control-Allow-Origin: *" + CRLF).getBytes(StandardCharsets.US_ASCII));
 	}
@@ -703,6 +707,7 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( status.code() == HttpStatus.SWITCHING_PROTOCOL.code() ) {
+			this.sendPoweredByHeader();
 			this.sendConnectionUpgraderHeader();
 			this.sendUpgradeWebsocketHeader();
 			this.sendSecWebsocketAcceptHeader(secWebsocketKey.get(0));
