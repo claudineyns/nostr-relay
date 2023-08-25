@@ -526,8 +526,8 @@ public class ClientHandler implements Runnable {
 	private byte sendLivePage() throws IOException {
 		final String html = 
 				  "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">"
-				+ "<title>Nostr Relay</title></head><body>"
-				+ "<h3 style=\"font-family: Courier, monospace; text-align: center; font-weight: normal;\">Nostr Relay is live</h3>"
+				+ "<title>Social</title></head><body>"
+				+ "<h3 style=\"font-family: Courier, monospace; text-align: center; font-weight: normal;\">Social Network. Decentralized.</h3>"
 				+ "</body></html>\n";
 		final byte[] raw = html.getBytes(StandardCharsets.UTF_8);
 
