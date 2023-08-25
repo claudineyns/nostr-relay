@@ -324,7 +324,7 @@ public class ClientHandler implements Runnable {
 
 		switch (path) {
 			case "/live":
-				return this.sendLivePage();
+				return this.sendIndexPage();
 			case "/favicon.ico":
 				return this.sendFavicon();
 			case "/":
@@ -523,12 +523,31 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
-	private byte sendLivePage() throws IOException {
+	private byte sendIndexPage() throws IOException {
 		final String html = 
-				  "<!DOCTYPE html><html><head><meta charset=\"UTF-8\">"
-				+ "<title>Social</title></head><body>"
-				+ "<h3 style=\"font-family: Courier, monospace; text-align: center; font-weight: normal;\">Social Network. Decentralized.</h3>"
-				+ "</body></html>\n";
+				  "<!DOCTYPE html><html><head>"
+				+ "<meta charset=\"UTF-8\">"
+				+ "<title>Decentralized Social Network</title>"
+				+ "<style type=\"text/css\">.h {margin: 0 0 .5em 0; padding: 0; font-family: Courier, monospace; text-align: center; font-weight: normal;}</style>"
+				+ "</head><body>"
+				+ "<h3 class=\"h\">&nbsp;</h3>"
+				+ "<h3 class=\"h\" id=\"box1\"></h3>"
+				+ "<h3 class=\"h\" id=\"box2\" style=\"display: none;\">Get to know <a href=\"https://nostr.com\" target=\"_blank\">here</a>.</h3>"
+				+ "<script type=\"text/javascript\">"
+				+ "(function() { "
+				+ "const box1 = document.querySelector('#box1'); "
+				+ "const title = ('Social'+' '.repeat(5)+'Network.'+' '.repeat(10)+'Decentralized.'+' '.repeat(10)+'Censorship-resistant.'+' '.repeat(20)).split(''); "
+				+ "let c = 0; let q = setInterval(()=>{ "
+				+ "if(c++ < title.length) {"
+				+ " p = title[c-1]; "
+				+ " const g = document.createElement('span');"
+				+ " g.appendChild(document.createTextNode(p));"
+				+ " box1.appendChild(g);"
+				+ "} else { clearInterval(q); document.querySelector('#box2').style.display=''; } }, 110);"
+				+ "})();"
+				+ "</script>"
+				+ "</body>"
+				+ "</html>\n";
 		final byte[] raw = html.getBytes(StandardCharsets.UTF_8);
 
 		this.httpResponseHeaders.put("Content-Type", Collections.singletonList("text/html; charset=UTF-8"));
@@ -713,6 +732,10 @@ public class ClientHandler implements Runnable {
 			this.sendSecWebsocketAcceptHeader(secWebsocketKey.get(0));
 
 			this.websocket = true;
+		} else if( status.code() == HttpStatus.OK.code() ) {
+			this.sendIndexPage();
+			this.sendCustomHeaders();
+			this.sendConnectionCloseHeader();
 		} else {
 			this.sendConnectionCloseHeader();
 		}
@@ -724,7 +747,7 @@ public class ClientHandler implements Runnable {
 			this.notifyWebsocketOpening();
 		}
 
-		return 0;
+		return this.mountCustomBody();
 	}
 
 	private void notifyWebsocketOpening() {
