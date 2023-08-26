@@ -531,6 +531,7 @@ public class NostrService {
             final Number createdAt  = data.get("created_at").getAsNumber();
 
             final List<String> evRefPubKeyList = new ArrayList<>();
+            final List<String> evRefParamList = new ArrayList<>();
             Optional
                 .ofNullable(tags)
                 .ifPresent(tagEL -> tagEL
@@ -538,7 +539,12 @@ public class NostrService {
                     .forEach(entryEL -> {
                         final JsonArray entryList = entryEL.getAsJsonArray();
                         final String tagName = entryList.get(0).getAsString();
-                        if("p".equals(tagName)) evRefPubKeyList.add(entryList.get(1).getAsString());
+                        final String tagValue = entryList.get(1).getAsString();
+                        switch(tagName) {
+                            case "p": evRefPubKeyList.add(tagValue); break;
+                            case "d": evRefParamList.add(tagValue); break;
+                            default: break;
+                        }
                     })
             );
 
@@ -577,6 +583,14 @@ public class NostrService {
                 );
                 emptyFilter = emptyFilter && refPubkeyList.isEmpty();
 
+                final List<String> refParamList = new ArrayList<>();
+                Optional.ofNullable(entry.get("#d")).ifPresent(q -> q
+                    .getAsJsonArray()
+                    .iterator()
+                    .forEachRemaining( element -> refParamList.add(element.getAsString()) )
+                );
+                // Filter '#d' (data) cannot be used without combine it with 'pubkey' or 'kind'
+
                 final int[] since = new int[] {0};
                 Optional
                     .ofNullable(entry.get("since"))
@@ -597,10 +611,13 @@ public class NostrService {
                 if(emptyFilter) continue;
 
                 boolean include = true;
+
                 include = include && (eventIdList.isEmpty()   || eventIdList.contains(eventId));
                 include = include && (kindList.isEmpty()      || kindList.contains(kind));
                 include = include && (authorIdList.isEmpty()  || authorIdList.contains(authorId));
                 include = include && (refPubkeyList.isEmpty() || any(evRefPubKeyList, refPubkeyList) );
+                include = include && (refParamList.isEmpty()  || any(evRefParamList, refParamList) );
+
                 include = include && (since[0] == 0           || createdAt.intValue() >= since[0] );
                 include = include && (until[0] == 0           || createdAt.intValue() <= until[0] );
 
