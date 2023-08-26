@@ -40,6 +40,7 @@ import io.github.claudineyns.nostr.relay.service.EventCacheDataService;
 import io.github.claudineyns.nostr.relay.service.EventDiskDataService;
 import io.github.claudineyns.nostr.relay.specs.EventKind;
 import io.github.claudineyns.nostr.relay.specs.EventState;
+import io.github.claudineyns.nostr.relay.utilities.AppProperties;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 import io.github.claudineyns.nostr.relay.utilities.Utils;
 import io.github.claudineyns.nostr.relay.websocket.TextMessage;
@@ -50,6 +51,9 @@ public class NostrService {
     private final IEventService eventService = IEventService.INSTANCE;
 
     private final File directory = new File("/var/nostr/data/");
+
+    private final String validationHost = AppProperties.getEventValidationHost();
+    private final int validationPort = AppProperties.getEventValidationPort();
 
     // [ENFORCEMENT] Keep this executor with only a single thread
     private ExecutorService eventBroadcaster = Executors.newSingleThreadExecutor();
@@ -230,7 +234,7 @@ public class NostrService {
     private EventValidation validate(final String eventJson) throws IOException {
         final Gson gson = new GsonBuilder().create();
 
-        final URL url = new URL("http://localhost:8888/event");
+        final URL url = new URL("http://"+validationHost+":"+validationPort+"/event");
         final HttpURLConnection http = (HttpURLConnection) url.openConnection();
 
         http.setRequestMethod("POST");

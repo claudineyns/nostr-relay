@@ -9,13 +9,19 @@ public final class AppProperties {
 	private AppProperties() { /***/ }
 
 	private static final String DEFAULT_ACME_CHALLENGE_PATH = "/var/www/.well-known/acme-challenge/";
+
 	private static final String DEFAULT_PORT = "8080";
 	private static final String DEFAULT_TLS_PORT = "8443";
 	private static final String DEFAULT_TLS_ACTIVE = "false";
+
 	private static final String DEFAULT_CLIENT_PING_SECOND = "60";
+
 	private static final String DEFAULT_REDIS_HOST = "localhost";
 	private static final String DEFAULT_REDIS_PORT = "6379";
 	private static final String DEFAULT_REDIS_PASS = "";
+
+	private static final String DEFAULT_VALIDATION_HOST = "localhost";
+	private static final String DEFAULT_VALIDATION_PORT = "localhost";
 
 	public static String getAcmeChallengePath() {
 		return nullValue(
@@ -78,12 +84,12 @@ public final class AppProperties {
 	}
 
 	public static int getClientPingSecond() {
-		final String port = nullValue(
+		final String info = nullValue(
 				System.getProperty(Constants.PROPERTY_CLIENT_PING_SECOND),
 				System.getenv(Constants.ENV_CLIENT_PING_SECOND),
 				DEFAULT_CLIENT_PING_SECOND
 			);
-		return Integer.parseInt(port);
+		return Integer.parseInt(info);
 	}
 
 	private static final String DEFAULT_HOST_NAME;
@@ -105,6 +111,23 @@ public final class AppProperties {
 				System.getenv(Constants.ENV_HOSTNAME),
 				DEFAULT_HOST_NAME
 			);
+	}
+
+	public static String getEventValidationHost() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_VALIDATION_HOST),
+				System.getenv(Constants.ENV_VALIDATION_HOST),
+				DEFAULT_VALIDATION_HOST
+			);
+	}
+
+	public static int getEventValidationPort() {
+		final String port = nullValue(
+				System.getProperty(Constants.PROPERTY_VALIDATION_PORT),
+				System.getenv(Constants.ENV_VALIDATION_PORT),
+				DEFAULT_VALIDATION_PORT
+			);
+		return Integer.parseInt(port);
 	}
 
 }
