@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -217,9 +218,9 @@ public class EventCacheDataService implements IEventService {
 
         final List<JsonObject> eventsMarkedForDeletion = new ArrayList<>();
 
-        final List<String> events = jedis.zrange("events", 0, System.currentTimeMillis());
+        final Set<String> eventIds = jedis.smembers("eventList");
 
-        for(final String eventId: events) {
+        for(final String eventId: eventIds) {
             Optional.ofNullable(jedis.get("event#"+eventId)).ifPresent(event -> {
                 final JsonObject data = gson.fromJson(event, JsonObject.class);
 
@@ -262,7 +263,7 @@ public class EventCacheDataService implements IEventService {
     private byte fetchCurrent(final Jedis jedis, final List<JsonObject> events, final String cache) {
         final Gson gson = new GsonBuilder().create();
 
-        final List<String> idList = jedis.zrange(cache+"List", 0, System.currentTimeMillis());
+        final Set<String> idList = jedis.smembers(cache+"List");
         for(final String id: idList) {
              Optional.ofNullable(jedis.get(cache+"#" + id)).ifPresent(event -> 
                 events.add(gson.fromJson(event, JsonObject.class))
