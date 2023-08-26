@@ -18,6 +18,7 @@ import io.github.claudineyns.nostr.relay.utilities.LogService;
 import io.github.claudineyns.nostr.relay.utilities.Utils;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.exceptions.JedisException;
 
 public class EventCacheDataService implements IEventService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
@@ -33,12 +34,18 @@ public class EventCacheDataService implements IEventService {
     ) {
         try (final Jedis jedis = cache.connect()) {
             return saveEvent(jedis, kind, eventId, authorId, state, eventJson);
+        } catch(JedisException e) {
+            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return "error: Could not connect to databse";
         }
     }
 
     public String persistProfile(String authorId, String eventJson) {
         try (final Jedis jedis = cache.connect()) {
             return saveProfile(jedis, authorId, eventJson);
+        } catch(JedisException e) {
+            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return "error: Could not connect to databse";
         }
     }
 
@@ -68,6 +75,9 @@ public class EventCacheDataService implements IEventService {
 
         try (final Jedis jedis = cache.connect()) {
             return saveParameterizedReplaceable(jedis, kind, eventId, authorId, eventData, eventJson, dTagList);
+        } catch(JedisException e) {
+            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return "error: Could not connect to databse";
         }
     }
 
@@ -93,24 +103,32 @@ public class EventCacheDataService implements IEventService {
 
         try (final Jedis jedis = cache.connect()) {
             return removeEvents(jedis, eventId, authorId, deletionEvent, linkedEvents);
+        } catch(JedisException e) {
+            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
     }
 
     public byte fetchEvents(final List<JsonObject> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchCurrent(jedis, events, "event");
+        } catch(JedisException e) {
+            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
     }
 
     public byte fetchProfile(final List<JsonObject> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchCurrent(jedis, events, "profile");
+        } catch(JedisException e) {
+            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
     }
 
     public byte fetchParameters(final List<JsonObject> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchCurrent(jedis, events, "parameter");
+        } catch(JedisException e) {
+            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
     }
 
