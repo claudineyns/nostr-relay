@@ -8,10 +8,13 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 public class CacheService {
+    static final JedisPoolConfig poolConfig;
+    public static final CacheService INSTANCE;
 
-    public static CacheService INSTANCE = new CacheService();
-
-    static final JedisPoolConfig poolConfig = buildPoolConfig();
+    static {
+        poolConfig = buildPoolConfig();
+        INSTANCE = new CacheService();
+    }
 
     private boolean closed = false;
 
