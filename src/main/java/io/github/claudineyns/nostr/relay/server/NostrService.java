@@ -135,8 +135,9 @@ public class NostrService {
         response.add("OK");
         response.add(eventId);
 
-        if( ! "1a7c9d8ac8a9f50d255573dbe1bacd511677d288a0ba5e2332ae4c15e407f29f".equals(authorId)) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "blocked: development"));
+        final String checkRegistration = eventService.checkRegistration(authorId);
+        if( checkRegistration != null ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, checkRegistration));
 
             return context.broadcast(gson.toJson(response));
         }

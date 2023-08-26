@@ -29,6 +29,11 @@ public class EventDiskDataService implements IEventService {
 
     private final File directory = new File("/var/nostr/data/");
 
+    public synchronized String checkRegistration (final String pubkey) {
+        final File registration = new File(directory, "/registration/" + pubkey);
+        return registration.exists() ? null : REG_REQUIRED;
+    }
+
     public synchronized String persistEvent(
         final int kind,
         final String eventId,
@@ -49,7 +54,7 @@ public class EventDiskDataService implements IEventService {
             logger.info("[Nostr] [Persistence] [Event] Version saved");
         } catch(IOException failure) {
             logger.warning("[Nostr] [Persistence] [Event] Could not save version: {}", failure.getMessage());
-            return "error: Could not update database.";
+            return DB_ERROR;
         }
 
         final File eventCurrentDB = new File(eventDB, "/current");
@@ -78,7 +83,7 @@ public class EventDiskDataService implements IEventService {
             logger.info("[Nostr] [Persistence] [Profile] Version saved");
         } catch(IOException failure) {
             logger.warning("[Nostr] [Persistence] [Profile] Could not save version: {}", failure.getMessage());
-            return "error: Could not update database.";
+            return DB_ERROR;
         }
 
         final File profileCurrentDB = new File(profileDB, "/current");
@@ -89,7 +94,7 @@ public class EventDiskDataService implements IEventService {
             logger.info("[Nostr] [Persistence] [Profile] data updated");
         } catch(IOException failure) {
             logger.warning("[Nostr] [Persistence] [Profile] Could not update data: {}", failure.getMessage());
-            return "error: Could not update database.";
+            return DB_ERROR;
         }
 
         return null;
@@ -108,7 +113,7 @@ public class EventDiskDataService implements IEventService {
             logger.info("[Nostr] [Persistence] [Contact] Version saved");
         } catch(IOException failure) {
             logger.warning("[Nostr] [Persistence] [Contact] Could not save version: {}", failure.getMessage());
-            return "error: Could not update database.";
+            return DB_ERROR;
         }
 
         final File contactCurrentDB = new File(contactDB, "/current");
@@ -119,7 +124,7 @@ public class EventDiskDataService implements IEventService {
             logger.info("[Nostr] [Persistence] [Contact] data updated");
         } catch(IOException failure) {
             logger.warning("[Nostr] [Persistence] [Contact] Could not update data: {}", failure.getMessage());
-            return "error: Could not update database.";
+            return DB_ERROR;
         }
 
         return null;
@@ -163,7 +168,7 @@ public class EventDiskDataService implements IEventService {
                 logger.info("[Nostr] [Persistence] [Parameter] Version saved");
             } catch(IOException failure) {
                 logger.warning("[Nostr] [Persistence] [Parameter] Could not save version: {}", failure.getMessage());
-                return "error: Could not update database.";
+                return DB_ERROR;
             }
 
             final File dataCurrentDB = new File(dataDB, "/current");
@@ -175,7 +180,7 @@ public class EventDiskDataService implements IEventService {
                 logger.info("[Nostr] [Persistence] [Parameter] data updated");
             } catch(IOException failure) {
                 logger.warning("[Nostr] [Persistence] [Parameter] Could not update data: {}", failure.getMessage());
-                return "error: Could not update database.";
+                return DB_ERROR;
             }
 
         }

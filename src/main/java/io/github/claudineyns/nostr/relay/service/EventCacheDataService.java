@@ -26,6 +26,16 @@ public class EventCacheDataService implements IEventService {
 
     private final CacheService cache = CacheService.INSTANCE;
 
+    public synchronized String checkRegistration(final String pubkey) {
+
+        try (final Jedis jedis = cache.connect()) {
+            return validateRegistration(jedis, pubkey);
+        } catch(JedisException e) {
+            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return DB_ERROR;
+        }
+    }
+
     public synchronized String persistEvent(
             final int kind,
             final String eventId,
@@ -37,7 +47,7 @@ public class EventCacheDataService implements IEventService {
             return saveEvent(jedis, kind, eventId, authorId, state, eventJson);
         } catch(JedisException e) {
             logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-            return "error: Could not connect to databse";
+            return DB_ERROR;
         }
     }
 
@@ -46,7 +56,7 @@ public class EventCacheDataService implements IEventService {
             return saveProfile(jedis, authorId, eventJson);
         } catch(JedisException e) {
             logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-            return "error: Could not connect to databse";
+            return DB_ERROR;
         }
     }
 
@@ -55,7 +65,7 @@ public class EventCacheDataService implements IEventService {
             return saveContactList(jedis, authorId, eventJson);
         } catch(JedisException e) {
             logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-            return "error: Could not connect to databse";
+            return DB_ERROR;
         }
     }
 
@@ -87,7 +97,7 @@ public class EventCacheDataService implements IEventService {
             return saveParameterizedReplaceable(jedis, kind, eventId, authorId, eventData, eventJson, dTagList);
         } catch(JedisException e) {
             logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-            return "error: Could not connect to databse";
+            return DB_ERROR;
         }
     }
 
@@ -147,6 +157,10 @@ public class EventCacheDataService implements IEventService {
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
+    }
+
+    private String validateRegistration(final Jedis jedis, final String pubkey) {
+        return jedis.smembers("registration").contains(pubkey) ? null : REG_REQUIRED;
     }
 
     private String saveEvent(
