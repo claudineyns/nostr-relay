@@ -11,4 +11,5 @@ public interface Websocket {
     byte onMessage(final WebsocketContext context, TextMessage message);
     byte onMessage(final WebsocketContext context, BinaryMessage message);
     byte onError(WebsocketException exception);
+    byte onServerShutdown();
 }

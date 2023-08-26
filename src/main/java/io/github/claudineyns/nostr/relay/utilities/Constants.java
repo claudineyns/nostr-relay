@@ -13,6 +13,12 @@ public final class Constants {
 		"nostr.server.hostname";
 	public static final String PROPERTY_CLIENT_PING_SECOND = 
 		"nostr.websocket.client.ping.second";
+	public static final String PROPERTY_REDIS_HOST = 
+		"redis.host";
+	public static final String PROPERTY_REDIS_PORT = 
+		"redis.port";
+	public static final String PROPERTY_REDIS_PASS = 
+		"redis.pass";
 
 	public static final String ENV_ACME_CHALLENGE_PATH = 
 		"ACME_CHALLENGE_PATH";
@@ -26,6 +32,12 @@ public final class Constants {
 		"NOSTR_SERVER_HOSTNAME";
 	public static final String ENV_CLIENT_PING_SECOND = 
 		"NOSTR_WEBSOCKET_CLIENT_PING_SECOND";
+	public static final String ENV_REDIS_HOST = 
+		"REDIS_HOST";
+	public static final String ENV_REDIS_PORT = 
+		"REDIS_PORT";
+	public static final String ENV_REDIS_PASS = 
+		"REDIS_PASS";
 
 	public static final String WEBSOCKET_UUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 

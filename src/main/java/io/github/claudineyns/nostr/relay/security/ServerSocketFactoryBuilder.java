@@ -1,4 +1,4 @@
-package io.github.claudineyns.nostr.relay.factory;
+package io.github.claudineyns.nostr.relay.security;
 
 import java.io.IOException;
 import java.security.KeyManagementException;

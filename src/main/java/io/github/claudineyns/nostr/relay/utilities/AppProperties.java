@@ -14,6 +14,9 @@ public final class AppProperties {
 	private static final String DEFAULT_TLS_PORT = "8443";
 	private static final String DEFAULT_TLS_ACTIVE = "false";
 	private static final String DEFAULT_CLIENT_PING_SECOND = "60";
+	private static final String DEFAULT_REDIS_HOST = "localhost";
+	private static final String DEFAULT_REDIS_PORT = "6379";
+	private static final String DEFAULT_REDIS_PASS = "";
 
 	public static String getAcmeChallengePath() {
 		return nullValue(

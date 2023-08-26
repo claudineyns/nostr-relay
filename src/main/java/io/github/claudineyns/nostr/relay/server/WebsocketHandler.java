@@ -65,4 +65,10 @@ public class WebsocketHandler implements Websocket {
         return logger.info("[WS] Server got error.");
     }
 
+    @Override
+    public byte onServerShutdown() {
+        return nostr.close();
+    }
+    
+
 }

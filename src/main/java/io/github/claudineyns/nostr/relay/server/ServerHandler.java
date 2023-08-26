@@ -5,7 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 
-import io.github.claudineyns.nostr.relay.factory.ServerSocketFactoryBuilder;
+import io.github.claudineyns.nostr.relay.security.ServerSocketFactoryBuilder;
 import io.github.claudineyns.nostr.relay.utilities.AppProperties;
 import io.github.claudineyns.nostr.relay.utilities.LogService;
 
@@ -22,6 +22,8 @@ public class ServerHandler implements Runnable {
     }
 	
 	void stop() {
+		this.websocketHandler.onServerShutdown();
+
 		try {
 			if(server != null && !server.isClosed()) {
 				server.close();
