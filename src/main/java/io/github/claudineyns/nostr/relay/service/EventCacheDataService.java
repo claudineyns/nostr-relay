@@ -1,13 +1,5 @@
 package io.github.claudineyns.nostr.relay.service;
 
-import java.io.File;
-import java.io.FileFilter;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +19,7 @@ import io.github.claudineyns.nostr.relay.utilities.Utils;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 
-public class EventDataService implements IEventService {
+public class EventCacheDataService implements IEventService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     private final CacheService cache = CacheService.INSTANCE;
@@ -104,6 +96,24 @@ public class EventDataService implements IEventService {
         }
     }
 
+    public byte fetchEvents(final List<JsonObject> events) {
+        try (final Jedis jedis = cache.connect()) {
+            return this.fetchCurrent(jedis, events, "event");
+        }
+    }
+
+    public byte fetchProfile(final List<JsonObject> events) {
+        try (final Jedis jedis = cache.connect()) {
+            return this.fetchCurrent(jedis, events, "profile");
+        }
+    }
+
+    public byte fetchParameters(final List<JsonObject> events) {
+        try (final Jedis jedis = cache.connect()) {
+            return this.fetchCurrent(jedis, events, "parameter");
+        }
+    }
+
     private String saveEvent(
             final Jedis jedis,
             final int kind,
@@ -122,7 +132,7 @@ public class EventDataService implements IEventService {
         final String versionKey = "event#" + eventId + ":version";
 
         final Pipeline pipeline = jedis.pipelined();
-        pipeline.sadd("events", eventId);
+        pipeline.sadd("eventList", eventId);
         pipeline.set(currentDataKey, event);
         pipeline.zadd(versionKey, score, event);
         pipeline.sync();
@@ -132,13 +142,13 @@ public class EventDataService implements IEventService {
     }
 
     private String saveProfile(final Jedis jedis, final String pubkey, final String event) {
-        final String currentDataKey = "author#" + pubkey;
+        final String currentDataKey = "profile#" + pubkey;
 
         final long score = System.currentTimeMillis();
-        final String versionKey = "author#" + pubkey + ":version";
+        final String versionKey = "profile#" + pubkey + ":version";
 
         final Pipeline pipeline = jedis.pipelined();
-        pipeline.sadd("authors", pubkey);
+        pipeline.sadd("profileList", pubkey);
         pipeline.set(currentDataKey, event);
         pipeline.zadd(versionKey, score, event);
         pipeline.sync();
@@ -166,7 +176,7 @@ public class EventDataService implements IEventService {
             final String currentDataKey = "parameter#" + data;
             final String versionKey = "parameter#" + param + ":version";
 
-            pipeline.sadd("parameters", data);
+            pipeline.sadd("parameterList", data);
             pipeline.set(currentDataKey, event);
             pipeline.zadd(versionKey, score, event);
         }
@@ -228,6 +238,19 @@ public class EventDataService implements IEventService {
         pipeline.sync();
 
         logger.info("[Nostr] [Persistence] [Event] events related by event {} has been deleted.", deletionEventId);
+        return 0;
+    }
+
+    private byte fetchCurrent(final Jedis jedis, final List<JsonObject> events, final String cache) {
+        final Gson gson = new GsonBuilder().create();
+
+        final List<String> idList = jedis.zrange(cache+"List", 0, System.currentTimeMillis());
+        for(final String id: idList) {
+             Optional.ofNullable(jedis.get(cache+"#" + id)).ifPresent(event -> 
+                events.add(gson.fromJson(event, JsonObject.class))
+             );
+        }
+
         return 0;
     }
 

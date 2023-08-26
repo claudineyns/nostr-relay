@@ -36,7 +36,7 @@ import com.google.gson.JsonParseException;
 
 import io.github.claudineyns.nostr.relay.def.IEventService;
 import io.github.claudineyns.nostr.relay.dto.EventValidation;
-import io.github.claudineyns.nostr.relay.service.EventDataService;
+import io.github.claudineyns.nostr.relay.service.EventCacheDataService;
 import io.github.claudineyns.nostr.relay.service.EventDiskDataService;
 import io.github.claudineyns.nostr.relay.specs.EventKind;
 import io.github.claudineyns.nostr.relay.specs.EventState;

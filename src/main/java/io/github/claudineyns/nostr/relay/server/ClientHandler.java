@@ -38,7 +38,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.io.IOUtils;
 
 import io.github.claudineyns.nostr.relay.exceptions.CloseConnectionException;
-import io.github.claudineyns.nostr.relay.service.EventDataService;
+import io.github.claudineyns.nostr.relay.service.EventCacheDataService;
 import io.github.claudineyns.nostr.relay.types.HttpMethod;
 import io.github.claudineyns.nostr.relay.types.HttpStatus;
 import io.github.claudineyns.nostr.relay.types.Opcode;

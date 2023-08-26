@@ -4,11 +4,12 @@ import java.util.List;
 
 import com.google.gson.JsonObject;
 
-import io.github.claudineyns.nostr.relay.service.EventDiskDataService;
+import io.github.claudineyns.nostr.relay.service.EventCacheDataService;
 import io.github.claudineyns.nostr.relay.specs.EventState;
 
 public interface IEventService {
-    public static final IEventService INSTANCE = new EventDiskDataService();
+    // public static final IEventService INSTANCE = new EventDiskDataService();
+    public static final IEventService INSTANCE = new EventCacheDataService();
 
     String persistEvent(
             final int kind,
