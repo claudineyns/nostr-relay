@@ -210,7 +210,7 @@ public class NostrService {
             filter.add(entry);
         }
 
-        subscriptions.put(subscriptionKey, filter);
+        this.subscriptions.put(subscriptionKey, filter);
 
         eventBroadcaster.submit(() -> fetchAndBroadcastEvents(context, subscriptionId));
 
@@ -419,16 +419,22 @@ public class NostrService {
             }
         }
 
+        if( !newEvents ) {
+            logger.info("[Nostr] [Subscription] number of events to sent to subscriptionId {}: {}", subscriptionId, selectedEvents.size());
+        }
+
         if( ! selectedEvents.isEmpty() ) {
             final List<Object> subscriptionResponse = new ArrayList<>();
             subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
             subscriptionResponse.addAll(selectedEvents);
             this.eventBroadcaster.submit(() -> context.broadcast(gson.toJson(subscriptionResponse)));
         }
-
+        
         if( ! newEvents ) {
             final String endOfStoredEvents = gson.toJson(Arrays.asList("EOSE", subscriptionId));
             this.eventBroadcaster.submit(()-> context.broadcast(endOfStoredEvents));
+
+            logger.info("[Nostr] [Subscription] number of events to sent later to subscriptionId {}: {}", subscriptionId, sendLater.size());
         }
 
         sendLater.forEach(event -> {
