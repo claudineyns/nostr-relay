@@ -103,7 +103,7 @@
               <transformers>
                 <transformer
                   implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                  <mainClass>io.github.claudineyns.nostr.relay.server.Bootstrap</mainClass>
+                  <mainClass>io.github.social.nostr.relay.server.Bootstrap</mainClass>
                 </transformer>
               </transformers>
             </configuration>
