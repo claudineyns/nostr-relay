@@ -331,22 +331,23 @@ public class NostrService {
             final String tagName = tagArray.get(0).getAsString();
             if( !"d".equals(tagName)) return;
 
-            final String value = sha256(tagArray.get(1).getAsString().getBytes(StandardCharsets.UTF_8));
-            dTagList.add(value);
+            dTagList.add(tagArray.get(1).getAsString());
         }));
 
         if( dTagList.isEmpty() ) {
             return "blocked: event must contain 'd' tag entry";
         }
 
-        final File dataDB = new File(directory, "/parameter/"+authorId+"/kind/"+kind+"/data");
-        if( ! dataDB.exists() ) dataDB.mkdirs();
-
         for(final String param: dTagList) {
-            final File paramVersionDB = new File(dataDB, param + "/version");
-            if ( ! paramVersionDB.exists() ) paramVersionDB.mkdirs();
+            final String data = sha256 ((authorId+"#"+kind+"#"+param).getBytes(StandardCharsets.UTF_8) );
 
-            final File paramVersion = new File(paramVersionDB, "data-" + System.currentTimeMillis() + ".json");
+            final File dataDB = new File(directory, "/parameter/"+data);
+            if( ! dataDB.exists() ) dataDB.mkdirs();
+
+            final File dataVersionDB = new File(dataDB, "/version");
+            if ( ! dataVersionDB.exists() ) dataVersionDB.mkdirs();
+
+            final File paramVersion = new File(dataVersionDB, "data-" + System.currentTimeMillis() + ".json");
             try (final OutputStream paramRecord = new FileOutputStream(paramVersion)) {
                 paramRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
                 logger.info("[Nostr] [Persistence] [Parameter] Version saved");
@@ -355,11 +356,11 @@ public class NostrService {
                 return "error: Could not update database.";
             }
 
-            final File paramCurrentDB = new File(dataDB, param + "/current");
-            if( ! paramCurrentDB.exists() ) paramCurrentDB.mkdirs();
+            final File dataCurrentDB = new File(dataDB, "/current");
+            if ( ! dataCurrentDB.exists() ) dataCurrentDB.mkdirs();
 
-            final File paramData = new File(paramCurrentDB, "data.json");
-            try (final OutputStream paramRecord = new FileOutputStream(paramData)) {
+            final File contentData = new File(dataCurrentDB, "data.json");
+            try (final OutputStream paramRecord = new FileOutputStream(contentData)) {
                 paramRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
                 logger.info("[Nostr] [Persistence] [Parameter] data updated");
             } catch(IOException failure) {
@@ -476,38 +477,7 @@ public class NostrService {
     }
 
     private byte fetchParameters(final List<JsonObject> events) {
-        final List<File> parameters = new ArrayList<>();
-
-        //new File(directory, "/parameter/"+authorId+"/kind/"+kind+"/data");
-        final File authorDB = new File(directory, "/parameter");
-        if(authorDB.exists()) authorDB.listFiles(new FileFilter() {
-            public boolean accept(final File pathname) {
-                if( ! pathname.isDirectory() ) return false;
-
-                final File kindDB = new File(pathname, "/kind");
-                if(kindDB.exists()) kindDB.listFiles(new FileFilter() {
-                    public boolean accept(final File pathname2) {
-                        if( ! pathname2.isDirectory() ) return false;
-
-                        final File currentDB = new File(pathname2, "/data");
-                        final List<JsonObject> events2 = new ArrayList<>();
-                        fetchCurrent(events2, currentDB);
-                        events.addAll(events2);
-
-                        for(final JsonObject q: events2) {
-                            logger.info("[Nostr] [Persistent] [Parameter] [Fetch]\n{}", q);
-                        }
-
-                        return false;
-                    }
-                });
-
-                return false;
-            }
-        });
-        
-
-        return 0;
+        return fetchCurrent(events, new File(directory, "/parameter"));
     }
 
     private byte fetchCurrent(final List<JsonObject> events, final File dataDB) {
