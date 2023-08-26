@@ -21,7 +21,7 @@ public final class AppProperties {
 	private static final String DEFAULT_REDIS_PASS = "";
 
 	private static final String DEFAULT_VALIDATION_HOST = "localhost";
-	private static final String DEFAULT_VALIDATION_PORT = "localhost";
+	private static final String DEFAULT_VALIDATION_PORT = "8888";
 
 	public static String getAcmeChallengePath() {
 		return nullValue(
