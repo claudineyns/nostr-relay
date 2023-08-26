@@ -309,12 +309,11 @@ public class EventCacheDataService implements IEventService {
     private byte fetchCurrent(final Jedis jedis, final List<JsonObject> events, final String cache) {
         final Gson gson = new GsonBuilder().create();
 
-        final Set<String> idList = jedis.smembers(cache+"List");
-        for(final String id: idList) {
+        jedis.smembers(cache+"List").stream().forEach(id -> 
              Optional.ofNullable(jedis.get(cache+"#" + id)).ifPresent(event -> 
                 events.add(gson.fromJson(event, JsonObject.class))
-             );
-        }
+             )
+        );
 
         return 0;
     }

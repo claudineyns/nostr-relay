@@ -210,7 +210,7 @@ public class NostrService {
             filter.add(entry);
         }
 
-        subscriptions.put(subscriptionKey, filter);
+        this.subscriptions.put(subscriptionKey, filter);
 
         eventBroadcaster.submit(() -> fetchAndBroadcastEvents(context, subscriptionId));
 
@@ -268,10 +268,15 @@ public class NostrService {
     ) {
 
         final List<JsonObject> events = new ArrayList<>();
+
+        logger.info("[Nostr] [Subscription] fetching events.");
+
         eventService.fetchEvents(events);
         eventService.fetchProfile(events);
         eventService.fetchContactList(events);
         eventService.fetchParameters(events);
+
+        logger.info("[Nostr] [Subscription] total events fetch: {}", events.size());
 
         final boolean newEvents = false;
         return this.filterAndBroadcastEvents(context, subscriptionId, events, newEvents);
@@ -297,6 +302,8 @@ public class NostrService {
 
         final byte NO_LIMIT = 0;
         final int[] limit = new int[]{ NO_LIMIT };
+
+        logger.info("[Nostr] [Subscription] performing event filtering.");
 
         events.stream().forEach(data -> {
             final String eventId    = data.get("id").getAsString();
@@ -406,6 +413,8 @@ public class NostrService {
 
         });
 
+        logger.info("[Nostr] [Subscription] sorting events by creation time.");
+
         selectedEvents.sort((a, b) -> 
             b.get("created_at").getAsInt() - a.get("created_at").getAsInt()
         );
@@ -419,16 +428,22 @@ public class NostrService {
             }
         }
 
+        if( !newEvents ) {
+            logger.info("[Nostr] [Subscription] number of events to sent to subscriptionId {}: {}", subscriptionId, selectedEvents.size());
+        }
+
         if( ! selectedEvents.isEmpty() ) {
             final List<Object> subscriptionResponse = new ArrayList<>();
             subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
             subscriptionResponse.addAll(selectedEvents);
             this.eventBroadcaster.submit(() -> context.broadcast(gson.toJson(subscriptionResponse)));
         }
-
+        
         if( ! newEvents ) {
             final String endOfStoredEvents = gson.toJson(Arrays.asList("EOSE", subscriptionId));
             this.eventBroadcaster.submit(()-> context.broadcast(endOfStoredEvents));
+
+            logger.info("[Nostr] [Subscription] number of events to sent later to subscriptionId {}: {}", subscriptionId, sendLater.size());
         }
 
         sendLater.forEach(event -> {
