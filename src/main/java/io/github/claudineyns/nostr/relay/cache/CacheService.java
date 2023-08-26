@@ -2,6 +2,7 @@ package io.github.claudineyns.nostr.relay.cache;
 
 import java.time.Duration;
 
+import io.github.claudineyns.nostr.relay.utilities.AppProperties;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -16,7 +17,13 @@ public class CacheService {
 
     private final JedisPool jedisPool;
     private CacheService() {
-        jedisPool = new JedisPool(poolConfig, "localhost");
+        final int timeout = 0;
+        jedisPool = new JedisPool(
+            poolConfig,
+            AppProperties.getRedisHost(),
+            AppProperties.getRedisPort(),
+            timeout,
+            AppProperties.getRedisSecret());
     }
 
     public Jedis connect() {

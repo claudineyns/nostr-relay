@@ -6,7 +6,6 @@ import java.net.Inet4Address;
 import java.net.UnknownHostException;
 
 public final class AppProperties {
-
 	private AppProperties() { /***/ }
 
 	private static final String DEFAULT_ACME_CHALLENGE_PATH = "/var/www/.well-known/acme-challenge/";
@@ -51,6 +50,31 @@ public final class AppProperties {
 				DEFAULT_TLS_ACTIVE
 			);
 		return Boolean.parseBoolean(tlsRequired);
+	}
+
+	public static String getRedisHost() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_REDIS_HOST),
+				System.getenv(Constants.ENV_REDIS_HOST),
+				DEFAULT_REDIS_HOST
+			);
+	}
+
+	public static int getRedisPort() {
+		final String port = nullValue(
+				System.getProperty(Constants.PROPERTY_REDIS_PORT),
+				System.getenv(Constants.ENV_REDIS_PORT),
+				DEFAULT_REDIS_PORT
+			);
+		return Integer.parseInt(port);
+	}
+
+	public static String getRedisSecret() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_REDIS_PASS),
+				System.getenv(Constants.ENV_REDIS_PASS),
+				DEFAULT_REDIS_PASS
+			);
 	}
 
 	public static int getClientPingSecond() {
