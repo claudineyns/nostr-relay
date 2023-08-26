@@ -8,13 +8,7 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 public class CacheService {
-    static final JedisPoolConfig poolConfig;
-    public static final CacheService INSTANCE;
-
-    static {
-        poolConfig = buildPoolConfig();
-        INSTANCE = new CacheService();
-    }
+    public static final CacheService INSTANCE = new CacheService();
 
     private boolean closed = false;
 
@@ -22,7 +16,7 @@ public class CacheService {
     private CacheService() {
         final int timeout = 0;
         jedisPool = new JedisPool(
-            poolConfig,
+            buildPoolConfig(),
             AppProperties.getRedisHost(),
             AppProperties.getRedisPort(),
             timeout,
