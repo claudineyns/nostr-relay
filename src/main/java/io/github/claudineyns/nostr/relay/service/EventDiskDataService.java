@@ -95,6 +95,36 @@ public class EventDiskDataService implements IEventService {
         return null;
     }
 
+    public synchronized String persistContactList(final String authorId, final String eventJson) {
+        final File contactDB = new File(directory, "/contact/"+authorId);
+
+        if( ! contactDB.exists() ) contactDB.mkdirs();
+
+        final File contactVersionDB = new File(contactDB, "/version");
+        if ( ! contactVersionDB.exists() ) contactVersionDB.mkdirs();
+        final File contactVersion = new File(contactVersionDB, "data-" + System.currentTimeMillis() + ".json");
+        try (final OutputStream contactRecord = new FileOutputStream(contactVersion)) {
+            contactRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
+            logger.info("[Nostr] [Persistence] [Contact] Version saved");
+        } catch(IOException failure) {
+            logger.warning("[Nostr] [Persistence] [Contact] Could not save version: {}", failure.getMessage());
+            return "error: Could not update database.";
+        }
+
+        final File contactCurrentDB = new File(contactDB, "/current");
+        if( ! contactCurrentDB.exists() ) contactCurrentDB.mkdirs();
+        final File profileData = new File(contactCurrentDB, "data.json");
+        try (final OutputStream profileRecord = new FileOutputStream(profileData)) {
+            profileRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
+            logger.info("[Nostr] [Persistence] [Contact] data updated");
+        } catch(IOException failure) {
+            logger.warning("[Nostr] [Persistence] [Contact] Could not update data: {}", failure.getMessage());
+            return "error: Could not update database.";
+        }
+
+        return null;
+    }
+
     public synchronized String persistParameterizedReplaceable(
         final int kind,
         final String eventId,
@@ -236,6 +266,10 @@ public class EventDiskDataService implements IEventService {
 
     public byte fetchProfile(final List<JsonObject> events) {
         return this.fetchCurrent(events, new File(directory, "profile"));
+    }
+
+    public byte fetchContactList(final List<JsonObject> events) {
+        return this.fetchCurrent(events, new File(directory, "contact"));
     }
 
     public byte fetchParameters(final List<JsonObject> events) {

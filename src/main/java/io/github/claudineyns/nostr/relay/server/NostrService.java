@@ -153,6 +153,8 @@ public class NostrService {
         } else if( EventState.REPLACEABLE.equals(state) ) {
             if( kind == EventKind.METADATA ) {
                 responseText = eventService.persistProfile(authorId, eventRawJson);
+            } else if( kind == EventKind.CONTACT_LIST ) {
+                responseText = eventService.persistContactList(authorId, eventRawJson);
             } else {
                 responseText = eventService.persistEvent(kind, eventId, authorId, state, eventRawJson);
             }
@@ -263,6 +265,7 @@ public class NostrService {
         final List<JsonObject> events = new ArrayList<>();
         eventService.fetchEvents(events);
         eventService.fetchProfile(events);
+        eventService.fetchContactList(events);
         eventService.fetchParameters(events);
 
         final boolean newEvents = false;

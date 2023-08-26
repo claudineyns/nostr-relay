@@ -50,6 +50,15 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
+    public String persistContactList(String authorId, String eventJson) {
+        try (final Jedis jedis = cache.connect()) {
+            return saveContactList(jedis, authorId, eventJson);
+        } catch(JedisException e) {
+            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return "error: Could not connect to databse";
+        }
+    }
+
     public synchronized String persistParameterizedReplaceable(
             final int kind,
             final String eventId,
@@ -125,6 +134,13 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
+    public byte fetchContactList(final List<JsonObject> events) {
+        try (final Jedis jedis = cache.connect()) {
+            return this.fetchCurrent(jedis, events, "contact");
+        } catch(JedisException e) {
+            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+        }
+    }
     public byte fetchParameters(final List<JsonObject> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchCurrent(jedis, events, "parameter");
@@ -173,6 +189,22 @@ public class EventCacheDataService implements IEventService {
         pipeline.sync();
 
         logger.info("[Nostr] [Persistence] [Profile] author {} updated.", pubkey);
+        return null;
+    }
+
+    private String saveContactList(final Jedis jedis, final String pubkey, final String event) {
+        final String currentDataKey = "contact#" + pubkey;
+
+        final long score = System.currentTimeMillis();
+        final String versionKey = "contact#" + pubkey + ":version";
+
+        final Pipeline pipeline = jedis.pipelined();
+        pipeline.sadd("contactList", pubkey);
+        pipeline.set(currentDataKey, event);
+        pipeline.zadd(versionKey, score, event);
+        pipeline.sync();
+
+        logger.info("[Nostr] [Persistence] [Contact] data by author {} updated.", pubkey);
         return null;
     }
 
