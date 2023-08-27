@@ -176,7 +176,7 @@ public class EventDiskDataService implements IEventService {
         return null;
     }
 
-    public byte deletionRequestEvent(EventData eventDeletion) {
+    public byte deletionRequestEvent(final EventData eventDeletion) {
         final Gson gson = new GsonBuilder().create();
         final List<String> linkedEventId = new ArrayList<>();
 

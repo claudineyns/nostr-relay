@@ -8,11 +8,9 @@ import java.util.Set;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-
 import io.github.social.nostr.relay.cache.CacheService;
 import io.github.social.nostr.relay.def.IEventService;
+import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
@@ -37,15 +35,9 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public String persistEvent(
-            final int kind,
-            final String eventId,
-            final String authorId,
-            final EventState state,
-            final String eventJson
-    ) {
+    public String persistEvent(EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
-            return saveEvent(jedis, kind, eventId, authorId, state, eventJson);
+            return saveEvent(jedis, eventData);
         } catch(JedisException e) {
             logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
             return DB_ERROR;
@@ -70,66 +62,51 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public String persistParameterizedReplaceable(
-            final int kind,
-            final String eventId,
-            final String authorId,
-            final JsonObject eventData,
-            final String eventJson) {
+    public String persistParameterizedReplaceable(final EventData eventData) {
         final List<String> dTagList = new ArrayList<>();
-        Optional.ofNullable(eventData.get("tags"))
-                .ifPresent(tagEL -> tagEL.getAsJsonArray().forEach(tagEntry -> {
-                    final JsonArray tagArray = tagEntry.getAsJsonArray();
-                    if (tagArray.size() < 2)
-                        return;
 
-                    final String tagName = tagArray.get(0).getAsString();
-                    if (!"d".equals(tagName))
-                        return;
+        eventData.getTags().forEach(tagArray -> {
+            if (tagArray.size() < 2) return;
 
-                    dTagList.add(tagArray.get(1).getAsString());
-                }));
+            final String tagName = tagArray.get(0);
+            if (!"d".equals(tagName)) return;
+
+            dTagList.add(tagArray.get(1));
+        });
 
         if (dTagList.isEmpty()) {
             return "blocked: event must contain 'd' tag entry";
         }
 
         try (final Jedis jedis = cache.connect()) {
-            return saveParameterizedReplaceable(jedis, kind, eventId, authorId, eventData, eventJson, dTagList);
+            return saveParameterizedReplaceable(jedis, eventData, dTagList);
         } catch(JedisException e) {
             logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
             return DB_ERROR;
         }
     }
 
-    public byte deletionRequestEvent(
-        final String eventId,
-        final String authorId,
-        final JsonObject deletionEvent
-    ) {
+    public byte deletionRequestEvent(final EventData eventDeletion){
         
         final List<String> linkedEvents = new ArrayList<>();
-        Optional
-            .ofNullable(deletionEvent.get("tags"))
-            .ifPresent(element -> element
-                .getAsJsonArray()
-                .forEach(entry -> {
-                    final JsonArray subItem = entry.getAsJsonArray();
-                    final String tagName = subItem.get(0).getAsString();
-                    if( ! "e".equals(tagName) ) return;
 
-                    linkedEvents.add(subItem.get(1).getAsString());
-                })
-        );
+        eventDeletion.getTags().forEach(tagArray -> {
+            if (tagArray.size() < 2) return;
+
+            final String tagName = tagArray.get(0);
+            if (!"e".equals(tagName)) return;
+
+            linkedEvents.add(tagArray.get(1));
+        });
 
         try (final Jedis jedis = cache.connect()) {
-            return removeEvents(jedis, eventId, authorId, deletionEvent, linkedEvents);
+            return removeEvents(jedis, eventDeletion, linkedEvents);
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
     }
 
-    public byte fetchEvents(final List<JsonObject> events) {
+    public byte fetchEvents(final List<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "event");
         } catch(JedisException e) {
@@ -137,7 +114,7 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public byte fetchProfile(final List<JsonObject> events) {
+    public byte fetchProfile(final List<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "profile");
         } catch(JedisException e) {
@@ -145,14 +122,14 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public byte fetchContactList(final List<JsonObject> events) {
+    public byte fetchContactList(final List<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "contact");
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
     }
-    public byte fetchParameters(final List<JsonObject> events) {
+    public byte fetchParameters(final List<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "parameter");
         } catch(JedisException e) {
@@ -164,30 +141,23 @@ public class EventCacheDataService implements IEventService {
         return jedis.smembers("registration").contains(pubkey) ? null : REG_REQUIRED;
     }
 
-    private String saveEvent(
-            final Jedis jedis,
-            final int kind,
-            final String eventId,
-            final String authorId,
-            final EventState state,
-            final String event) {
+    private String saveEvent(final Jedis jedis, EventData eventData) {
+        final String currentDataKey = "event#" + eventData.getId();
 
-        final String currentDataKey = "event#" + eventId;
-
-        if (EventState.REGULAR.equals(state) && jedis.exists(currentDataKey)) {
+        if (EventState.REGULAR.equals(eventData.getState()) && jedis.exists(currentDataKey)) {
             return "duplicate: event has already been registered.";
         }
 
         final long score = System.currentTimeMillis();
-        final String versionKey = "event#" + eventId + ":version";
+        final String versionKey = "event#" + eventData.getId() + ":version";
 
         final Pipeline pipeline = jedis.pipelined();
-        pipeline.sadd("eventList", eventId);
-        pipeline.set(currentDataKey, event);
-        pipeline.zadd(versionKey, score, event);
+        pipeline.sadd("eventList", eventData.getId());
+        pipeline.set(currentDataKey, eventData.toString());
+        pipeline.zadd(versionKey, score, eventData.toString());
         pipeline.sync();
 
-        logger.info("[Nostr] [Persistence] [Event] event {} updated.", eventId);
+        logger.info("[Nostr] [Persistence] [Event] event {} updated.", eventData.getId());
         return null;
     }
 
@@ -225,11 +195,7 @@ public class EventCacheDataService implements IEventService {
 
     private String saveParameterizedReplaceable(
             final Jedis jedis,
-            final int kind,
-            final String eventId,
-            final String authorId,
-            final JsonObject eventData,
-            final String event,
+            final EventData eventData,
             final List<String> dTagList
     ) {
         final Pipeline pipeline = jedis.pipelined();
@@ -237,17 +203,19 @@ public class EventCacheDataService implements IEventService {
         final long score = System.currentTimeMillis();
 
         for (final String param : dTagList) {
-            final String data = Utils.sha256((authorId + "#" + kind + "#" + param).getBytes(StandardCharsets.UTF_8));
+            final String data = Utils.sha256(
+                (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
+            );
 
             final String currentDataKey = "parameter#" + data;
             final String versionKey = "parameter#" + param + ":version";
 
             pipeline.sadd("parameterList", data);
-            pipeline.set(currentDataKey, event);
-            pipeline.zadd(versionKey, score, event);
+            pipeline.set(currentDataKey, eventData.toString());
+            pipeline.zadd(versionKey, score, eventData.toString());
         }
 
-        logger.info("[Nostr] [Persistence] [Parameter] event {} consumed.", eventId);
+        logger.info("[Nostr] [Persistence] [Parameter] event {} consumed.", eventData.getId());
 
         pipeline.sync();
 
@@ -256,32 +224,29 @@ public class EventCacheDataService implements IEventService {
 
     private byte removeEvents(
         final Jedis jedis,
-        final String deletionEventId,
-        final String authorId,
-        final JsonObject deletionEvent,
+        final EventData eventDeletion,
         final List<String> linkedEvents
     ) {
         final Gson gson = new GsonBuilder().create();
 
-        final List<JsonObject> eventsMarkedForDeletion = new ArrayList<>();
+        final List<EventData> eventsMarkedForDeletion = new ArrayList<>();
 
         final Set<String> eventIds = jedis.smembers("eventList");
 
         for(final String eventId: eventIds) {
             Optional.ofNullable(jedis.get("event#"+eventId)).ifPresent(event -> {
-                final JsonObject data = gson.fromJson(event, JsonObject.class);
+                final EventData eventData = EventData.gsonEngine(gson, event);
 
-                final String qAuthorId = data.get("pubkey").getAsString();
-                final String qEventId  = data.get("id").getAsString();
-                final int qEventKind   = data.get("kind").getAsInt();
-                final EventState state = EventState.byKind(qEventKind);
+                final String qAuthorId = eventData.getPubkey();
+                final String qEventId  = eventData.getId();
+                final int qEventKind   = eventData.getKind();
 
-                if( EventState.REGULAR.equals(state) 
+                if( EventState.REGULAR.equals(eventData.getState()) 
                         && qEventKind != EventKind.DELETION
-                        && qAuthorId.equals(authorId)
+                        && qAuthorId.equals(eventDeletion.getPubkey())
                         && linkedEvents.contains(qEventId)
                 ) {
-                    eventsMarkedForDeletion.add(data);
+                    eventsMarkedForDeletion.add(eventData);
                 }
             });
         }
@@ -290,8 +255,8 @@ public class EventCacheDataService implements IEventService {
 
         final long score = System.currentTimeMillis();
 
-        eventsMarkedForDeletion.stream().forEach(event -> {
-            final String eventId = event.get("id").getAsString();
+        eventsMarkedForDeletion.stream().forEach(eventData -> {
+            final String eventId = eventData.getId();
 
             final String dataKey = "event#" + eventId;
             final String versionKey = "event#" + eventId + ":version";
@@ -304,11 +269,10 @@ public class EventCacheDataService implements IEventService {
 
         pipeline.sync();
 
-        logger.info("[Nostr] [Persistence] [Event] events related by event {} has been deleted.", deletionEventId);
-        return 0;
+        return logger.info("[Nostr] [Persistence] [Event] events related by event {} has been deleted.", eventDeletion.getId());
     }
 
-    private byte fetchList(final Jedis jedis, final List<JsonObject> events, final String cache) {
+    private byte fetchList(final Jedis jedis, final List<EventData> events, final String cache) {
         final Gson gson = new GsonBuilder().create();
 
         final Set<String> ids = jedis.smembers(cache+"List");
@@ -321,7 +285,7 @@ public class EventCacheDataService implements IEventService {
 
         responses.forEach(rsp -> 
             Optional.ofNullable(rsp.get()).ifPresent(event -> 
-                events.add(gson.fromJson(event, JsonObject.class))
+                events.add(EventData.gsonEngine(gson, event))
             )
         );
 
