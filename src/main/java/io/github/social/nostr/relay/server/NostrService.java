@@ -269,14 +269,14 @@ public class NostrService {
 
         final List<JsonObject> events = new ArrayList<>();
 
-        logger.info("[Nostr] [Subscription] fetching events.");
+        logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
 
         eventService.fetchEvents(events);
         eventService.fetchProfile(events);
         eventService.fetchContactList(events);
         eventService.fetchParameters(events);
 
-        logger.info("[Nostr] [Subscription] total events fetch: {}", events.size());
+        logger.info("[Nostr] [Subscription] [{}] total events fetch: {}", subscriptionId, events.size());
 
         final boolean newEvents = false;
         return this.filterAndBroadcastEvents(context, subscriptionId, events, newEvents);
@@ -303,7 +303,7 @@ public class NostrService {
         final byte NO_LIMIT = 0;
         final int[] limit = new int[]{ NO_LIMIT };
 
-        logger.info("[Nostr] [Subscription] performing event filtering.");
+        logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
 
         events.stream().forEach(data -> {
             final String eventId    = data.get("id").getAsString();
@@ -405,7 +405,8 @@ public class NostrService {
 
                 if( include ) {
                     selectedEvents.add(data);
-                    logger.info("[Nostr] [Subscription]\nEvent\n{}\nmatched by filter\n{}\n", data.toString(), entry.toString());
+                    logger.info("[Nostr] [Subscription] [{}]\nEvent\n{}\nmatched by filter\n{}\n",
+                        subscriptionId, data.toString(), entry.toString());
                     break;
                 }
 
@@ -413,7 +414,7 @@ public class NostrService {
 
         });
 
-        logger.info("[Nostr] [Subscription] sorting events by creation time.");
+        logger.info("[Nostr] [Subscription] [{}] sorting events by creation time.", subscriptionId);
 
         selectedEvents.sort((a, b) -> 
             b.get("created_at").getAsInt() - a.get("created_at").getAsInt()
@@ -429,7 +430,7 @@ public class NostrService {
         }
 
         if( !newEvents ) {
-            logger.info("[Nostr] [Subscription] number of events to sent to subscriptionId {}: {}", subscriptionId, selectedEvents.size());
+            logger.info("[Nostr] [Subscription] [{}] number of events to sent: {}", subscriptionId, selectedEvents.size());
         }
 
         if( ! selectedEvents.isEmpty() ) {
@@ -443,7 +444,7 @@ public class NostrService {
             final String endOfStoredEvents = gson.toJson(Arrays.asList("EOSE", subscriptionId));
             this.eventBroadcaster.submit(()-> context.broadcast(endOfStoredEvents));
 
-            logger.info("[Nostr] [Subscription] number of events to sent later to subscriptionId {}: {}", subscriptionId, sendLater.size());
+            logger.info("[Nostr] [Subscription] [{}] number of events to sent later: {}", subscriptionId, sendLater.size());
         }
 
         sendLater.forEach(event -> {
