@@ -201,17 +201,18 @@ public class NostrService {
     private byte handleSubscriptionRequest(final WebsocketContext context, final JsonArray nostrMessage) {
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
-        logger.info("[Nostr] [Message] subscription registered: {}", subscriptionId);
+        logger.info("[Nostr] [Subscription] [{}] request received.", subscriptionId);
 
         final Collection<JsonObject> filter = new ConcurrentLinkedQueue<>();
-
         for(int i = 2; i < nostrMessage.size(); ++i) {
             final JsonObject entry = nostrMessage.get(i).getAsJsonObject();
             filter.add(entry);
         }
 
         this.subscriptions.put(subscriptionKey, filter);
+        logger.info("[Nostr] [Subscription] [{}] registered.", subscriptionId);
 
+        logger.info("[Nostr] [Subscription] [{}] await for data fetch.", subscriptionId);
         eventBroadcaster.submit(() -> fetchAndBroadcastEvents(context, subscriptionId));
 
         return 0;
