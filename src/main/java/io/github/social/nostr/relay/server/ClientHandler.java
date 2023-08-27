@@ -531,13 +531,18 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
+	final ByteArrayOutputStream nirData = new ByteArrayOutputStream();
+
 	private byte sendNirPage() throws IOException {
-		final ByteArrayOutputStream html = new ByteArrayOutputStream();
-		try(final InputStream in = new FileInputStream(nirFullpath) ) {
-			IOUtils.copy(in, html);
+		synchronized(nirData) {
+			if(nirData.size() == 0) {
+				try(final InputStream in = new FileInputStream(nirFullpath) ) {
+					IOUtils.copy(in, nirData);
+				}
+			}
 		}
 
-		final byte[] raw = html.toByteArray();
+		final byte[] raw = nirData.toByteArray();
 
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("application/nostr+json; charset=UTF-8"));
 		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
