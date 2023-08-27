@@ -103,9 +103,9 @@ public class NostrService {
             case "EVENT":
                 return this.handleEvent(context, nostrMessage, gson);
             case "REQ":
-                return this.handleSubscriptionRequest(context, nostrMessage);
+                return this.handleSubscriptionRegistration(context, nostrMessage);
             case "CLOSE":
-                return this.handleSubscriptionRemoval(context, nostrMessage);
+                return this.handleSubscriptionUnregistration(context, nostrMessage);
             default:
                 return logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
         }
@@ -206,7 +206,7 @@ public class NostrService {
         return 0;
     }
 
-    private byte handleSubscriptionRequest(final WebsocketContext context, final JsonArray nostrMessage) {
+    private byte handleSubscriptionRegistration(final WebsocketContext context, final JsonArray nostrMessage) {
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
         logger.info("[Nostr] [Subscription] [{}] request received.", subscriptionId);
@@ -226,7 +226,7 @@ public class NostrService {
         return 0;
     }
 
-    private byte handleSubscriptionRemoval(final WebsocketContext context, final JsonArray nostrMessage) {
+    private byte handleSubscriptionUnregistration(final WebsocketContext context, final JsonArray nostrMessage) {
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
         logger.info("[Nostr] [Message] subscription unregistered: {}", subscriptionId);
@@ -312,7 +312,11 @@ public class NostrService {
         final byte NO_LIMIT = 0;
         final int[] limit = new int[]{ NO_LIMIT };
 
+        logger.info("[Nostr] [Subscription] [{}] filter criteria");
+
         logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
+
+        filter.stream().forEach(System.out::println);
 
         events.stream().forEach(data -> {
             final String eventId    = data.get("id").getAsString();
