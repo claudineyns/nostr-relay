@@ -55,8 +55,10 @@ public class NostrService {
     private final String validationHost = AppProperties.getEventValidationHost();
     private final int validationPort = AppProperties.getEventValidationPort();
 
+    private ExecutorService eventProcessor = Executors.newCachedThreadPool();
+
     // [ENFORCEMENT] Keep this executor with only a single thread
-    private ExecutorService eventBroadcaster = Executors.newSingleThreadExecutor();
+    private ExecutorService clientBroadcaster = Executors.newSingleThreadExecutor();
 
     private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
 
@@ -74,24 +76,25 @@ public class NostrService {
 
         if( ! jsonData.startsWith("[") || ! jsonData.endsWith("]") ) {
             notice.add("error: Not a json array payload.");
-            return context.broadcast(gson.toJson(notice));
+
+            return this.broadcastClient(context, gson.toJson(notice));
         }
 
         final JsonArray nostrMessage;
         try {
             nostrMessage = gson.fromJson(jsonData, JsonArray.class);
         } catch(JsonParseException failure) {
-            notice.add("error: could not parse data: " + failure.getMessage());
-            context.broadcast(gson.toJson(notice));
+            logger.warning("[Nostr] could not parse message: {}", message.getMessage());
 
-            return logger.warning("[Nostr] could not parse message: {}", message.getMessage());
+            notice.add("error: could not parse data: " + failure.getMessage());
+            return this.broadcastClient(context, gson.toJson(notice));
         }
 
         if( nostrMessage.isEmpty() ) {
-            notice.add("warning: empty message.");
-            context.broadcast(gson.toJson(notice));
+            logger.warning("[Nostr] Empty message received.");
 
-            return logger.warning("[Nostr] Empty message received.");
+            notice.add("warning: empty message.");
+            return this.broadcastClient(context, gson.toJson(notice));
         }
 
         final String messageType = nostrMessage.get(0).getAsString();
@@ -105,7 +108,13 @@ public class NostrService {
                 return this.handleSubscriptionRemoval(context, nostrMessage);
             default:
                 return logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
-        }        
+        }
+    }
+
+    private byte broadcastClient(final WebsocketContext context, final String message) {
+        this.clientBroadcaster.submit(() -> context.broadcast(message));
+
+        return 0;
     }
 
     private byte handleEvent(
@@ -136,20 +145,19 @@ public class NostrService {
         logger.info("[Nostr] [Message] event ID received: {}.", eventId);
 
         final List<Object> response = new ArrayList<>();
-        response.add("OK");
-        response.add(eventId);
+        response.addAll(Arrays.asList("OK", eventId));
 
         final String checkRegistration = eventService.checkRegistration(authorId);
         if( checkRegistration != null ) {
             response.addAll(Arrays.asList(Boolean.FALSE, checkRegistration));
 
-            return context.broadcast(gson.toJson(response));
+            return broadcastClient(context, gson.toJson(response));
         }
 
         if( Boolean.FALSE.equals(validation.getStatus()) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
 
-            return context.broadcast(gson.toJson(response));
+            return broadcastClient(context, gson.toJson(response));
         }
 
         final String responseText;
@@ -184,12 +192,12 @@ public class NostrService {
         .forEach(key -> {
             final String subscriptionId = key.substring(0, key.lastIndexOf(":"));
             final boolean newEvents = true;
-            this.eventBroadcaster.submit(() -> this.filterAndBroadcastEvents(
+            this.eventProcessor.submit(() -> this.filterAndBroadcastEvents(
                 context, subscriptionId, Collections.singletonList(eventJson), newEvents
             ));
         });
 
-        this.eventBroadcaster.submit(() -> context.broadcast(gson.toJson(response)));
+        broadcastClient(context, gson.toJson(response));
 
         if( kind == EventKind.DELETION ) {
             eventService.removeEventsByDeletionEvent(eventId, authorId, eventJson);
@@ -213,7 +221,7 @@ public class NostrService {
         logger.info("[Nostr] [Subscription] [{}] registered.", subscriptionId);
 
         logger.info("[Nostr] [Subscription] [{}] await for data fetch.", subscriptionId);
-        eventBroadcaster.submit(() -> fetchAndBroadcastEvents(context, subscriptionId));
+        this.eventProcessor.submit(() -> fetchAndBroadcastEvents(context, subscriptionId));
 
         return 0;
     }
@@ -438,12 +446,12 @@ public class NostrService {
             final List<Object> subscriptionResponse = new ArrayList<>();
             subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
             subscriptionResponse.addAll(selectedEvents);
-            this.eventBroadcaster.submit(() -> context.broadcast(gson.toJson(subscriptionResponse)));
+
+            this.broadcastClient(context, gson.toJson(subscriptionResponse));
         }
         
         if( ! newEvents ) {
-            final String endOfStoredEvents = gson.toJson(Arrays.asList("EOSE", subscriptionId));
-            this.eventBroadcaster.submit(()-> context.broadcast(endOfStoredEvents));
+            this.broadcastClient(context, gson.toJson(Arrays.asList("EOSE", subscriptionId)));
 
             logger.info("[Nostr] [Subscription] [{}] number of events to sent later: {}", subscriptionId, sendLater.size());
         }
@@ -452,7 +460,8 @@ public class NostrService {
             final List<Object> deferred = new ArrayList<>();
             deferred.addAll(Arrays.asList("EVENT", subscriptionId));
             deferred.add(event);
-            this.eventBroadcaster.submit(()-> context.broadcast(gson.toJson(deferred)));
+
+            this.broadcastClient(context, gson.toJson(deferred));
         });
 
         return 0;
