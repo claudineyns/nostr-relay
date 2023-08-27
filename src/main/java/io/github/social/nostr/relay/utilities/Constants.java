@@ -24,6 +24,9 @@ public final class Constants {
 		"event.validation.host";
 	public static final String PROPERTY_VALIDATION_PORT = 
 		"event.validation.port";
+	
+	public static final String PROPERTY_REDIRECT_PAGE = 
+		"server.redirect.page";
 
 	public static final String ENV_ACME_CHALLENGE_PATH = 
 		"ACME_CHALLENGE_PATH";
@@ -51,6 +54,10 @@ public final class Constants {
 		"EVENT_VALIDATION_HOST";
 	public static final String ENV_VALIDATION_PORT = 
 		"EVENT_VALIDATION_PORT";
+
+	public static final String ENV_REDIRECT_PAGE = 
+		"SERVER_REDIRECT_PAGE";
+
 	public static final String WEBSOCKET_UUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 	private Constants() { /***/ }

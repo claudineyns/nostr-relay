@@ -58,6 +58,8 @@ public class ClientHandler implements Runnable {
 
 	private final ExecutorService websocketEventService = Executors.newCachedThreadPool();
 	
+	private final String redirectPage = AppProperties.getRedirectPage();
+
 	private final WebsocketContext websocketContext = new WebsocketContext() {
 		public synchronized byte broadcast(final String message) {
 			logger.info("[WS] send data to client: {}", message);
@@ -530,10 +532,13 @@ public class ClientHandler implements Runnable {
 		try(final InputStream in = getClass()
 				.getResourceAsStream("/META-INF/resources/index.html")) {
 			IOUtils.copy(in, html);
-			page.append(new String(html.toByteArray(), StandardCharsets.UTF_8)
+
+			final String content = new String(html.toByteArray(), StandardCharsets.UTF_8)
 				.replaceAll("[\\r\\n]", "")
 				.replaceAll("\\s+", " ")
-			);
+				.replace("https://example.com", redirectPage);
+
+			page.append(content);
 		}
 
 		final byte[] raw = page.toString().getBytes(StandardCharsets.UTF_8);

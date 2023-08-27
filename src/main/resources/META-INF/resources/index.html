@@ -3,36 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Decentralized Social Network</title>
-    <style type="text/css">
-        .h {
-            margin: 0 0 .5em 0;
-            padding: 0;
-            font-family: Courier, monospace;
-            text-align: center;
-            font-weight: normal;
-        }
-    </style>
+    <meta http-equiv="Refresh" content="0; url=https://example.com" />
+    <title>Welcome</title>
 </head>
-<body>
-    <h3 class="h">&nbsp;</h3>
-    <h3 class="h" id="box1"></h3>
-    <h3 class="h" id="box2" style="display: none;">Get to know <a href="https://nostr.com" target="_blank">here</a>.</h3>
-    <script type="text/javascript">
-        (function () {
-            const box1 = document.querySelector('#box1');
-            const title = ('Social' + ' '.repeat(5) + 'Network.' + ' '.repeat(10) + 'Decentralized.' + ' '.repeat(10) + 'Censorship-resistant.' + ' '.repeat(20)).split('');
-            let c = 0; let q = setInterval(() => {
-                if (c++ < title.length) {
-                    p = title[c - 1];
-                    const g = document.createElement('span');
-                    g.appendChild(document.createTextNode(p));
-                    box1.appendChild(g);
-                } else {
-                    clearInterval(q); document.querySelector('#box2').style.display = '';
-                }
-            }, 110);
-        })();
-    </script>
-</body>
 </html>

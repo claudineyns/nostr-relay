@@ -23,6 +23,8 @@ public final class AppProperties {
 	private static final String DEFAULT_VALIDATION_HOST = "localhost";
 	private static final String DEFAULT_VALIDATION_PORT = "8888";
 
+	private static final String DEFAULT_REDIRECT_PAGE = "https://example.com";
+
 	public static String getAcmeChallengePath() {
 		return nullValue(
 				System.getProperty(Constants.PROPERTY_ACME_CHALLENGE_PATH),
@@ -90,6 +92,14 @@ public final class AppProperties {
 				DEFAULT_CLIENT_PING_SECOND
 			);
 		return Integer.parseInt(info);
+	}
+
+	public static String getRedirectPage() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_REDIRECT_PAGE),
+				System.getenv(Constants.ENV_REDIRECT_PAGE),
+				DEFAULT_REDIRECT_PAGE
+			);
 	}
 
 	private static final String DEFAULT_HOST_NAME;
