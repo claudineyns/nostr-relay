@@ -287,7 +287,7 @@ public class NostrService {
 
         final int currentTime = (int) (System.currentTimeMillis()/1000L);
 
-        for(int i = cacheEvents.size() - 1; i >= 0; ++i) {
+        for(int i = cacheEvents.size() - 1; i >= 0; --i) {
             final EventData event = cacheEvents.get(i);
             if( event.getExpiration() > 0 && event.getExpiration() < currentTime ) {
                 cacheEvents.remove(i);
