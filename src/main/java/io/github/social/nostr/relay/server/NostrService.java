@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import org.apache.commons.codec.binary.Hex;
 
@@ -463,7 +464,7 @@ public class NostrService {
         if( ! selectedEvents.isEmpty() ) {
             final List<Object> subscriptionResponse = new ArrayList<>();
             subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
-            subscriptionResponse.addAll(selectedEvents);
+            subscriptionResponse.addAll(selectedEvents.stream().map(event -> event.toString()).collect(Collectors.toList()) );
 
             this.broadcastClient(context, gson.toJson(subscriptionResponse));
         }
@@ -477,7 +478,7 @@ public class NostrService {
         sendLater.forEach(event -> {
             final List<Object> deferred = new ArrayList<>();
             deferred.addAll(Arrays.asList("EVENT", subscriptionId));
-            deferred.add(event);
+            deferred.add(event.toString());
 
             this.broadcastClient(context, gson.toJson(deferred));
         });
