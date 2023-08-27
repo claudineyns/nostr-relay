@@ -131,7 +131,7 @@ public class EventCacheDataService implements IEventService {
 
     public byte fetchEvents(final List<JsonObject> events) {
         try (final Jedis jedis = cache.connect()) {
-            return this.fetchCurrent(jedis, events, "event");
+            return this.fetchList(jedis, events, "event");
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
@@ -139,7 +139,7 @@ public class EventCacheDataService implements IEventService {
 
     public byte fetchProfile(final List<JsonObject> events) {
         try (final Jedis jedis = cache.connect()) {
-            return this.fetchCurrent(jedis, events, "profile");
+            return this.fetchList(jedis, events, "profile");
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
@@ -147,14 +147,14 @@ public class EventCacheDataService implements IEventService {
 
     public byte fetchContactList(final List<JsonObject> events) {
         try (final Jedis jedis = cache.connect()) {
-            return this.fetchCurrent(jedis, events, "contact");
+            return this.fetchList(jedis, events, "contact");
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
     }
     public byte fetchParameters(final List<JsonObject> events) {
         try (final Jedis jedis = cache.connect()) {
-            return this.fetchCurrent(jedis, events, "parameter");
+            return this.fetchList(jedis, events, "parameter");
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
@@ -307,7 +307,7 @@ public class EventCacheDataService implements IEventService {
         return 0;
     }
 
-    private byte fetchCurrent(final Jedis jedis, final List<JsonObject> events, final String cache) {
+    private byte fetchList(final Jedis jedis, final List<JsonObject> events, final String cache) {
         final Gson gson = new GsonBuilder().create();
 
         final Set<String> ids = jedis.smembers(cache+"List");
@@ -315,11 +315,11 @@ public class EventCacheDataService implements IEventService {
         final List<Response<String>> responses = new ArrayList<>();
 
         final Pipeline pipeline = jedis.pipelined();
-        ids.stream().forEach(id -> responses.add(pipeline.get(cache+"#" + id)));
+        ids.stream().forEach(id -> responses.add(pipeline.get(cache+"#"+id)));
         pipeline.sync();
 
         responses.forEach(rsp -> 
-            Optional.ofNullable(jedis.get(cache+"#" + rsp.get())).ifPresent(event -> 
+            Optional.ofNullable(rsp.get()).ifPresent(event -> 
                 events.add(gson.fromJson(event, JsonObject.class))
             )
         );
