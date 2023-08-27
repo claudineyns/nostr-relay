@@ -5,7 +5,7 @@ import java.util.List;
 import com.google.gson.JsonObject;
 
 import io.github.social.nostr.relay.service.EventCacheDataService;
-import io.github.social.nostr.relay.specs.EventState;
+import io.github.social.nostr.relay.specs.EventData;
 
 public interface IEventService {
     static final String DB_ERROR     = "error: Could not connect to database.";
@@ -16,30 +16,15 @@ public interface IEventService {
 
     String checkRegistration(final String pubkey);
 
-    String persistEvent(
-            final int kind,
-            final String eventId,
-            final String authorId,
-            final EventState state,
-            final String eventJson);
+    String persistEvent(final EventData eventData);
 
     String persistProfile(final String authorId, final String eventJson);
 
     String persistContactList(final String authorId, final String eventJson);
 
-    String persistParameterizedReplaceable(
-        final int kind,
-        final String eventId,
-        final String authorId,
-        final JsonObject eventData,
-        final String eventJson
-    );
+    String persistParameterizedReplaceable(final EventData eventData);
 
-    byte deletionRequestEvent(
-        final String eventId,
-        final String authorId,
-        final JsonObject deletionEvent
-    );
+    byte deletionRequestEvent(final EventData eventData);
 
     byte fetchEvents(final List<JsonObject> events);
 

@@ -38,6 +38,7 @@ import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.dto.EventValidation;
 import io.github.social.nostr.relay.service.EventCacheDataService;
 import io.github.social.nostr.relay.service.EventDiskDataService;
+import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.AppProperties;
@@ -123,13 +124,11 @@ public class NostrService {
             final Gson gson
         ) {
 
-        final JsonObject eventJson;
-        final String eventRawJson;
+        final EventData eventData;
         final EventValidation validation;
         try {
-            eventJson = nostrMessage.get(1).getAsJsonObject();
-            eventRawJson = eventJson.toString();
-            validation = this.validate(eventRawJson);
+            eventData = EventData.of(nostrMessage.get(1).getAsJsonObject());
+            validation = this.validate(eventData.toString());
         } catch(Exception failure) {
             return logger.info(
                 "[Nostr] [Message] could not parse event\n{}: {}",
@@ -137,17 +136,12 @@ public class NostrService {
                 failure.getMessage());
         }
 
-        final String eventId = eventJson.get("id").getAsString();
-        final String authorId = eventJson.get("pubkey").getAsString();
-        final int kind = eventJson.get("kind").getAsInt();
-        final EventState state = EventState.byKind(kind);
-
-        logger.info("[Nostr] [Message] event ID received: {}.", eventId);
+        logger.info("[Nostr] [Message] event ID received: {}.", eventData.getId());
 
         final List<Object> response = new ArrayList<>();
-        response.addAll(Arrays.asList("OK", eventId));
+        response.addAll(Arrays.asList("OK", eventData.getId()));
 
-        final String checkRegistration = eventService.checkRegistration(authorId);
+        final String checkRegistration = eventService.checkRegistration(eventData.getPubkey());
         if( checkRegistration != null ) {
             response.addAll(Arrays.asList(Boolean.FALSE, checkRegistration));
 
@@ -161,7 +155,7 @@ public class NostrService {
         }
 
         final String responseText;
-        if( EventState.REGULAR.equals(state) ) {
+        if( EventState.REGULAR.equals(eventData.getState()) ) {
             responseText = eventService.persistEvent(kind, eventId, authorId, state, eventRawJson);
         } else if( EventState.REPLACEABLE.equals(state) ) {
             if( kind == EventKind.METADATA ) {
