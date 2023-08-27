@@ -26,7 +26,7 @@ public class EventCacheDataService implements IEventService {
 
     private final CacheService cache = CacheService.INSTANCE;
 
-    public synchronized String checkRegistration(final String pubkey) {
+    public String checkRegistration(final String pubkey) {
 
         try (final Jedis jedis = cache.connect()) {
             return validateRegistration(jedis, pubkey);
@@ -36,7 +36,7 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public synchronized String persistEvent(
+    public String persistEvent(
             final int kind,
             final String eventId,
             final String authorId,
@@ -69,7 +69,7 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public synchronized String persistParameterizedReplaceable(
+    public String persistParameterizedReplaceable(
             final int kind,
             final String eventId,
             final String authorId,

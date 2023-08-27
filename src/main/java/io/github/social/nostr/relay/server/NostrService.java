@@ -262,7 +262,7 @@ public class NostrService {
         return validation;
     }
 
-    private synchronized byte fetchAndBroadcastEvents(
+    private byte fetchAndBroadcastEvents(
             final WebsocketContext context,
             final String subscriptionId
     ) {
