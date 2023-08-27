@@ -752,7 +752,7 @@ public class ClientHandler implements Runnable {
 		} else if( status.code() == HttpStatus.OK.code() ) {
 
 			if( accept.contains("application/nostr+json") ) {
-				return this.sendNirPage();
+				this.sendNirPage();
 			} else {
 				this.sendIndexPage();
 			}
