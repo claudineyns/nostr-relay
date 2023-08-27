@@ -464,7 +464,10 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendAccessControlAllowOriginHeader() throws IOException{
-		return this.sendBytes(("Access-Control-Allow-Origin: *" + CRLF).getBytes(StandardCharsets.US_ASCII));
+		this.sendBytes(("Access-Control-Allow-Origin: *" + CRLF).getBytes(StandardCharsets.US_ASCII));
+		this.sendBytes(("Access-Control-Allow-Methods: GET" + CRLF).getBytes(StandardCharsets.US_ASCII));
+		
+		return 0;
 	}
 
 	private byte sendUpgradeWebsocketHeader() throws IOException {
@@ -522,6 +525,22 @@ public class ClientHandler implements Runnable {
 		this.httpResponseHeaders.put("Content-Type", Collections.singletonList("text/html; charset=UTF-8"));
 		this.httpResponseHeaders.put("Content-Length", Collections.singletonList(Integer.toString(data.size())));
 		this.httpResponseBody.write(data.toByteArray());
+
+		return 0;
+	}
+
+	private byte sendNirPage() throws IOException {
+		final ByteArrayOutputStream html = new ByteArrayOutputStream();
+		try(final InputStream in = getClass()
+				.getResourceAsStream("/META-INF/resources/nir.json")) {
+			IOUtils.copy(in, html);
+		}
+
+		final byte[] raw = html.toByteArray();
+
+		this.httpResponseHeaders.put("Content-Type", Arrays.asList("application/nostr+json; charset=UTF-8"));
+		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
+		this.httpResponseBody.write(raw);
 
 		return 0;
 	}
@@ -672,6 +691,10 @@ public class ClientHandler implements Runnable {
 	private byte checkSwitchingProtocol() throws IOException {
 		final HttpStatus status = HttpStatus.SWITCHING_PROTOCOL.clone();
 
+		final List<String> accept = Optional
+			.ofNullable(this.httpRequestHeaders.get("accept"))
+			.orElse(Collections.emptyList());
+
 		final List<String> upgrade = Optional
 			.ofNullable(this.httpRequestHeaders.get("upgrade"))
 			.orElse(Collections.emptyList());
@@ -726,7 +749,13 @@ public class ClientHandler implements Runnable {
 
 			this.websocket = true;
 		} else if( status.code() == HttpStatus.OK.code() ) {
-			this.sendIndexPage();
+
+			if( accept.contains("application/nostr+json") ) {
+				return this.sendNirPage();
+			} else {
+				this.sendIndexPage();
+			}
+
 			this.sendCustomHeaders();
 			this.sendConnectionCloseHeader();
 		} else {
