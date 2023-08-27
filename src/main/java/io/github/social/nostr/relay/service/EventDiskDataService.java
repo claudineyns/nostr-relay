@@ -272,8 +272,7 @@ public class EventDiskDataService implements IEventService {
                 if( !current.exists() ) return false;
 
                 try(final InputStream in = new FileInputStream(current)) {
-                    final EventData data = EventData.gsonEngine(gson, in);
-                    events.add(data);
+                    events.add(EventData.gsonEngine(gson, in));
                 } catch(IOException failure) { /***/ }
 
                 return false;

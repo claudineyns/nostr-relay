@@ -129,7 +129,7 @@ public class NostrService {
         try {
             eventData = EventData.of(nostrMessage.get(1).getAsJsonObject());
             validation = this.validate(eventData.toString());
-        } catch(Exception failure) {
+        } catch(final Exception failure) {
             return logger.info(
                 "[Nostr] [Message] could not parse event\n{}: {}",
                 failure.getClass().getCanonicalName(),
@@ -140,6 +140,14 @@ public class NostrService {
 
         final List<Object> response = new ArrayList<>();
         response.addAll(Arrays.asList("OK", eventData.getId()));
+
+        final int currentTime = (int) (System.currentTimeMillis()/1000L);
+
+        if( eventData.getExpiration() > 0 && eventData.getExpiration() < currentTime ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: event is expired"));
+
+            return broadcastClient(context, gson.toJson(response));
+        }
 
         final String checkRegistration = eventService.checkRegistration(eventData.getPubkey());
         if( checkRegistration != null ) {
@@ -202,6 +210,7 @@ public class NostrService {
     private byte handleSubscriptionRegistration(final WebsocketContext context, final JsonArray nostrMessage) {
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
+
         logger.info("[Nostr] [Subscription] [{}] request received.", subscriptionId);
 
         final Collection<JsonObject> filter = new ConcurrentLinkedQueue<>();
@@ -264,19 +273,37 @@ public class NostrService {
         return validation;
     }
 
-    private byte fetchAndBroadcastEvents(
-            final WebsocketContext context,
-            final String subscriptionId
+    private byte fetchEventsFromDB(
+        final WebsocketContext context,
+        final String subscriptionId,
+        final List<EventData> events
     ) {
+        final List<EventData> cacheEvents = new ArrayList<>();
 
+        eventService.fetchEvents(cacheEvents);
+        eventService.fetchProfile(cacheEvents);
+        eventService.fetchContactList(cacheEvents);
+        eventService.fetchParameters(cacheEvents);
+
+        final int currentTime = (int) (System.currentTimeMillis()/1000L);
+
+        for(int i = cacheEvents.size() - 1; i >= 0; ++i) {
+            final EventData event = cacheEvents.get(i);
+            if( event.getExpiration() > 0 && event.getExpiration() < currentTime ) {
+                cacheEvents.remove(i);
+            }
+        }
+
+        events.addAll(cacheEvents);
+        return 0;
+    }
+
+    private byte fetchAndBroadcastEvents(final WebsocketContext context, final String subscriptionId) {
         final List<EventData> events = new ArrayList<>();
 
         logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
 
-        eventService.fetchEvents(events);
-        eventService.fetchProfile(events);
-        eventService.fetchContactList(events);
-        eventService.fetchParameters(events);
+        this.fetchEventsFromDB(context, subscriptionId, events);
 
         logger.info("[Nostr] [Subscription] [{}] total events fetch: {}", subscriptionId, events.size());
 
@@ -367,7 +394,7 @@ public class NostrService {
                     .iterator()
                     .forEachRemaining( element -> refParamList.add(element.getAsString()) )
                 );
-                // Filter '#d' (data) cannot be used without combine it with 'pubkey' or 'kind'
+                // Filter '#d' (data) must not be accept without combination with 'pubkey' or 'kind'
 
                 final int[] since = new int[] {0};
                 Optional
