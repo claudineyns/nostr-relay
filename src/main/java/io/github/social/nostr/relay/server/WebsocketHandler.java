@@ -62,7 +62,7 @@ public class WebsocketHandler implements Websocket {
 
     @Override
     public byte onError(WebsocketException exception) {
-        return logger.info("[WS] Server got error.");
+        return logger.info("[WS] Server got error: {}", exception.getMessage());
     }
 
     @Override
