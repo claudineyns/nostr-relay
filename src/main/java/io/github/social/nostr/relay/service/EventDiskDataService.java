@@ -6,15 +6,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
@@ -248,23 +245,23 @@ public class EventDiskDataService implements IEventService {
         return 0;
     }
 
-    public byte fetchEvents(final List<JsonObject> events) {
+    public byte fetchEvents(final List<EventData> events) {
         return this.fetchCurrent(events, new File(directory, "events"));
     }
 
-    public byte fetchProfile(final List<JsonObject> events) {
+    public byte fetchProfile(final List<EventData> events) {
         return this.fetchCurrent(events, new File(directory, "profile"));
     }
 
-    public byte fetchContactList(final List<JsonObject> events) {
+    public byte fetchContactList(final List<EventData> events) {
         return this.fetchCurrent(events, new File(directory, "contact"));
     }
 
-    public byte fetchParameters(final List<JsonObject> events) {
+    public byte fetchParameters(final List<EventData> events) {
         return fetchCurrent(events, new File(directory, "/parameter"));
     }
 
-    private byte fetchCurrent(final List<JsonObject> events, final File dataDB) {
+    private byte fetchCurrent(final List<EventData> events, final File dataDB) {
         final Gson gson = new GsonBuilder().create();
 
         if(dataDB.exists()) dataDB.listFiles(new FileFilter() {
@@ -275,7 +272,7 @@ public class EventDiskDataService implements IEventService {
                 if( !current.exists() ) return false;
 
                 try(final InputStream in = new FileInputStream(current)) {
-                    final JsonObject data = gson.fromJson(new InputStreamReader(in), JsonObject.class);
+                    final EventData data = EventData.gsonEngine(gson, in);
                     events.add(data);
                 } catch(IOException failure) { /***/ }
 

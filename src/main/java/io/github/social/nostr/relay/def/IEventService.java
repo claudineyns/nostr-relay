@@ -26,13 +26,13 @@ public interface IEventService {
 
     byte deletionRequestEvent(final EventData eventData);
 
-    byte fetchEvents(final List<JsonObject> events);
+    byte fetchEvents(final List<EventData> events);
 
-    byte fetchProfile(final List<JsonObject> events);
+    byte fetchProfile(final List<EventData> events);
 
-    byte fetchContactList(final List<JsonObject> events);
+    byte fetchContactList(final List<EventData> events);
 
-    byte fetchParameters(final List<JsonObject> events);
+    byte fetchParameters(final List<EventData> events);
 
     byte close();
 }
