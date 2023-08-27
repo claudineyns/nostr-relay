@@ -19,6 +19,7 @@ import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.Response;
 import redis.clients.jedis.exceptions.JedisException;
 
 public class EventCacheDataService implements IEventService {
@@ -309,10 +310,18 @@ public class EventCacheDataService implements IEventService {
     private byte fetchCurrent(final Jedis jedis, final List<JsonObject> events, final String cache) {
         final Gson gson = new GsonBuilder().create();
 
-        jedis.smembers(cache+"List").stream().forEach(id -> 
-             Optional.ofNullable(jedis.get(cache+"#" + id)).ifPresent(event -> 
+        final Set<String> ids = jedis.smembers(cache+"List");
+
+        final List<Response<String>> responses = new ArrayList<>();
+
+        final Pipeline pipeline = jedis.pipelined();
+        ids.stream().forEach(id -> responses.add(pipeline.get(cache+"#" + id)));
+        pipeline.sync();
+
+        responses.forEach(rsp -> 
+            Optional.ofNullable(jedis.get(cache+"#" + rsp.get())).ifPresent(event -> 
                 events.add(gson.fromJson(event, JsonObject.class))
-             )
+            )
         );
 
         return 0;
