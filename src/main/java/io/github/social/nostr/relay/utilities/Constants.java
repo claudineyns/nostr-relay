@@ -13,6 +13,9 @@ public final class Constants {
 		"nostr.server.hostname";
 	public static final String PROPERTY_CLIENT_PING_SECOND = 
 		"nostr.websocket.client.ping.second";
+	public static final String PROPERTY_NIR_FULLPATH = 
+		"nostr.nir.fullpath";
+
 	public static final String PROPERTY_REDIS_HOST = 
 		"redis.host";
 	public static final String PROPERTY_REDIS_PORT = 
@@ -39,9 +42,10 @@ public final class Constants {
 		"NOSTR_SERVER_TLS";
 	public static final String ENV_HOSTNAME = 
 		"NOSTR_SERVER_HOSTNAME";
-
 	public static final String ENV_CLIENT_PING_SECOND = 
 		"NOSTR_WEBSOCKET_CLIENT_PING_SECOND";
+	public static final String ENV_NIR_FULLPATH = 
+		"NOSTR_NIR_FULLPATH";
 
 	public static final String ENV_REDIS_HOST = 
 		"REDIS_HOST";

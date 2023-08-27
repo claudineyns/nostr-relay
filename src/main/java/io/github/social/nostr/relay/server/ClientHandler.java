@@ -60,6 +60,8 @@ public class ClientHandler implements Runnable {
 	
 	private final String redirectPage = AppProperties.getRedirectPage();
 
+	private final String nirFullpath = AppProperties.getNirFullpath();
+
 	private final WebsocketContext websocketContext = new WebsocketContext() {
 		public synchronized byte broadcast(final String message) {
 			logger.info("[WS] send data to client: {}", message);
@@ -531,8 +533,7 @@ public class ClientHandler implements Runnable {
 
 	private byte sendNirPage() throws IOException {
 		final ByteArrayOutputStream html = new ByteArrayOutputStream();
-		try(final InputStream in = getClass()
-				.getResourceAsStream("/META-INF/resources/nir.json")) {
+		try(final InputStream in = new FileInputStream(nirFullpath) ) {
 			IOUtils.copy(in, html);
 		}
 

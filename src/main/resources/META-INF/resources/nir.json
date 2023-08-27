@@ -1,8 +1,0 @@
-{
-    "name": "Notes",
-    "description": "Relay for Brazilian People. Others are also welcome.",
-    "contact": "contact@notes.social",
-    "supported_nips": [1, 2, 9, 11, 25],
-    "software": "https://notes.social",
-    "version": "0.0.1"
-}
