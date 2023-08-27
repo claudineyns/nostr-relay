@@ -303,11 +303,7 @@ public class NostrService {
 
         logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
 
-        try {
-            this.fetchEventsFromDB(context, subscriptionId, events);
-        } catch(Exception failure) {
-            logger.info("[Nostr] [Subscription] event fetching failure: {}", failure.getMessage());
-        }
+        this.fetchEventsFromDB(context, subscriptionId, events);
 
         logger.info("[Nostr] [Subscription] [{}] total events fetch: {}", subscriptionId, events.size());
 
