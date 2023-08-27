@@ -35,7 +35,7 @@ public interface IEventService {
         final String eventJson
     );
 
-    byte removeEventsByDeletionEvent(
+    byte deletionRequestEvent(
         final String eventId,
         final String authorId,
         final JsonObject deletionEvent

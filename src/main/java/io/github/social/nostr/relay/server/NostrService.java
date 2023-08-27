@@ -200,7 +200,7 @@ public class NostrService {
         broadcastClient(context, gson.toJson(response));
 
         if( kind == EventKind.DELETION ) {
-            eventService.removeEventsByDeletionEvent(eventId, authorId, eventJson);
+            eventService.deletionRequestEvent(eventId, authorId, eventJson);
         }
 
         return 0;

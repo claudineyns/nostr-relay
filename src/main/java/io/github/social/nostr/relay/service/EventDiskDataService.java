@@ -188,7 +188,7 @@ public class EventDiskDataService implements IEventService {
         return null;
     }
 
-    public byte removeEventsByDeletionEvent(
+    public byte deletionRequestEvent(
         final String eventId,
         final String authorId,
         final JsonObject deletionEvent

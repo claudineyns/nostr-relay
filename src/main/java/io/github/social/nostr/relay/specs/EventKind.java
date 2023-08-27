@@ -9,6 +9,7 @@ public final class EventKind {
     public static int TEXT_NOTE = 1;
     public static int CONTACT_LIST = 3;
     public static int DELETION = 5;
+    public static int REACTION = 7;
     public static int CHANNEL_CREATE = 40;
     public static int CHANNEL_METADATA = 41;
     public static int CHANNEL_MESSAGE = 42;

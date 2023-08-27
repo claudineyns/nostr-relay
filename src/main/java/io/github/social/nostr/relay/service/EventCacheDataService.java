@@ -102,7 +102,7 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public byte removeEventsByDeletionEvent(
+    public byte deletionRequestEvent(
         final String eventId,
         final String authorId,
         final JsonObject deletionEvent
