@@ -296,9 +296,10 @@ public class EventCacheDataService implements IEventService {
             final String dataKey = "event#" + eventId;
             final String versionKey = "event#" + eventId + ":version";
 
+            pipeline.sadd("eventRemovedList", eventId);
             pipeline.zadd(versionKey, score, String.format("{\"id\":\"%s\"}", eventId));
+            pipeline.srem("eventList", eventId);
             pipeline.del(dataKey);
-
         });
 
         pipeline.sync();
