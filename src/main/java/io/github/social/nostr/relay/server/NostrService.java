@@ -156,20 +156,19 @@ public class NostrService {
 
         final String responseText;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
-            responseText = eventService.persistEvent(kind, eventId, authorId, state, eventRawJson);
-        } else if( EventState.REPLACEABLE.equals(state) ) {
-            if( kind == EventKind.METADATA ) {
-                responseText = eventService.persistProfile(authorId, eventRawJson);
-            } else if( kind == EventKind.CONTACT_LIST ) {
-                responseText = eventService.persistContactList(authorId, eventRawJson);
+            responseText = eventService.persistEvent(eventData);
+        } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
+            if( eventData.getKind() == EventKind.METADATA ) {
+                responseText = eventService.persistProfile(eventData.getPubkey(), eventData.toString());
+            } else if( eventData.getKind() == EventKind.CONTACT_LIST ) {
+                responseText = eventService.persistContactList(eventData.getPubkey(), eventData.toString());
             } else {
-                responseText = eventService.persistEvent(kind, eventId, authorId, state, eventRawJson);
+                responseText = eventService.persistEvent(eventData);
             }
-        } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(state) ) {
-            responseText = eventService.persistParameterizedReplaceable(
-                kind, eventId, authorId, eventJson, eventRawJson);
-        } else if( EventState.EPHEMERAL.equals(state) ) {
-            responseText = consumeEphemeralEvent(eventJson);
+        } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
+            responseText = eventService.persistParameterizedReplaceable(eventData);
+        } else if( EventState.EPHEMERAL.equals(eventData.getState()) ) {
+            responseText = consumeEphemeralEvent(eventData);
         } else {
             responseText = "error: Not supported yet";
         }
@@ -187,14 +186,14 @@ public class NostrService {
             final String subscriptionId = key.substring(0, key.lastIndexOf(":"));
             final boolean newEvents = true;
             this.eventProcessor.submit(() -> this.filterAndBroadcastEvents(
-                context, subscriptionId, Collections.singletonList(eventJson), newEvents
+                context, subscriptionId, Collections.singletonList(eventData), newEvents
             ));
         });
 
         broadcastClient(context, gson.toJson(response));
 
-        if( kind == EventKind.DELETION ) {
-            eventService.deletionRequestEvent(eventId, authorId, eventJson);
+        if( eventData.getKind() == EventKind.DELETION ) {
+            eventService.deletionRequestEvent(eventData);
         }
 
         return 0;
@@ -230,7 +229,7 @@ public class NostrService {
         return 0;
     }
 
-    private String consumeEphemeralEvent(final JsonObject eventJson) {
+    private String consumeEphemeralEvent(final EventData eventJson) {
         return null;
     }
 
@@ -292,7 +291,7 @@ public class NostrService {
     private byte filterAndBroadcastEvents(
         final WebsocketContext context,
         final String subscriptionId,
-        final Collection<JsonObject> events,
+        final Collection<EventData> events,
         final boolean newEvents
     ) {
         final Gson gson = new GsonBuilder().create();
