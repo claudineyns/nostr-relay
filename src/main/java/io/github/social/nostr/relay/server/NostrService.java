@@ -269,7 +269,7 @@ public class NostrService {
             final String subscriptionId
     ) {
 
-        final List<JsonObject> events = new ArrayList<>();
+        final List<EventData> events = new ArrayList<>();
 
         logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
 
@@ -300,7 +300,7 @@ public class NostrService {
         final Collection<JsonObject> filter = this.subscriptions
             .getOrDefault(subscriptionKey, Collections.emptyList());
 
-        final List<JsonObject> selectedEvents = new ArrayList<>();
+        final List<EventData> selectedEvents = new ArrayList<>();
 
         final byte NO_LIMIT = 0;
         final int[] limit = new int[]{ NO_LIMIT };
@@ -310,30 +310,21 @@ public class NostrService {
 
         logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
 
-        events.stream().forEach(data -> {
-            final String eventId    = data.get("id").getAsString();
-            final String authorId   = data.get("pubkey").getAsString();
-            final int kind          = data.get("kind").getAsInt();
-            final JsonElement tags  = data.get("tags");
-            final Number createdAt  = data.get("created_at").getAsNumber();
-
+        events.stream().forEach(eventData -> {
             final List<String> evRefPubKeyList = new ArrayList<>();
             final List<String> evRefParamList = new ArrayList<>();
-            Optional
-                .ofNullable(tags)
-                .ifPresent(tagEL -> tagEL
-                    .getAsJsonArray()
-                    .forEach(entryEL -> {
-                        final JsonArray entryList = entryEL.getAsJsonArray();
-                        final String tagName = entryList.get(0).getAsString();
-                        final String tagValue = entryList.get(1).getAsString();
-                        switch(tagName) {
-                            case "p": evRefPubKeyList.add(tagValue); break;
-                            case "d": evRefParamList.add(tagValue); break;
-                            default: break;
-                        }
-                    })
-            );
+
+            eventData.getTags().forEach(tagList -> {
+                if(tagList.size() != 2) return;
+
+                final String t = tagList.get(0);
+                final String v = tagList.get(1);
+                switch(t) {
+                    case "p": evRefPubKeyList.add(v); break;
+                    case "d": evRefParamList.add(v); break;
+                    default: break;
+                }
+            });
 
             for(final JsonObject entry: filter) {
                 boolean emptyFilter = true;
@@ -399,19 +390,19 @@ public class NostrService {
 
                 boolean include = true;
 
-                include = include && (eventIdList.isEmpty()   || eventIdList.contains(eventId));
-                include = include && (kindList.isEmpty()      || kindList.contains(kind));
-                include = include && (authorIdList.isEmpty()  || authorIdList.contains(authorId));
+                include = include && (eventIdList.isEmpty()   || eventIdList.contains(eventData.getId()));
+                include = include && (kindList.isEmpty()      || kindList.contains(eventData.getKind()));
+                include = include && (authorIdList.isEmpty()  || authorIdList.contains(eventData.getPubkey()));
                 include = include && (refPubkeyList.isEmpty() || any(evRefPubKeyList, refPubkeyList) );
                 include = include && (refParamList.isEmpty()  || any(evRefParamList, refParamList) );
 
-                include = include && (since[0] == 0           || createdAt.intValue() >= since[0] );
-                include = include && (until[0] == 0           || createdAt.intValue() <= until[0] );
+                include = include && (since[0] == 0           || eventData.getCreatedAt() >= since[0] );
+                include = include && (until[0] == 0           || eventData.getCreatedAt() <= until[0] );
 
                 if( include ) {
-                    selectedEvents.add(data);
+                    selectedEvents.add(eventData);
                     logger.info("[Nostr] [Subscription] [{}]\nEvent\n{}\nmatched by filter\n{}\n",
-                        subscriptionId, data.toString(), entry.toString());
+                        subscriptionId, eventData.toString(), entry.toString());
                     break;
                 }
 
@@ -421,11 +412,9 @@ public class NostrService {
 
         logger.info("[Nostr] [Subscription] [{}] sorting events by creation time.", subscriptionId);
 
-        selectedEvents.sort((a, b) -> 
-            b.get("created_at").getAsInt() - a.get("created_at").getAsInt()
-        );
+        selectedEvents.sort((a, b) -> b.getCreatedAt() - a.getCreatedAt());
 
-        final Collection<JsonObject> sendLater = new ArrayList<>();
+        final Collection<EventData> sendLater = new ArrayList<>();
 
         if( limit[0] != NO_LIMIT ) {
             final int stop = limit[0] - 1;

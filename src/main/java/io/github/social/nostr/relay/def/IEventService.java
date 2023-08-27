@@ -2,8 +2,6 @@ package io.github.social.nostr.relay.def;
 
 import java.util.List;
 
-import com.google.gson.JsonObject;
-
 import io.github.social.nostr.relay.service.EventCacheDataService;
 import io.github.social.nostr.relay.specs.EventData;
 
