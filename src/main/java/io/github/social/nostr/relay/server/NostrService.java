@@ -149,6 +149,12 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
+        if( eventData.getCreatedAt() > (currentTime + 600) ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: event creation date is too far off from the current time. Is your system clock in sync?"));
+
+            return broadcastClient(context, gson.toJson(response));
+        }
+
         final String checkRegistration = eventService.checkRegistration(eventData.getPubkey());
         if( checkRegistration != null ) {
             response.addAll(Arrays.asList(Boolean.FALSE, checkRegistration));
