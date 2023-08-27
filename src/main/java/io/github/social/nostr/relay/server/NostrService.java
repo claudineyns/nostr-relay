@@ -313,10 +313,9 @@ public class NostrService {
         final int[] limit = new int[]{ NO_LIMIT };
 
         logger.info("[Nostr] [Subscription] [{}] filter criteria");
+        filter.stream().forEach(System.out::println);
 
         logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
-
-        filter.stream().forEach(System.out::println);
 
         events.stream().forEach(data -> {
             final String eventId    = data.get("id").getAsString();
