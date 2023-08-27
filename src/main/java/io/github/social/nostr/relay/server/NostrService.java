@@ -312,7 +312,7 @@ public class NostrService {
         final byte NO_LIMIT = 0;
         final int[] limit = new int[]{ NO_LIMIT };
 
-        logger.info("[Nostr] [Subscription] [{}] filter criteria");
+        logger.info("[Nostr] [Subscription] [{}] filter criteria", subscriptionId);
         filter.stream().forEach(System.out::println);
 
         logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
