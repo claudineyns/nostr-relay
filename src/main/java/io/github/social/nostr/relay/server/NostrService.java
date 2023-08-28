@@ -59,9 +59,6 @@ public class NostrService {
 
     private ExecutorService eventProcessor = Executors.newCachedThreadPool();
 
-    // [ENFORCEMENT] Keep this executor with only a single thread
-    private ExecutorService clientBroadcaster = Executors.newSingleThreadExecutor();
-
     private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
 
     public byte close() {
@@ -114,9 +111,7 @@ public class NostrService {
     }
 
     private byte broadcastClient(final WebsocketContext context, final String message) {
-        this.clientBroadcaster.submit(() -> context.broadcast(message));
-
-        return 0;
+        return context.broadcast(message);
     }
 
     private byte handleEvent(

@@ -57,6 +57,9 @@ public class ClientHandler implements Runnable {
 	private final ScheduledExecutorService pingService = Executors.newScheduledThreadPool(5);
 
 	private final ExecutorService websocketEventService = Executors.newCachedThreadPool();
+
+    // [ENFORCEMENT] Keep this executor with only a single thread
+    private final ExecutorService clientBroadcaster = Executors.newSingleThreadExecutor();
 	
 	private final String redirectPage = AppProperties.getRedirectPage();
 
@@ -64,10 +67,14 @@ public class ClientHandler implements Runnable {
 
 	private final WebsocketContext websocketContext = new WebsocketContext() {
 		public synchronized byte broadcast(final String message) {
-			logger.info("[WS] send data to client: {}", message);
-			try {
-				sendWebsocketDataClient(message);
-			} catch (IOException e) { /***/ }
+			clientBroadcaster.submit(() -> {
+				if(interrupt) return;
+
+				logger.info("[WS] send data to client: {}", message);
+				try {
+					sendWebsocketDataClient(message);
+				} catch (IOException e) { /***/ }
+			});
 
 			return 0;
 		}
