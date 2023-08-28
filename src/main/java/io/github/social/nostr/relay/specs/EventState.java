@@ -3,8 +3,7 @@ package io.github.social.nostr.relay.specs;
 import java.util.Arrays;
 
 public enum EventState {
-
-    REGULAR, REPLACEABLE, EPHEMERAL, PARAMETERIZED_REPLACEABLE;
+    UNKNOWN, REGULAR, REPLACEABLE, EPHEMERAL, PARAMETERIZED_REPLACEABLE;
 
     public static EventState byKind(final int n) {
         if ((1000 <= n && n < 10000) || Arrays.asList(
@@ -34,7 +33,7 @@ public enum EventState {
             return PARAMETERIZED_REPLACEABLE;
         }
 
-        return EPHEMERAL;
+        return UNKNOWN;
     }
     
 }
