@@ -434,16 +434,12 @@ public class NostrService {
 
                 if( include ) {
                     selectedEvents.add(eventData);
-                    logger.info("[Nostr] [Subscription] [{}]\nEvent\n{}\nmatched by filter\n{}\n",
-                        subscriptionId, eventData.toString(), entry.toString());
                     break;
                 }
 
             }
 
         });
-
-        logger.info("[Nostr] [Subscription] [{}] sorting events by creation time.", subscriptionId);
 
         selectedEvents.sort((a, b) -> b.getCreatedAt() - a.getCreatedAt());
 
@@ -457,7 +453,7 @@ public class NostrService {
         }
 
         if( !newEvents ) {
-            logger.info("[Nostr] [Subscription] [{}] number of events to sent: {}", subscriptionId, selectedEvents.size());
+            logger.info("[Nostr] [Subscription] [{}] total events to sent: {}", subscriptionId, selectedEvents.size());
         }
 
         if( ! selectedEvents.isEmpty() ) {
@@ -470,7 +466,7 @@ public class NostrService {
 
             this.broadcastClient(context, gson.toJson(subscriptionResponse));
         }
-        
+
         if( ! newEvents ) {
             this.broadcastClient(context, gson.toJson(Arrays.asList("EOSE", subscriptionId)));
         }
