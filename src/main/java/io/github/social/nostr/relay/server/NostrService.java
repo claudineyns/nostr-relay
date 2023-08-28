@@ -298,6 +298,9 @@ public class NostrService {
         }
 
         events.addAll(cacheEvents);
+
+        events.sort((a, b) -> b.getCreatedAt() - a.getCreatedAt());
+
         return 0;
     }
 
@@ -345,81 +348,79 @@ public class NostrService {
             logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
         }
 
-        final byte NO_LIMIT = 0;
-        final int[] limit = new int[]{ NO_LIMIT };
-
         final List<EventData> selectedEvents = new ArrayList<>();
 
-        if( ! filters.isEmpty()) events.stream().forEach(eventData -> {
-            final List<String> evRefPubKeyList = new ArrayList<>();
-            final List<String> evRefParamList = new ArrayList<>();
+        fetchFilters:
+        for(final JsonObject entry: filters) {
+            boolean emptyFilter = true;
 
-            eventData.getTags().forEach(tagList -> {
-                if(tagList.size() != 2) return;
+            final List<String> filterEventList = new ArrayList<>();
+            Optional.ofNullable(entry.get("ids")).ifPresent(e -> e
+                .getAsJsonArray().forEach( element -> filterEventList.add(element.getAsString()) )
+            );
+            emptyFilter = emptyFilter && filterEventList.isEmpty();
 
-                final String t = tagList.get(0);
-                final String v = tagList.get(1);
-                switch(t) {
-                    case "p": evRefPubKeyList.add(v); break;
-                    case "d": evRefParamList.add(v); break;
-                    default: break;
-                }
-            });
+            final List<Integer> filterKindList = new ArrayList<>();
+            Optional.ofNullable(entry.get("kinds")).ifPresent(k -> k
+                .getAsJsonArray().forEach( element -> filterKindList.add(element.getAsInt()) )
+            );
+            emptyFilter = emptyFilter && filterKindList.isEmpty();
 
-            for(final JsonObject entry: filters) {
-                boolean emptyFilter = true;
+            final List<String> filterPubkeyList = new ArrayList<>();
+            Optional.ofNullable(entry.get("authors")).ifPresent(k -> k
+                .getAsJsonArray().forEach( element -> filterPubkeyList.add(element.getAsString()) )
+            );
+            emptyFilter = emptyFilter && filterPubkeyList.isEmpty();
 
-                final List<String> filterEventList = new ArrayList<>();
-                Optional.ofNullable(entry.get("ids")).ifPresent(e -> e
-                    .getAsJsonArray().forEach( element -> filterEventList.add(element.getAsString()) )
-                );
-                emptyFilter = emptyFilter && filterEventList.isEmpty();
+            final List<String> filterRefPubkeyList = new ArrayList<>();
+            Optional.ofNullable(entry.get("#p")).ifPresent(p -> p
+                .getAsJsonArray().forEach( element -> filterRefPubkeyList.add(element.getAsString()) )
+            );
+            emptyFilter = emptyFilter && filterRefPubkeyList.isEmpty();
 
-                final List<Integer> filterKindList = new ArrayList<>();
-                Optional.ofNullable(entry.get("kinds")).ifPresent(k -> k
-                    .getAsJsonArray().forEach( element -> filterKindList.add(element.getAsInt()) )
-                );
-                emptyFilter = emptyFilter && filterKindList.isEmpty();
+            final List<String> filterRefParamList = new ArrayList<>();
+            Optional.ofNullable(entry.get("#d")).ifPresent(d -> d
+                .getAsJsonArray().forEach( element -> filterRefParamList.add(element.getAsString()) )
+            );
+            // Filter '#d' (data) must not be accept without combination with 'pubkey' or 'kind'
 
-                final List<String> filterPubkeyList = new ArrayList<>();
-                Optional.ofNullable(entry.get("authors")).ifPresent(k -> k
-                    .getAsJsonArray().forEach( element -> filterPubkeyList.add(element.getAsString()) )
-                );
-                emptyFilter = emptyFilter && filterPubkeyList.isEmpty();
+            final int[] since = new int[] {0};
+            Optional
+                .ofNullable(entry.get("since"))
+                .ifPresent(time -> since[0] = time.getAsInt());
 
-                final List<String> filterRefPubkeyList = new ArrayList<>();
-                Optional.ofNullable(entry.get("#p")).ifPresent(p -> p
-                    .getAsJsonArray().forEach( element -> filterRefPubkeyList.add(element.getAsString()) )
-                );
-                emptyFilter = emptyFilter && filterRefPubkeyList.isEmpty();
+            final int[] until = new int[] {0};
+            Optional
+                .ofNullable(entry.get("until"))
+                .ifPresent(time -> until[0] = time.getAsInt());
 
-                final List<String> filterRefParamList = new ArrayList<>();
-                Optional.ofNullable(entry.get("#d")).ifPresent(d -> d
-                    .getAsJsonArray().forEach( element -> filterRefParamList.add(element.getAsString()) )
-                );
-                // Filter '#d' (data) must not be accept without combination with 'pubkey' or 'kind'
+            final int[] limit = new int[]{0};
+            Optional
+                .ofNullable(entry.get("limit"))
+                .ifPresent(q -> limit[0] = q.getAsInt());
 
-                final int[] since = new int[] {0};
-                Optional
-                    .ofNullable(entry.get("since"))
-                    .ifPresent(time -> since[0] = time.getAsInt());
+            if(emptyFilter) {
+                logger.info("[Nostr] [Subscription] [{}] filter has been considered empty:\n{}", subscriptionId, entry);
+                continue;
+            }
 
-                final int[] until = new int[] {0};
-                Optional
-                    .ofNullable(entry.get("until"))
-                    .ifPresent(time -> until[0] = time.getAsInt());
+            final Collection<EventData> filteredEvents = new ArrayList<>();
 
-                Optional
-                    .ofNullable(entry.get("limit"))
-                    .ifPresent(q -> {
-                        final int v = q.getAsInt();
-                        if( v > limit[0] ) limit[0] = v;
-                    });
+            for(final EventData eventData: events) {
+                final List<String> evRefPubKeyList = new ArrayList<>();
+                final List<String> evRefParamList = new ArrayList<>();
 
-                if(emptyFilter) {
-                    logger.info("[Nostr] [Subscription] filter has been considered empty:\n{}", entry);
-                    continue;
-                }
+                eventData.getTags().forEach(tagList -> {
+                    if(tagList.size() != 2) return;
+
+                    final String t = tagList.get(0);
+                    final String v = tagList.get(1);
+                    switch(t) {
+                        case "p": evRefPubKeyList.add(v); break;
+                        case "d": evRefParamList.add(v); break;
+                        default: break;
+                    }
+                });
 
                 boolean include = true;
 
@@ -432,23 +433,24 @@ public class NostrService {
                 include = include && (until[0] == 0                 || eventData.getCreatedAt() <= until[0] );
 
                 if( include ) {
-                    selectedEvents.add(eventData);
-                    break;
-                } else {
-                    logger.info("[Nostr] [Subscription] filter did not match any event:\n{}", entry);
+                    filteredEvents.add(eventData);
+
+                    if(newEvents) break fetchFilters;
+
+                    if( limit[0] > 0 && filteredEvents.size() == limit[0] ) break;
                 }
 
             }
 
-        });
-
-        selectedEvents.sort((a, b) -> b.getCreatedAt() - a.getCreatedAt());
-
-        if( limit[0] != NO_LIMIT ) {
-            final int stop = limit[0] - 1;
-            for(int q = selectedEvents.size() - 1; q >= 0 && q > stop; --q) {
-                selectedEvents.remove(q);
+            if( filteredEvents.isEmpty() ) {
+                logger.info("[Nostr] [Subscription] [{}] filter did not match any event\n{}", entry);
+                continue;
             }
+
+            filteredEvents.stream().forEach(evt -> {
+                if( ! selectedEvents.contains(evt) ) selectedEvents.add(evt);
+            });
+
         }
 
         if( !newEvents ) {
