@@ -384,6 +384,12 @@ public class NostrService {
             );
             // Filter '#d' (data) must not be accept without combination with 'pubkey' or 'kind'
 
+            final List<String> filterRefCoordinatedEvent = new ArrayList<>();
+            Optional.ofNullable(entry.get("#a")).ifPresent(p -> p
+                .getAsJsonArray().forEach( element -> filterRefCoordinatedEvent.add(element.getAsString()) )
+            );
+            emptyFilter = emptyFilter && filterRefCoordinatedEvent.isEmpty();
+
             final int[] since = new int[] {0};
             Optional
                 .ofNullable(entry.get("since"))
@@ -429,6 +435,21 @@ public class NostrService {
                 include = include && (filterPubkeyList.isEmpty()    || filterPubkeyList.contains(eventData.getPubkey()));
                 include = include && (filterRefPubkeyList.isEmpty() || any(evRefPubKeyList, filterRefPubkeyList) );
                 include = include && (filterRefParamList.isEmpty()  || any(evRefParamList, filterRefParamList) );
+
+                boolean coordMatch = filterRefCoordinatedEvent.isEmpty();
+                for(final String coordEvent : filterRefCoordinatedEvent) {
+                    final String[] cEvent = coordEvent.split(":");
+                    final int cKind = Integer.parseInt(cEvent[0]);
+                    final String cPubkey = cEvent[1];
+                    final String cData = cEvent[2];
+
+                    if( eventData.getKind() == cKind && eventData.getPubkey().equals(cPubkey) && evRefParamList.contains(cData) ) {
+                        coordMatch = true;
+                        break;
+                    }
+                }
+                include = include && coordMatch;
+
                 include = include && (since[0] == 0                 || eventData.getCreatedAt() >= since[0] );
                 include = include && (until[0] == 0                 || eventData.getCreatedAt() <= until[0] );
 
