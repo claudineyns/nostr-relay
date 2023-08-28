@@ -1,18 +1,27 @@
 package io.github.social.nostr.relay.service;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.apache.commons.io.IOUtils;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import io.github.social.nostr.relay.cache.CacheService;
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
+import io.github.social.nostr.relay.utilities.AppProperties;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
 import redis.clients.jedis.Jedis;
@@ -104,6 +113,35 @@ public class EventCacheDataService implements IEventService {
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
+    }
+
+    public byte fetchActiveEvents(List<EventData> events) {
+        final Gson gson = new GsonBuilder().create();
+
+        final List<EventData> cacheEvents = new ArrayList<>();
+        try {
+            final String jsonEvents = fetchRemoteEvents();
+            gson.fromJson(jsonEvents, JsonArray.class).forEach(el -> EventData.of(el.getAsJsonObject()));
+        } catch(IOException e) {
+            logger.info("[Nostr] [Persistence] Could not fetch remote events: {}", e.getMessage());
+        }
+        // this.fetchEvents(cacheEvents);
+        // this.fetchProfile(cacheEvents);
+        // this.fetchContactList(cacheEvents);
+        // this.fetchParameters(cacheEvents);
+
+        final int currentTime = (int) (System.currentTimeMillis()/1000L);
+
+        for(int i = cacheEvents.size() - 1; i >= 0; --i) {
+            final EventData event = cacheEvents.get(i);
+            if( event.getExpiration() > 0 && event.getExpiration() < currentTime ) {
+                cacheEvents.remove(i);
+            }
+        }
+
+        events.addAll(cacheEvents);
+
+        return 0;
     }
 
     public byte fetchEvents(final List<EventData> events) {
@@ -290,6 +328,29 @@ public class EventCacheDataService implements IEventService {
         );
 
         return 0;
+    }
+
+    private final String validationHost = AppProperties.getEventValidationHost();
+    private final int validationPort = AppProperties.getEventValidationPort();
+
+    private String fetchRemoteEvents() throws IOException {
+        final URL url = new URL("http://"+validationHost+":"+validationPort+"/event/activeList");
+        final HttpURLConnection http = (HttpURLConnection) url.openConnection();
+
+        http.setRequestMethod("GET");
+        http.setDoOutput(true);
+        http.setInstanceFollowRedirects(false);
+
+        http.setRequestProperty("Accept", "application/json");
+        http.setRequestProperty("Connection", "close");
+
+        final InputStream in = http.getInputStream();
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+        IOUtils.copy(in, out);
+
+        http.disconnect();
+
+        return new String(out.toByteArray(), StandardCharsets.UTF_8);
     }
 
     public byte close() {

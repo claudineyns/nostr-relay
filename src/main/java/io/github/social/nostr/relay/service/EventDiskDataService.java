@@ -245,6 +245,28 @@ public class EventDiskDataService implements IEventService {
         return 0;
     }
 
+    public byte fetchActiveEvents(List<EventData> events) {
+        final List<EventData> cacheEvents = new ArrayList<>();
+
+        this.fetchEvents(cacheEvents);
+        this.fetchProfile(cacheEvents);
+        this.fetchContactList(cacheEvents);
+        this.fetchParameters(cacheEvents);
+
+        final int currentTime = (int) (System.currentTimeMillis()/1000L);
+
+        for(int i = cacheEvents.size() - 1; i >= 0; --i) {
+            final EventData event = cacheEvents.get(i);
+            if( event.getExpiration() > 0 && event.getExpiration() < currentTime ) {
+                cacheEvents.remove(i);
+            }
+        }
+
+        events.addAll(cacheEvents);
+
+        return 0;
+    }
+
     public byte fetchEvents(final List<EventData> events) {
         return this.fetchCurrent(events, new File(directory, "events"));
     }

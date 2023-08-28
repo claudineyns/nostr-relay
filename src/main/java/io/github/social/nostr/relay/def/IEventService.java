@@ -24,6 +24,8 @@ public interface IEventService {
 
     byte deletionRequestEvent(final EventData eventData);
 
+    byte fetchActiveEvents(final List<EventData> events);
+
     byte fetchEvents(final List<EventData> events);
 
     byte fetchProfile(final List<EventData> events);
