@@ -137,7 +137,7 @@ public class NostrService {
                 failure.getMessage());
         }
 
-        logger.info("[Nostr] [Message] event ID received: {}.", eventData.getId());
+        logger.info("[Nostr] [Message] event ID {} received from pubkey {}.", eventData.getId(), eventData.getPubkey());
 
         final List<Object> response = new ArrayList<>();
         response.addAll(Arrays.asList("OK", eventData.getId()));
@@ -308,6 +308,7 @@ public class NostrService {
         final Collection<JsonObject> filters = Optional
             .ofNullable(this.subscriptions.get(subscriptionKey))
             .orElseGet(Collections::emptyList);
+
         if( ! filters.isEmpty() ) {
             logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
             this.fetchEventsFromDB(context, events);
@@ -337,15 +338,15 @@ public class NostrService {
             .ofNullable(this.subscriptions.get(subscriptionKey))
             .orElseGet(Collections::emptyList);
 
-        final byte NO_LIMIT = 0;
-        final int[] limit = new int[]{ NO_LIMIT };
-
         if( ! filters.isEmpty() ) {
             logger.info("[Nostr] [Subscription] [{}] filter criteria", subscriptionId);
             filters.stream().forEach(System.out::println);
 
             logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
         }
+
+        final byte NO_LIMIT = 0;
+        final int[] limit = new int[]{ NO_LIMIT };
 
         final List<EventData> selectedEvents = new ArrayList<>();
 
