@@ -280,11 +280,7 @@ public class NostrService {
         return validation;
     }
 
-    private byte fetchEventsFromDB(
-        final WebsocketContext context,
-        final String subscriptionId,
-        final List<EventData> events
-    ) {
+    private byte fetchEventsFromDB(final WebsocketContext context, final List<EventData> events) {
         final List<EventData> cacheEvents = new ArrayList<>();
 
         eventService.fetchEvents(cacheEvents);
@@ -311,7 +307,7 @@ public class NostrService {
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
         if( ! this.subscriptions.getOrDefault(subscriptionKey, Collections.emptyList()).isEmpty() ) {
             logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
-            this.fetchEventsFromDB(context, subscriptionId, events);
+            this.fetchEventsFromDB(context, events);
             logger.info("[Nostr] [Subscription] [{}] total events fetch: {}", subscriptionId, events.size());
         } else {
             logger.info("[Nostr] [Subscription] [{}] no filters provided.", subscriptionId);
