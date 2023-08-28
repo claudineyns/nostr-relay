@@ -455,7 +455,7 @@ public class NostrService {
                 if( include ) {
                     filteredEvents.add(eventData);
 
-                    if(newEvents) break fetchFilters;
+                    if(newEvents) break;
 
                     if( limit[0] > 0 && filteredEvents.size() == limit[0] ) break;
                 }
@@ -470,6 +470,8 @@ public class NostrService {
             filteredEvents.stream().forEach(evt -> {
                 if( ! selectedEvents.contains(evt) ) selectedEvents.add(evt);
             });
+
+            if(newEvents && selectedEvents.size() > 0) break;
 
         }
 
