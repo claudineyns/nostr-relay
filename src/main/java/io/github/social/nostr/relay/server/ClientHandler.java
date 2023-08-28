@@ -833,6 +833,12 @@ public class ClientHandler implements Runnable {
 		if ( timeDiff < CLIENT_LIVENESS_MILLIS ) return 0;
 
 		if( timeDiff > MAX_PACKET_RECEIVED_TIMEOUT_MILLIS ) {
+			if(this.interrupt) {
+				logger.info("[Server] Force closing client connection.");
+				this.client.close();
+				return 0;
+			}
+
 			return this.requestCloseDueInactivity();
 		}
 
@@ -842,9 +848,12 @@ public class ClientHandler implements Runnable {
 
 	private byte requestCloseDueInactivity() throws IOException {
 		logger.info("[WS] Server about to close connection due to client inactivity.");
+
 		this.interrupt = true;
+
 		final ByteBuffer closeCode = ByteBuffer.allocate(2);
 		closeCode.putShort((short)1000);
+
 		final ByteArrayOutputStream message = new ByteArrayOutputStream();
 		message.write(closeCode.array());
 		message.write("Closed due to inactivity".getBytes(StandardCharsets.UTF_8));

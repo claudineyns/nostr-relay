@@ -464,7 +464,10 @@ public class NostrService {
         if( ! selectedEvents.isEmpty() ) {
             final List<Object> subscriptionResponse = new ArrayList<>();
             subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
-            subscriptionResponse.addAll(selectedEvents.stream().map(event -> event.toString()).collect(Collectors.toList()) );
+            subscriptionResponse.addAll(selectedEvents
+                .stream()
+                .map(event -> event.toString()).collect(Collectors.toList()) 
+            );
 
             this.broadcastClient(context, gson.toJson(subscriptionResponse));
         }
