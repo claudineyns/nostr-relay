@@ -309,9 +309,12 @@ public class NostrService {
         final List<EventData> events = new ArrayList<>();
 
         logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
-        this.fetchEventsFromDB(context, subscriptionId, events);
-
-        logger.info("[Nostr] [Subscription] [{}] total events fetch: {}", subscriptionId, events.size());
+        if( ! this.subscriptions.getOrDefault(subscriptionId, Collections.emptyList()).isEmpty() ) {
+            this.fetchEventsFromDB(context, subscriptionId, events);
+            logger.info("[Nostr] [Subscription] [{}] total events fetch: {}", subscriptionId, events.size());
+        } else {
+            logger.info("[Nostr] [Subscription] [{}] no filters provided.", subscriptionId);
+        }
 
         final boolean newEvents = false;
         return this.filterAndBroadcastEvents(context, subscriptionId, events, newEvents);
@@ -343,7 +346,7 @@ public class NostrService {
 
         logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
 
-        events.stream().forEach(eventData -> {
+        if(!filter.isEmpty()) events.stream().forEach(eventData -> {
             final List<String> evRefPubKeyList = new ArrayList<>();
             final List<String> evRefParamList = new ArrayList<>();
 
@@ -443,12 +446,10 @@ public class NostrService {
 
         selectedEvents.sort((a, b) -> b.getCreatedAt() - a.getCreatedAt());
 
-        final Collection<EventData> sendLater = new ArrayList<>();
-
         if( limit[0] != NO_LIMIT ) {
             final int stop = limit[0] - 1;
             for(int q = selectedEvents.size() - 1; q >= 0 && q > stop; --q) {
-                sendLater.add(selectedEvents.remove(q));
+                selectedEvents.remove(q);
             }
         }
 
@@ -461,7 +462,8 @@ public class NostrService {
             subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
             subscriptionResponse.addAll(selectedEvents
                 .stream()
-                .map(event -> event.toString()).collect(Collectors.toList()) 
+                .map(event -> event.toString())
+                .collect(Collectors.toList()) 
             );
 
             this.broadcastClient(context, gson.toJson(subscriptionResponse));
@@ -470,13 +472,6 @@ public class NostrService {
         if( ! newEvents ) {
             this.broadcastClient(context, gson.toJson(Arrays.asList("EOSE", subscriptionId)));
         }
-
-        // sendLater.forEach(event -> {
-        //     final List<Object> deferred = new ArrayList<>();
-        //     deferred.addAll(Arrays.asList("EVENT", subscriptionId));
-        //     deferred.add(event.toString());
-        //     this.broadcastClient(context, gson.toJson(deferred));
-        // });
 
         return 0;
     }
