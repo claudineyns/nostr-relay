@@ -179,12 +179,14 @@ public class ClientHandler implements Runnable {
 
 	private void endStreams() throws IOException {
 		try {
-			client.close();
+			if( !this.client.isClosed() ) {
+				client.close();
+			}
 		} catch (IOException e) {
 			logger.warning("{}: {}", e.getClass().getCanonicalName(), e.getMessage());
 		}
 
-		logger.info("Client connection terminated.");
+		logger.info("[Server] Client connection has been terminated.");
 	}
 
 	private static final String CRLF = "\r\n";
