@@ -308,8 +308,8 @@ public class NostrService {
     private byte fetchAndBroadcastEvents(final WebsocketContext context, final String subscriptionId) {
         final List<EventData> events = new ArrayList<>();
 
-        logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
         if( ! this.subscriptions.getOrDefault(subscriptionId, Collections.emptyList()).isEmpty() ) {
+            logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
             this.fetchEventsFromDB(context, subscriptionId, events);
             logger.info("[Nostr] [Subscription] [{}] total events fetch: {}", subscriptionId, events.size());
         } else {
