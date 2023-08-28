@@ -340,7 +340,7 @@ public class NostrService {
 
         if( ! filters.isEmpty() ) {
             logger.info("[Nostr] [Subscription] [{}] filter criteria", subscriptionId);
-            filters.stream().forEach(System.out::println);
+            System.out.println(filters);
 
             logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
         }
@@ -370,42 +370,32 @@ public class NostrService {
                 boolean emptyFilter = true;
 
                 final List<String> filterEventList = new ArrayList<>();
-                Optional.ofNullable(entry.get("ids")).ifPresent(q -> q
-                    .getAsJsonArray()
-                    .iterator()
-                    .forEachRemaining( element -> filterEventList.add(element.getAsString()) )
+                Optional.ofNullable(entry.get("ids")).ifPresent(e -> e
+                    .getAsJsonArray().forEach( element -> filterEventList.add(element.getAsString()) )
                 );
                 emptyFilter = emptyFilter && filterEventList.isEmpty();
 
                 final List<Integer> filterKindList = new ArrayList<>();
-                Optional.ofNullable(entry.get("kinds")).ifPresent(q -> q
-                    .getAsJsonArray()
-                    .iterator()
-                    .forEachRemaining( element -> filterKindList.add(element.getAsInt()) )
+                Optional.ofNullable(entry.get("kinds")).ifPresent(k -> k
+                    .getAsJsonArray().forEach( element -> filterKindList.add(element.getAsInt()) )
                 );
                 emptyFilter = emptyFilter && filterKindList.isEmpty();
 
                 final List<String> filterPubkeyList = new ArrayList<>();
-                Optional.ofNullable(entry.get("authors")).ifPresent(q -> q
-                    .getAsJsonArray()
-                    .iterator()
-                    .forEachRemaining( element -> filterPubkeyList.add(element.getAsString()) )
+                Optional.ofNullable(entry.get("authors")).ifPresent(k -> k
+                    .getAsJsonArray().forEach( element -> filterPubkeyList.add(element.getAsString()) )
                 );
                 emptyFilter = emptyFilter && filterPubkeyList.isEmpty();
 
                 final List<String> filterRefPubkeyList = new ArrayList<>();
-                Optional.ofNullable(entry.get("#p")).ifPresent(q -> q
-                    .getAsJsonArray()
-                    .iterator()
-                    .forEachRemaining( element -> filterRefPubkeyList.add(element.getAsString()) )
+                Optional.ofNullable(entry.get("#p")).ifPresent(p -> p
+                    .getAsJsonArray().forEach( element -> filterRefPubkeyList.add(element.getAsString()) )
                 );
                 emptyFilter = emptyFilter && filterRefPubkeyList.isEmpty();
 
                 final List<String> filterRefParamList = new ArrayList<>();
-                Optional.ofNullable(entry.get("#d")).ifPresent(q -> q
-                    .getAsJsonArray()
-                    .iterator()
-                    .forEachRemaining( element -> filterRefParamList.add(element.getAsString()) )
+                Optional.ofNullable(entry.get("#d")).ifPresent(d -> d
+                    .getAsJsonArray().forEach( element -> filterRefParamList.add(element.getAsString()) )
                 );
                 // Filter '#d' (data) must not be accept without combination with 'pubkey' or 'kind'
 
@@ -426,7 +416,10 @@ public class NostrService {
                         if( v > limit[0] ) limit[0] = v;
                     });
 
-                if(emptyFilter) continue;
+                if(emptyFilter) {
+                    logger.info("[Nostr] [Subscription] filter has been considered empty:\n{}", entry);
+                    continue;
+                }
 
                 boolean include = true;
 
@@ -441,6 +434,8 @@ public class NostrService {
                 if( include ) {
                     selectedEvents.add(eventData);
                     break;
+                } else {
+                    logger.info("[Nostr] [Subscription] filter did not match any event:\n{}", entry);
                 }
 
             }
