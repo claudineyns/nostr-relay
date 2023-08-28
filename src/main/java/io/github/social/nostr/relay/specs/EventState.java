@@ -12,7 +12,12 @@ public enum EventState {
                 EventKind.DELETION,
                 EventKind.REACTION,
                 EventKind.REPOST,
-                EventKind.GENERIC_REPOST
+                EventKind.GENERIC_REPOST,
+                EventKind.CHANNEL_CREATE,
+                EventKind.CHANNEL_METADATA,
+                EventKind.CHANNEL_MESSAGE,
+                EventKind.CHANNEL_HIDE,
+                EventKind.CHANNEL_MUTE_USER
             ).contains(n)) {
             return REGULAR;
         }
