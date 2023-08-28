@@ -309,7 +309,6 @@ public class NostrService {
         final List<EventData> events = new ArrayList<>();
 
         logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
-
         this.fetchEventsFromDB(context, subscriptionId, events);
 
         logger.info("[Nostr] [Subscription] [{}] total events fetch: {}", subscriptionId, events.size());
@@ -474,17 +473,14 @@ public class NostrService {
         
         if( ! newEvents ) {
             this.broadcastClient(context, gson.toJson(Arrays.asList("EOSE", subscriptionId)));
-
-            logger.info("[Nostr] [Subscription] [{}] number of events to sent later: {}", subscriptionId, sendLater.size());
         }
 
-        sendLater.forEach(event -> {
-            final List<Object> deferred = new ArrayList<>();
-            deferred.addAll(Arrays.asList("EVENT", subscriptionId));
-            deferred.add(event.toString());
-
-            this.broadcastClient(context, gson.toJson(deferred));
-        });
+        // sendLater.forEach(event -> {
+        //     final List<Object> deferred = new ArrayList<>();
+        //     deferred.addAll(Arrays.asList("EVENT", subscriptionId));
+        //     deferred.add(event.toString());
+        //     this.broadcastClient(context, gson.toJson(deferred));
+        // });
 
         return 0;
     }
