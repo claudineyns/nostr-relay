@@ -279,23 +279,10 @@ public class NostrService {
         final List<EventData> cacheEvents = new ArrayList<>();
 
         eventService.fetchActiveEvents(cacheEvents);
-        // eventService.fetchEvents(cacheEvents);
-        // eventService.fetchProfile(cacheEvents);
-        // eventService.fetchContactList(cacheEvents);
-        // eventService.fetchParameters(cacheEvents);
 
-        final int currentTime = (int) (System.currentTimeMillis()/1000L);
-
-        for(int i = cacheEvents.size() - 1; i >= 0; --i) {
-            final EventData event = cacheEvents.get(i);
-            if( event.getExpiration() > 0 && event.getExpiration() < currentTime ) {
-                cacheEvents.remove(i);
-            }
-        }
+        cacheEvents.sort((a, b) -> b.getCreatedAt() - a.getCreatedAt());
 
         events.addAll(cacheEvents);
-
-        events.sort((a, b) -> b.getCreatedAt() - a.getCreatedAt());
 
         return 0;
     }

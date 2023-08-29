@@ -125,6 +125,7 @@ public class EventCacheDataService implements IEventService {
         } catch(IOException e) {
             logger.info("[Nostr] [Persistence] Could not fetch remote events: {}", e.getMessage());
         }
+        
         // this.fetchEvents(cacheEvents);
         // this.fetchProfile(cacheEvents);
         // this.fetchContactList(cacheEvents);
