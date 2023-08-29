@@ -132,7 +132,7 @@ public class NostrService {
                 failure.getMessage());
         }
 
-        logger.info("[Nostr] [Message] event ID {} received from pubkey {}.", eventData.getId(), eventData.getPubkey());
+        logger.info("[Nostr] [Message] event received\n{}", eventData.toString());
 
         final List<Object> response = new ArrayList<>();
         response.addAll(Arrays.asList("OK", eventData.getId()));
