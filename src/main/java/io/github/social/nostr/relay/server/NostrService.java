@@ -434,8 +434,8 @@ public class NostrService {
                 }
                 include = include && coordMatch;
 
-                include = include && (since[0] == 0                 || eventData.getCreatedAt() >= since[0] );
-                include = include && (until[0] == 0                 || eventData.getCreatedAt() <= until[0] );
+                include = include && (since[0] == 0 || eventData.getCreatedAt() >= since[0] );
+                include = include && (until[0] == 0 || eventData.getCreatedAt() <= until[0] );
 
                 if( include ) {
                     filteredEvents.add(eventData);
