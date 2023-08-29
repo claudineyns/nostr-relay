@@ -325,8 +325,7 @@ public class NostrService {
             .orElseGet(Collections::emptyList);
 
         if( ! filters.isEmpty() ) {
-            logger.info("[Nostr] [Subscription] [{}] filter criteria", subscriptionId);
-            System.out.println(filters);
+            logger.info("[Nostr] [Subscription] [{}] filter criteria\n{}", subscriptionId, filters);
 
             logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
         }
