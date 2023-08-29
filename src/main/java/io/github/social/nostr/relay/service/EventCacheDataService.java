@@ -167,17 +167,20 @@ public class EventCacheDataService implements IEventService {
     }
 
     private String saveEvent(final Jedis jedis, EventData eventData) {
-        final String currentDataKey = "event#" + eventData.getId();
+        final String cache = "event";
+
+        final String currentDataKey = cache+"#" + eventData.getId();
 
         if (EventState.REGULAR.equals(eventData.getState()) && jedis.exists(currentDataKey)) {
             return "duplicate: event has already been registered.";
         }
 
         final long score = System.currentTimeMillis();
-        final String versionKey = "event#" + eventData.getId() + ":version";
+
+        final String versionKey = cache+"#"+eventData.getId() + ":version";
 
         final Pipeline pipeline = jedis.pipelined();
-        pipeline.sadd("eventList", eventData.getId());
+        pipeline.sadd(cache+"List", eventData.getId());
         pipeline.set(currentDataKey, eventData.toString());
         pipeline.zadd(versionKey, score, eventData.toString());
         pipeline.sync();
@@ -195,10 +198,12 @@ public class EventCacheDataService implements IEventService {
             (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
         );
 
-        final String currentDataKey = "replaceable#" + data;
+        final String cache = "replaceable";
+
+        final String currentDataKey = cache+"#" + data;
         final String versionKey = currentDataKey + ":version";
 
-        pipeline.sadd("replaceableList", data);
+        pipeline.sadd(cache+"List", data);
         pipeline.set(currentDataKey, eventData.toString());
         pipeline.zadd(versionKey, score, eventData.toString());
 
