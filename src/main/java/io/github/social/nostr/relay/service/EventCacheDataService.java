@@ -121,7 +121,8 @@ public class EventCacheDataService implements IEventService {
         final List<EventData> cacheEvents = new ArrayList<>();
         try {
             final String jsonEvents = fetchRemoteEvents();
-            gson.fromJson(jsonEvents, JsonArray.class).forEach(el -> EventData.of(el.getAsJsonObject()));
+            gson.fromJson(jsonEvents, JsonArray.class)
+                .forEach(el -> cacheEvents.add(EventData.of(el.getAsJsonObject())) );
         } catch(IOException e) {
             logger.info("[Nostr] [Persistence] Could not fetch remote events: {}", e.getMessage());
         }
