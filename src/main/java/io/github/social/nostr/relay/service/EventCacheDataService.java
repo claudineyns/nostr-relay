@@ -198,7 +198,7 @@ public class EventCacheDataService implements IEventService {
         final String currentDataKey = "replaceable#" + data;
         final String versionKey = currentDataKey + ":version";
 
-        pipeline.sadd("parameterList", data);
+        pipeline.sadd("replaceableList", data);
         pipeline.set(currentDataKey, eventData.toString());
         pipeline.zadd(versionKey, score, eventData.toString());
 
