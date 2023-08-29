@@ -911,10 +911,7 @@ public class ClientHandler implements Runnable {
 				isFinal = (octet & FIN_ON) == FIN_ON;
 				current_opcode = octet & OPCODE_BITSPACE_FLAG;
 				c_opcode = Opcode.byCode(current_opcode);
-				logger.info(
-					"[WS] fin/opcode frame received: {}, {}",
-					isFinal,
-					c_opcode.name());
+				//logger.info("[WS] fin/opcode frame received: {}, {}", isFinal, c_opcode.name());
 
 				if(c_opcode.isReserved()) {
 					logger.warning("[WS] Parsing error. Aborting connection at all");
@@ -1012,12 +1009,12 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( opcode == Opcode.OPCODE_PONG.code() ) {
-			logger.info("[WS] Client sent PONG frame.");
+			// logger.info("[WS] Client sent PONG frame.");
 			return 0;
 		}
 
 		if( opcode == Opcode.OPCODE_PING.code() ) {
-			logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
+			// logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
 			return this.sendWebsocketPongClient(message.toByteArray());
 		}
 
