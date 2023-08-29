@@ -168,13 +168,7 @@ public class NostrService {
         if( EventState.REGULAR.equals(eventData.getState()) ) {
             responseText = eventService.persistEvent(eventData);
         } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
-            if( eventData.getKind() == EventKind.METADATA ) {
-                responseText = eventService.persistProfile(eventData.getPubkey(), eventData.toString());
-            } else if( eventData.getKind() == EventKind.CONTACT_LIST ) {
-                responseText = eventService.persistContactList(eventData.getPubkey(), eventData.toString());
-            } else {
-                responseText = eventService.persistEvent(eventData);
-            }
+            responseText = eventService.persistReplaceable(eventData);
         } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
             responseText = eventService.persistParameterizedReplaceable(eventData);
         } else if( EventState.EPHEMERAL.equals(eventData.getState()) ) {

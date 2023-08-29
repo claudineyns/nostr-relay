@@ -126,6 +126,44 @@ public class EventDiskDataService implements IEventService {
         return null;
     }
 
+    public String persistReplaceable(EventData eventData) {
+
+        final String data = Utils.sha256 (
+            (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
+        );
+
+        final File dataDB = new File(directory, "/replaceable/"+data);
+        if( ! dataDB.exists() ) dataDB.mkdirs();
+
+        final File dataVersionDB = new File(dataDB, "/version");
+        if ( ! dataVersionDB.exists() ) dataVersionDB.mkdirs();
+
+        final byte[] eventRaw = eventData.toString().getBytes(StandardCharsets.UTF_8);
+
+        final File paramVersion = new File(dataVersionDB, "data-" + System.currentTimeMillis() + ".json");
+        try (final OutputStream paramRecord = new FileOutputStream(paramVersion)) {
+            paramRecord.write(eventRaw);
+            logger.info("[Nostr] [Persistence] [Replaceable] Version saved");
+        } catch(IOException failure) {
+            logger.warning("[Nostr] [Persistence] [Replaceable] Could not save version: {}", failure.getMessage());
+            return DB_ERROR;
+        }
+
+        final File dataCurrentDB = new File(dataDB, "/current");
+        if ( ! dataCurrentDB.exists() ) dataCurrentDB.mkdirs();
+
+        final File contentData = new File(dataCurrentDB, "data.json");
+        try (final OutputStream paramRecord = new FileOutputStream(contentData)) {
+            paramRecord.write(eventRaw);
+            logger.info("[Nostr] [Persistence] [Replaceable] data updated");
+        } catch(IOException failure) {
+            logger.warning("[Nostr] [Persistence] [Replaceable] Could not update data: {}", failure.getMessage());
+            return DB_ERROR;
+        }
+
+        return null;
+    }
+
     public String persistParameterizedReplaceable(EventData eventData) {
         final List<String> dTagList = new ArrayList<>();
 

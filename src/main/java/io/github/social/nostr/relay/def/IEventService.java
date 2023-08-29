@@ -20,6 +20,8 @@ public interface IEventService {
 
     String persistContactList(final String authorId, final String eventJson);
 
+    String persistReplaceable(final EventData eventData);
+
     String persistParameterizedReplaceable(final EventData eventData);
 
     byte deletionRequestEvent(final EventData eventData);

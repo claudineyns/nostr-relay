@@ -21,7 +21,10 @@ public enum EventState {
             return REGULAR;
         }
 
-        if ((10000 <= n && n < 20000) || Arrays.asList(EventKind.METADATA, EventKind.CONTACT_LIST).contains(n)) {
+        if ((10000 <= n && n < 20000) || Arrays.asList(
+                EventKind.METADATA,
+                EventKind.CONTACT_LIST
+            ).contains(n)) {
             return REPLACEABLE;
         }
 

@@ -70,6 +70,15 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
+    public String persistReplaceable(final EventData eventData) {
+        try (final Jedis jedis = cache.connect()) {
+            return saveReplaceable(jedis, eventData);
+        } catch(JedisException e) {
+            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return DB_ERROR;
+        }
+    }
+
     public String persistParameterizedReplaceable(final EventData eventData) {
         final List<String> dTagList = new ArrayList<>();
 
@@ -125,11 +134,6 @@ public class EventCacheDataService implements IEventService {
         } catch(IOException e) {
             logger.info("[Nostr] [Persistence] Could not fetch remote events: {}", e.getMessage());
         }
-        
-        // this.fetchEvents(cacheEvents);
-        // this.fetchProfile(cacheEvents);
-        // this.fetchContactList(cacheEvents);
-        // this.fetchParameters(cacheEvents);
 
         final int currentTime = (int) (System.currentTimeMillis()/1000L);
 
@@ -239,6 +243,29 @@ public class EventCacheDataService implements IEventService {
         return null;
     }
 
+    private String saveReplaceable(final Jedis jedis, final EventData eventData) {
+        final Pipeline pipeline = jedis.pipelined();
+
+        final long score = System.currentTimeMillis();
+
+        final String data = Utils.sha256(
+            (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
+        );
+
+        final String currentDataKey = "replaceable#" + data;
+        final String versionKey = currentDataKey + ":version";
+
+        pipeline.sadd("parameterList", data);
+        pipeline.set(currentDataKey, eventData.toString());
+        pipeline.zadd(versionKey, score, eventData.toString());
+
+        logger.info("[Nostr] [Persistence] [Replaceable] event {} consumed.", eventData.getId());
+
+        pipeline.sync();
+
+        return null;
+    }
+
     private String saveParameterizedReplaceable(
             final Jedis jedis,
             final EventData eventData,
@@ -254,7 +281,7 @@ public class EventCacheDataService implements IEventService {
             );
 
             final String currentDataKey = "parameter#" + data;
-            final String versionKey = "parameter#" + param + ":version";
+            final String versionKey = currentDataKey + ":version";
 
             pipeline.sadd("parameterList", data);
             pipeline.set(currentDataKey, eventData.toString());
