@@ -223,15 +223,17 @@ public class EventCacheDataService implements IEventService {
 
         final long score = System.currentTimeMillis();
 
+        final String cache = "parameter";
+
         for (final String param : dTagList) {
             final String data = Utils.sha256(
                 (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
             );
 
-            final String currentDataKey = "parameter#" + data;
+            final String currentDataKey = cache+"#" + data;
             final String versionKey = currentDataKey + ":version";
 
-            pipeline.sadd("parameterList", data);
+            pipeline.sadd(cache+"List", data);
             pipeline.set(currentDataKey, eventData.toString());
             pipeline.zadd(versionKey, score, eventData.toString());
         }
