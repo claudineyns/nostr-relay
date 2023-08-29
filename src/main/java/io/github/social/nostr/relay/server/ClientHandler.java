@@ -851,7 +851,7 @@ public class ClientHandler implements Runnable {
 			return this.requestCloseDueInactivity();
 		}
 
-		logger.info("[WS] Send PING frame to client.");
+		//logger.info("[WS] Send PING frame to client.");
 		return this.sendWebsocketPingClient();
 	}
 
