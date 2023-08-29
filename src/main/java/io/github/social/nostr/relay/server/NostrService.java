@@ -425,7 +425,9 @@ public class NostrService {
                     final int cKind = Integer.parseInt(cEvent[0]);
                     final String cPubkey = cEvent[1];
                     final String cData = cEvent[2];
-                    if( eventData.getKind() == cKind && eventData.getPubkey().equals(cPubkey) && evRefParamList.contains(cData) ) {
+                    if( eventData.getKind() == cKind
+                            && eventData.getPubkey().equals(cPubkey)
+                            && evRefParamList.contains(cData) ) {
                         coordMatch = true;
                         break;
                     }
