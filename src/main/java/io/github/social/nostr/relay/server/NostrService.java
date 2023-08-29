@@ -272,7 +272,11 @@ public class NostrService {
     private byte fetchEventsFromDB(final WebsocketContext context, final List<EventData> events) {
         final List<EventData> cacheEvents = new ArrayList<>();
 
-        eventService.fetchActiveEvents(cacheEvents);
+        try {
+            eventService.fetchActiveEvents(cacheEvents);
+        } catch(Exception failure) {
+            logger.warning("[Nostr] [Persistence] could not fetch events\n{}", failure.getMessage());
+        }
 
         cacheEvents.sort((a, b) -> b.getCreatedAt() - a.getCreatedAt());
 
