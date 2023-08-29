@@ -5,7 +5,6 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,7 +12,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-public class EventData implements Comparator<EventData> {
+public class EventData implements Comparable<EventData> {
     private final String id;
     private final String pubkey;
     private final String content;
@@ -115,8 +114,8 @@ public class EventData implements Comparator<EventData> {
         return payload;
     }
 
-    public int compare(EventData o1, EventData o2) {
-        return o2.getCreatedAt() - o1.getCreatedAt();
+    public int compareTo(EventData o) {
+        return o.getCreatedAt() - this.getCreatedAt();
     }
 
     private void fetchTags(JsonElement tagEL) {
