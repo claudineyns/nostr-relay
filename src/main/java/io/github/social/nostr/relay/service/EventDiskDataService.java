@@ -292,8 +292,7 @@ public class EventDiskDataService implements IEventService {
         final List<EventData> cacheEvents = new ArrayList<>();
 
         this.fetchEvents(cacheEvents);
-        this.fetchProfile(cacheEvents);
-        this.fetchContactList(cacheEvents);
+        this.fetchReplaceables(cacheEvents);
         this.fetchParameters(cacheEvents);
 
         final int currentTime = (int) (System.currentTimeMillis()/1000L);
@@ -314,12 +313,8 @@ public class EventDiskDataService implements IEventService {
         return this.fetchCurrent(events, new File(directory, "events"));
     }
 
-    public byte fetchProfile(final List<EventData> events) {
-        return this.fetchCurrent(events, new File(directory, "profile"));
-    }
-
-    public byte fetchContactList(final List<EventData> events) {
-        return this.fetchCurrent(events, new File(directory, "contact"));
+    public byte fetchReplaceables(final List<EventData> events) {
+        return this.fetchCurrent(events, new File(directory, "replaceable"));
     }
 
     public byte fetchParameters(final List<EventData> events) {

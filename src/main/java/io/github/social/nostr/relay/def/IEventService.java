@@ -16,10 +16,6 @@ public interface IEventService {
 
     String persistEvent(final EventData eventData);
 
-    String persistProfile(final String authorId, final String eventJson);
-
-    String persistContactList(final String authorId, final String eventJson);
-
     String persistReplaceable(final EventData eventData);
 
     String persistParameterizedReplaceable(final EventData eventData);
@@ -30,9 +26,7 @@ public interface IEventService {
 
     byte fetchEvents(final List<EventData> events);
 
-    byte fetchProfile(final List<EventData> events);
-
-    byte fetchContactList(final List<EventData> events);
+    byte fetchReplaceables(final List<EventData> events);
 
     byte fetchParameters(final List<EventData> events);
 

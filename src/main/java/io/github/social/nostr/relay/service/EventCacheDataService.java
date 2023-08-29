@@ -52,24 +52,6 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public String persistProfile(String authorId, String eventJson) {
-        try (final Jedis jedis = cache.connect()) {
-            return saveProfile(jedis, authorId, eventJson);
-        } catch(JedisException e) {
-            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-            return DB_ERROR;
-        }
-    }
-
-    public String persistContactList(String authorId, String eventJson) {
-        try (final Jedis jedis = cache.connect()) {
-            return saveContactList(jedis, authorId, eventJson);
-        } catch(JedisException e) {
-            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-            return DB_ERROR;
-        }
-    }
-
     public String persistReplaceable(final EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
             return saveReplaceable(jedis, eventData);
@@ -157,21 +139,14 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public byte fetchProfile(final List<EventData> events) {
+    public byte fetchReplaceables(final List<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
-            return this.fetchList(jedis, events, "profile");
+            return this.fetchList(jedis, events, "replaceable");
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
     }
 
-    public byte fetchContactList(final List<EventData> events) {
-        try (final Jedis jedis = cache.connect()) {
-            return this.fetchList(jedis, events, "contact");
-        } catch(JedisException e) {
-            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-        }
-    }
     public byte fetchParameters(final List<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "parameter");
@@ -208,38 +183,6 @@ public class EventCacheDataService implements IEventService {
         pipeline.sync();
 
         logger.info("[Nostr] [Persistence] [Event] event {} updated.", eventData.getId());
-        return null;
-    }
-
-    private String saveProfile(final Jedis jedis, final String pubkey, final String event) {
-        final String currentDataKey = "profile#" + pubkey;
-
-        final long score = System.currentTimeMillis();
-        final String versionKey = "profile#" + pubkey + ":version";
-
-        final Pipeline pipeline = jedis.pipelined();
-        pipeline.sadd("profileList", pubkey);
-        pipeline.set(currentDataKey, event);
-        pipeline.zadd(versionKey, score, event);
-        pipeline.sync();
-
-        logger.info("[Nostr] [Persistence] [Profile] author {} updated.", pubkey);
-        return null;
-    }
-
-    private String saveContactList(final Jedis jedis, final String pubkey, final String event) {
-        final String currentDataKey = "contact#" + pubkey;
-
-        final long score = System.currentTimeMillis();
-        final String versionKey = "contact#" + pubkey + ":version";
-
-        final Pipeline pipeline = jedis.pipelined();
-        pipeline.sadd("contactList", pubkey);
-        pipeline.set(currentDataKey, event);
-        pipeline.zadd(versionKey, score, event);
-        pipeline.sync();
-
-        logger.info("[Nostr] [Persistence] [Contact] data by author {} updated.", pubkey);
         return null;
     }
 
