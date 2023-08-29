@@ -25,8 +25,7 @@ public class EventDiskDataService implements IEventService {
     private final File directory = new File("/var/nostr/data/");
 
     public synchronized String checkRegistration (final EventData eventData) {
-        final String pubkey = eventData.getPubkey();
-        if( new File(directory, "/registration/" + pubkey).exists() ) return null;
+        if( new File(directory, "/registration/" + eventData.getPubkey()).exists() ) return null;
 
         for(final String refPubkey: eventData.getReferencedPubkeyList()) {
             if(new File(directory, "/registration/" + refPubkey).exists()) return null;

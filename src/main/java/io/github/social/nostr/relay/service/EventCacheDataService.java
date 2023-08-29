@@ -35,7 +35,6 @@ public class EventCacheDataService implements IEventService {
     private final CacheService cache = CacheService.INSTANCE;
 
     public String checkRegistration(final EventData eventData) {
-
         try (final Jedis jedis = cache.connect()) {
             return validateRegistration(jedis, eventData);
         } catch(JedisException e) {
