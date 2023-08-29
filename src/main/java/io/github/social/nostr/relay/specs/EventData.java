@@ -3,6 +3,7 @@ package io.github.social.nostr.relay.specs;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +22,9 @@ public class EventData {
     private int expiration;
 
     private final List<List<String>> tags = new ArrayList<>();
+    private final List<String> referencedPubkeyList = new ArrayList<>();
+    private final List<String> referencedEventList = new ArrayList<>();
+    private final List<CoordinatedParameterEvent> coordinatedParameterEventList = new ArrayList<>();
 
     private final EventState state;
 
@@ -81,8 +85,20 @@ public class EventData {
         return created_at;
     }
 
-    public List<List<String>> getTags() {
-        return Collections.unmodifiableList(tags);
+    public Collection<List<String>> getTags() {
+        return Collections.unmodifiableCollection(tags);
+    }
+
+    public Collection<String> getReferencedPubkeyList() {
+        return Collections.unmodifiableCollection(referencedPubkeyList);
+    }
+
+    public Collection<String> getReferencedEventList() {
+        return Collections.unmodifiableCollection(referencedEventList);
+    }
+
+    public Collection<CoordinatedParameterEvent> getCoordinatedParameterEventList() {
+        return Collections.unmodifiableCollection(coordinatedParameterEventList);
     }
 
     public String getSig() {
@@ -113,10 +129,14 @@ public class EventData {
         this.tags.forEach(tagList -> {
             if(tagList.isEmpty()) return;
 
-            final String tagname = tagList.get(0);
+            final String n = tagList.get(0);
+            final String v = tagList.get(1);
 
-            switch(tagname) {
-                case "expiration": this.expiration = Integer.parseInt(tagList.get(1)); break;
+            switch(n) {
+                case "e": this.referencedEventList.add(v); break;
+                case "p": this.referencedPubkeyList.add(v); break;
+                case "a": this.coordinatedParameterEventList.add(CoordinatedParameterEvent.of(v)); break;
+                case "expiration": this.expiration = Integer.parseInt(v); break;
                 default: break;
             }
         });

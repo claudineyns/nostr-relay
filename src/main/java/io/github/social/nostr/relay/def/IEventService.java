@@ -12,7 +12,7 @@ public interface IEventService {
     // public static final IEventService INSTANCE = new EventDiskDataService();
     public static final IEventService INSTANCE = new EventCacheDataService();
 
-    String checkRegistration(final String pubkey);
+    String checkRegistration(final EventData eventData);
 
     String persistEvent(final EventData eventData);
 

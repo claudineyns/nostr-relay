@@ -34,10 +34,10 @@ public class EventCacheDataService implements IEventService {
 
     private final CacheService cache = CacheService.INSTANCE;
 
-    public String checkRegistration(final String pubkey) {
+    public String checkRegistration(final EventData eventData) {
 
         try (final Jedis jedis = cache.connect()) {
-            return validateRegistration(jedis, pubkey);
+            return validateRegistration(jedis, eventData);
         } catch(JedisException e) {
             logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
             return DB_ERROR;
@@ -177,8 +177,15 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    private String validateRegistration(final Jedis jedis, final String pubkey) {
-        return jedis.smembers("registration").contains(pubkey) ? null : REG_REQUIRED;
+    private String validateRegistration(final Jedis jedis, final EventData eventData) {
+        final Set<String> registration = jedis.smembers("registration");
+        if(registration.contains(eventData.getPubkey())) return null;
+
+        for(final String refPubkey: eventData.getReferencedPubkeyList()) {
+            if(registration.contains(refPubkey)) return null;
+        }
+
+        return REG_REQUIRED;
     }
 
     private String saveEvent(final Jedis jedis, EventData eventData) {

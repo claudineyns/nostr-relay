@@ -151,7 +151,7 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
-        final String checkRegistration = eventService.checkRegistration(eventData.getPubkey());
+        final String checkRegistration = eventService.checkRegistration(eventData);
         if( checkRegistration != null ) {
             response.addAll(Arrays.asList(Boolean.FALSE, checkRegistration));
 
