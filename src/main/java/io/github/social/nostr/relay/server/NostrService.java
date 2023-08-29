@@ -299,9 +299,9 @@ public class NostrService {
                 final Collection<EventData> eventList = this.fetchGlobalEvents();
                 this.eventCache.addAll(eventList);
             }
-        }
 
-        events.addAll(this.eventCache);
+            events.addAll(this.eventCache);
+        }
 
         return 0;
     }
