@@ -31,7 +31,12 @@ Once started the websocket server will listen on `wss://localhost:8443` and the 
 ## Implemented NIPS
 
 * [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md): Basic Protocol Flow
-* [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md): Event Deletion
+* [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md): Contact List and Petnames
+* [NIP-11](https://github.com/nostr-protocol/nips/blob/master/11.md): Relay Information Document
+* [NIP-18](https://github.com/nostr-protocol/nips/blob/master/18.md): Reposts
+* [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md): Reactions
+* [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md): Public Chat
+* [NIP-40](https://github.com/nostr-protocol/nips/blob/master/40.md): Expiration Timeout
 
 ## Deployment
 
