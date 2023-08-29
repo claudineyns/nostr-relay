@@ -445,7 +445,7 @@ public class NostrService {
             }
 
             if( filteredEvents.isEmpty() ) {
-                logger.info("[Nostr] [Subscription] [{}] filter did not match any event\n{}", entry);
+                // logger.info("[Nostr] [Subscription] [{}] filter did not match any event\n{}", entry);
                 continue;
             }
 
