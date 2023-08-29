@@ -467,7 +467,7 @@ public class NostrService {
             subscriptionResponse.addAll(Arrays.asList("EVENT", subscriptionId));
             subscriptionResponse.addAll(selectedEvents
                 .stream()
-                .map(event -> event.toString())
+                .map(event -> gson.fromJson(event.toString(), JsonObject.class))
                 .collect(Collectors.toList()) 
             );
 
