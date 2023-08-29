@@ -7,6 +7,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -105,7 +106,7 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public byte fetchActiveEvents(List<EventData> events) {
+    public byte fetchActiveEvents(Collection<EventData> events) {
         final Gson gson = new GsonBuilder().create();
 
         final List<EventData> cacheEvents = new ArrayList<>();
@@ -131,7 +132,7 @@ public class EventCacheDataService implements IEventService {
         return 0;
     }
 
-    public byte fetchEvents(final List<EventData> events) {
+    public byte fetchEvents(final Collection<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "event");
         } catch(JedisException e) {
@@ -139,7 +140,7 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public byte fetchReplaceables(final List<EventData> events) {
+    public byte fetchReplaceables(final Collection<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "replaceable");
         } catch(JedisException e) {
@@ -147,7 +148,7 @@ public class EventCacheDataService implements IEventService {
         }
     }
 
-    public byte fetchParameters(final List<EventData> events) {
+    public byte fetchParameters(final Collection<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "parameter");
         } catch(JedisException e) {
@@ -295,7 +296,7 @@ public class EventCacheDataService implements IEventService {
         return logger.info("[Nostr] [Persistence] [Event] events related by event {} has been deleted.", eventDeletion.getId());
     }
 
-    private byte fetchList(final Jedis jedis, final List<EventData> events, final String cache) {
+    private byte fetchList(final Jedis jedis, final Collection<EventData> events, final String cache) {
         final Gson gson = new GsonBuilder().create();
 
         final Set<String> ids = jedis.smembers(cache+"List");

@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -165,7 +166,7 @@ public class EventDiskDataService implements IEventService {
     }
 
     public String persistParameterizedReplaceable(EventData eventData) {
-        final List<String> dTagList = new ArrayList<>();
+        final Collection<String> dTagList = new ArrayList<>();
 
         eventData.getTags().forEach(tagArray -> {
             if(tagArray.size() < 2) return;
@@ -288,7 +289,7 @@ public class EventDiskDataService implements IEventService {
         return 0;
     }
 
-    public byte fetchActiveEvents(List<EventData> events) {
+    public byte fetchActiveEvents(Collection<EventData> events) {
         final List<EventData> cacheEvents = new ArrayList<>();
 
         this.fetchEvents(cacheEvents);
@@ -309,19 +310,19 @@ public class EventDiskDataService implements IEventService {
         return 0;
     }
 
-    public byte fetchEvents(final List<EventData> events) {
+    public byte fetchEvents(final Collection<EventData> events) {
         return this.fetchCurrent(events, new File(directory, "events"));
     }
 
-    public byte fetchReplaceables(final List<EventData> events) {
+    public byte fetchReplaceables(final Collection<EventData> events) {
         return this.fetchCurrent(events, new File(directory, "replaceable"));
     }
 
-    public byte fetchParameters(final List<EventData> events) {
+    public byte fetchParameters(final Collection<EventData> events) {
         return fetchCurrent(events, new File(directory, "/parameter"));
     }
 
-    private byte fetchCurrent(final List<EventData> events, final File dataDB) {
+    private byte fetchCurrent(final Collection<EventData> events, final File dataDB) {
         final Gson gson = new GsonBuilder().create();
 
         if(dataDB.exists()) dataDB.listFiles(new FileFilter() {

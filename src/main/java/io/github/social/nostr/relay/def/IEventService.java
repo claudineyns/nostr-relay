@@ -1,7 +1,6 @@
 package io.github.social.nostr.relay.def;
 
-import java.util.List;
-
+import java.util.Collection;
 import io.github.social.nostr.relay.service.EventCacheDataService;
 import io.github.social.nostr.relay.specs.EventData;
 
@@ -22,13 +21,13 @@ public interface IEventService {
 
     byte deletionRequestEvent(final EventData eventData);
 
-    byte fetchActiveEvents(final List<EventData> events);
+    byte fetchActiveEvents(final Collection<EventData> events);
 
-    byte fetchEvents(final List<EventData> events);
+    byte fetchEvents(final Collection<EventData> events);
 
-    byte fetchReplaceables(final List<EventData> events);
+    byte fetchReplaceables(final Collection<EventData> events);
 
-    byte fetchParameters(final List<EventData> events);
+    byte fetchParameters(final Collection<EventData> events);
 
     byte close();
 }

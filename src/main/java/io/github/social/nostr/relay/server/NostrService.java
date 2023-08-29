@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -60,6 +61,9 @@ public class NostrService {
     private ExecutorService eventProcessor = Executors.newCachedThreadPool();
 
     private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
+
+    private final Collection<EventData> eventCache = new TreeSet<>();
+    private final ExecutorService cacheUpdateTask = Executors.newSingleThreadExecutor();
 
     public byte close() {
         return eventService.close();
@@ -164,41 +168,50 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
+        boolean refresh = false;
+
         final String responseText;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
             responseText = eventService.persistEvent(eventData);
+            refresh = true;
         } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
             responseText = eventService.persistReplaceable(eventData);
+            refresh = true;
         } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
             responseText = eventService.persistParameterizedReplaceable(eventData);
+            refresh = true;
         } else if( EventState.EPHEMERAL.equals(eventData.getState()) ) {
             responseText = consumeEphemeralEvent(eventData);
         } else {
             responseText = "error: Not supported yet";
         }
 
-        Optional.ofNullable(responseText)
-        .ifPresentOrElse(
-            info -> response.addAll(Arrays.asList(Boolean.FALSE, info)),
-            () -> response.addAll(Arrays.asList(Boolean.TRUE, ""))
-        );
+        if( responseText == null ){
+            this.requestRefreshCache();
 
-        this.subscriptions.keySet()
-        .stream()
-        .filter(key -> key.endsWith(":"+context.getContextID()))
-        .forEach(key -> {
-            final String subscriptionId = key.substring(0, key.lastIndexOf(":"));
-            final boolean newEvents = true;
-            this.eventProcessor.submit(() -> this.filterAndBroadcastEvents(
-                context, subscriptionId, Collections.singletonList(eventData), newEvents
-            ));
-        });
+            response.addAll(Arrays.asList(Boolean.TRUE, ""));
+
+            this.subscriptions.keySet()
+            .stream()
+            .filter(key -> key.endsWith(":"+context.getContextID()))
+            .forEach(key -> {
+                final String subscriptionId = key.substring(0, key.lastIndexOf(":"));
+                final boolean newEvents = true;
+                this.eventProcessor.submit(() -> this.filterAndBroadcastEvents(
+                    context, subscriptionId, Collections.singletonList(eventData), newEvents
+                ));
+            });
+        } else {
+            response.addAll(Arrays.asList(Boolean.FALSE, responseText));
+        }
 
         broadcastClient(context, gson.toJson(response));
 
         if( eventData.getKind() == EventKind.DELETION ) {
             eventService.deletionRequestEvent(eventData);
         }
+
+        if(refresh) this.requestRefreshCache();
 
         return 0;
     }
@@ -269,18 +282,40 @@ public class NostrService {
         return validation;
     }
 
-    private byte fetchEventsFromDB(final WebsocketContext context, final List<EventData> events) {
-        final List<EventData> cacheEvents = new ArrayList<>();
-
+    private Collection<EventData> fetchGlobalEvents() {
+        final Collection<EventData> eventList = new ArrayList<>();
         try {
-            eventService.fetchActiveEvents(cacheEvents);
+            eventService.fetchActiveEvents(eventList);
+            this.eventCache.addAll(eventList);
         } catch(Exception failure) {
             logger.warning("[Nostr] [Persistence] could not fetch events\n{}", failure.getMessage());
         }
 
-        cacheEvents.sort((a, b) -> b.getCreatedAt() - a.getCreatedAt());
+        return eventList;
+    }
 
-        events.addAll(cacheEvents);
+    private byte fetchEventsFromDB(final WebsocketContext context, final List<EventData> events) {
+
+        synchronized(this.eventCache) {
+            if(this.eventCache.isEmpty()) {
+                final Collection<EventData> eventList = this.fetchGlobalEvents();
+                this.eventCache.addAll(eventList);
+            }
+        }
+
+        events.addAll(this.eventCache);
+
+        return 0;
+    }
+
+    private byte requestRefreshCache() {
+        this.cacheUpdateTask.submit(() -> {
+            final Collection<EventData> eventList = this.fetchGlobalEvents();
+            synchronized(this.eventCache) {
+                this.eventCache.clear();
+                this.eventCache.addAll(eventList);
+            }
+        });
 
         return 0;
     }
