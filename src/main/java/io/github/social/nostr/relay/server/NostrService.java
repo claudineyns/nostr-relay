@@ -400,7 +400,7 @@ public class NostrService {
                 final List<String> evRefParamList = new ArrayList<>();
 
                 eventData.getTags().forEach(tagList -> {
-                    if(tagList.size() != 2) return;
+                    if(tagList.size() < 2) return;
 
                     final String t = tagList.get(0);
                     final String v = tagList.get(1);
