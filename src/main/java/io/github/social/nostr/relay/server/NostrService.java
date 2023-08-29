@@ -278,10 +278,11 @@ public class NostrService {
     private byte fetchEventsFromDB(final WebsocketContext context, final List<EventData> events) {
         final List<EventData> cacheEvents = new ArrayList<>();
 
-        eventService.fetchEvents(cacheEvents);
-        eventService.fetchProfile(cacheEvents);
-        eventService.fetchContactList(cacheEvents);
-        eventService.fetchParameters(cacheEvents);
+        eventService.fetchActiveEvents(cacheEvents);
+        // eventService.fetchEvents(cacheEvents);
+        // eventService.fetchProfile(cacheEvents);
+        // eventService.fetchContactList(cacheEvents);
+        // eventService.fetchParameters(cacheEvents);
 
         final int currentTime = (int) (System.currentTimeMillis()/1000L);
 
