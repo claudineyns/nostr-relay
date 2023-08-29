@@ -187,8 +187,6 @@ public class NostrService {
         }
 
         if( responseText == null ){
-            this.requestRefreshCache();
-
             response.addAll(Arrays.asList(Boolean.TRUE, ""));
 
             this.subscriptions.keySet()
@@ -310,6 +308,7 @@ public class NostrService {
 
     private byte requestRefreshCache() {
         this.cacheUpdateTask.submit(() -> {
+            logger.info("[Task] update event cache");
             final Collection<EventData> eventList = this.fetchGlobalEvents();
             synchronized(this.eventCache) {
                 this.eventCache.clear();
