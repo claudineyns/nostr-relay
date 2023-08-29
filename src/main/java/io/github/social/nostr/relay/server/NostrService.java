@@ -419,18 +419,18 @@ public class NostrService {
                 include = include && (filterRefPubkeyList.isEmpty() || any(evRefPubKeyList, filterRefPubkeyList) );
                 include = include && (filterRefParamList.isEmpty()  || any(evRefParamList, filterRefParamList) );
 
-                // boolean coordMatch = filterRefCoordinatedEvent.isEmpty();
-                // for(final String coordEvent : filterRefCoordinatedEvent) {
-                //     final String[] cEvent = coordEvent.split(":");
-                //     final int cKind = Integer.parseInt(cEvent[0]);
-                //     final String cPubkey = cEvent[1];
-                //     final String cData = cEvent[2];
-                //     if( eventData.getKind() == cKind && eventData.getPubkey().equals(cPubkey) && evRefParamList.contains(cData) ) {
-                //         coordMatch = true;
-                //         break;
-                //     }
-                // }
-                // include = include && coordMatch;
+                boolean coordMatch = filterRefCoordinatedEvent.isEmpty();
+                for(final String coordEvent : filterRefCoordinatedEvent) {
+                    final String[] cEvent = coordEvent.split(":");
+                    final int cKind = Integer.parseInt(cEvent[0]);
+                    final String cPubkey = cEvent[1];
+                    final String cData = cEvent[2];
+                    if( eventData.getKind() == cKind && eventData.getPubkey().equals(cPubkey) && evRefParamList.contains(cData) ) {
+                        coordMatch = true;
+                        break;
+                    }
+                }
+                include = include && coordMatch;
 
                 include = include && (since[0] == 0                 || eventData.getCreatedAt() >= since[0] );
                 include = include && (until[0] == 0                 || eventData.getCreatedAt() <= until[0] );
