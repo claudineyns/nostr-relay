@@ -173,7 +173,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try {
             jsonEvents = this.fetchRemoteEvents();
         } catch (IOException e) {
-            logger.warning("[Nostr] [Persistence] [Remote] Could not fetch remote data", e.getMessage());
+            logger.warning("[Nostr] [Persistence] [Remote] Could not fetch remote data: {}", e.getMessage());
             return Collections.emptyList();
         }
 
@@ -318,10 +318,6 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         );
 
         return 0;
-    }
-
-    protected Collection<EventData> fetchFullList() {
-        return this.fetchEventListFromRemote();
     }
 
     private final String validationHost = AppProperties.getEventValidationHost();
