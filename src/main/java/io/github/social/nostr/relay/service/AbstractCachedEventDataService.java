@@ -81,10 +81,14 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     public byte fetchActiveEvents(Collection<EventData> events) {
         synchronized(this.eventCache) {
             if( this.eventCache.isEmpty() ) {
-                this.fetchAndParseEventList(true);
+                this.fetchAndParseEventList();
             }
 
-            events.addAll(new TreeSet<>(this.eventCache.values()));
+            events.addAll(new TreeSet<>(
+                this.eventCache.values().stream()
+                .filter(q -> q.getKind() != EventKind.DELETION)
+                .collect(Collectors.toList())
+            ));
         }
 
         return 0;
@@ -106,9 +110,7 @@ public abstract class AbstractCachedEventDataService implements IEventService {
 
         synchronized(this.eventCache) {
             this.eventCache.clear();
-            eventList.stream()
-                .filter(q -> q.getKind() != EventKind.DELETION)
-                .forEach(this::updateCacheEntry);
+            eventList.stream().forEach(this::updateCacheEntry);
         }
 
         return logger.info("[Task] Cache updated.");
