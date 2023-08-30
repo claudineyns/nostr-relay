@@ -62,8 +62,8 @@ public class NostrService {
 
     private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
 
-    private final Collection<EventData> eventCache = new TreeSet<>();
-    private final ExecutorService cacheUpdateTask = Executors.newSingleThreadExecutor();
+    //private final Collection<EventData> eventCache = new TreeSet<>();
+    //private final ExecutorService cacheUpdateTask = Executors.newSingleThreadExecutor();
 
     public byte close() {
         return eventService.close();
