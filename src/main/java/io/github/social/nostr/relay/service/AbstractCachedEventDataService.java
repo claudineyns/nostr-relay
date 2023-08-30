@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
+import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
@@ -93,6 +94,7 @@ public abstract class AbstractCachedEventDataService implements IEventService {
 
         return cacheEvents
             .stream()
+            .filter(q -> q.getKind() != EventKind.DELETION )
             .filter(q -> q.getExpiration() == 0 || q.getExpiration() > currentTime)
             .collect(Collectors.toList());
     }
