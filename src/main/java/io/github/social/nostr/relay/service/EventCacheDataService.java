@@ -11,14 +11,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
 import org.apache.commons.io.IOUtils;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import io.github.social.nostr.relay.cache.CacheService;
-import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
@@ -30,7 +28,7 @@ import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
 import redis.clients.jedis.exceptions.JedisException;
 
-public class EventCacheDataService implements IEventService {
+public class EventCacheDataService extends AbstractCachedEventDataService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     private final CacheService cache = CacheService.INSTANCE;
@@ -38,48 +36,6 @@ public class EventCacheDataService implements IEventService {
     public String checkRegistration(final EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
             return validateRegistration(jedis, eventData);
-        } catch(JedisException e) {
-            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-            return DB_ERROR;
-        }
-    }
-
-    public String persistEvent(EventData eventData) {
-        try (final Jedis jedis = cache.connect()) {
-            return saveEvent(jedis, eventData);
-        } catch(JedisException e) {
-            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-            return DB_ERROR;
-        }
-    }
-
-    public String persistReplaceable(final EventData eventData) {
-        try (final Jedis jedis = cache.connect()) {
-            return saveReplaceable(jedis, eventData);
-        } catch(JedisException e) {
-            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-            return DB_ERROR;
-        }
-    }
-
-    public String persistParameterizedReplaceable(final EventData eventData) {
-        final List<String> dTagList = new ArrayList<>();
-
-        eventData.getTags().forEach(tagArray -> {
-            if (tagArray.size() < 2) return;
-
-            final String tagName = tagArray.get(0);
-            if (!"d".equals(tagName)) return;
-
-            dTagList.add(tagArray.get(1));
-        });
-
-        if (dTagList.isEmpty()) {
-            return "blocked: event must contain 'd' tag entry";
-        }
-
-        try (final Jedis jedis = cache.connect()) {
-            return saveParameterizedReplaceable(jedis, eventData, dTagList);
         } catch(JedisException e) {
             logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
             return DB_ERROR;
@@ -167,14 +123,46 @@ public class EventCacheDataService implements IEventService {
         return REG_REQUIRED;
     }
 
+    protected byte proceedToSaveEvent(EventData eventData) {
+        try (final Jedis jedis = cache.connect()) {
+            saveEvent(jedis, eventData);
+        } catch(JedisException e) {
+            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+        }
+        return 0;
+    }
+
+    protected byte proceedToSaveReplaceable(EventData eventData) {
+        try (final Jedis jedis = cache.connect()) {
+            saveReplaceable(jedis, eventData);
+        } catch(JedisException e) {
+            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+        }
+
+        return 0;
+    }
+
+    protected byte proceedToSaveParameterizedReplaceable(final EventData eventData) {
+        try (final Jedis jedis = cache.connect()) {
+            return saveParameterizedReplaceable(jedis, eventData);
+        } catch(JedisException e) {
+            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+        }
+    }
+
+    protected String fetchRawJsonListData() {
+        try {
+            return this.fetchRemoteEvents();
+        } catch (IOException e) {
+            logger.warning("[Nostr] [Persistence] [Remote] Could not fetch remote data", e.getMessage());
+            return "[]";
+        }
+    }
+
     private String saveEvent(final Jedis jedis, EventData eventData) {
         final String cache = "event";
 
-        final String currentDataKey = cache+"#" + eventData.getId();
-
-        if (EventState.REGULAR.equals(eventData.getState()) && jedis.exists(currentDataKey)) {
-            return "duplicate: event has already been registered.";
-        }
+        final String currentDataKey = cache+"#"+eventData.getId();
 
         final long score = System.currentTimeMillis();
 
@@ -215,18 +203,14 @@ public class EventCacheDataService implements IEventService {
         return null;
     }
 
-    private String saveParameterizedReplaceable(
-            final Jedis jedis,
-            final EventData eventData,
-            final List<String> dTagList
-    ) {
+    private byte saveParameterizedReplaceable(final Jedis jedis, final EventData eventData) {
         final Pipeline pipeline = jedis.pipelined();
 
         final long score = System.currentTimeMillis();
 
         final String cache = "parameter";
 
-        for (final String param : dTagList) {
+        for (final String param : eventData.getInfoNameList()) {
             final String data = Utils.sha256(
                 (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
             );
@@ -243,7 +227,7 @@ public class EventCacheDataService implements IEventService {
 
         pipeline.sync();
 
-        return null;
+        return 0;
     }
 
     private byte removeEvents(

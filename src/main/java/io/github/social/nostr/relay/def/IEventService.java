@@ -15,7 +15,7 @@ public interface IEventService {
 
     String persistEvent(final EventData eventData);
 
-    String persistReplaceable(final EventData eventData);
+    byte persistReplaceable(final EventData eventData);
 
     String persistParameterizedReplaceable(final EventData eventData);
 
