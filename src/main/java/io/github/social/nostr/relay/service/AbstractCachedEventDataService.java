@@ -90,25 +90,23 @@ public abstract class AbstractCachedEventDataService implements IEventService {
         return 0;
     }
 
-    private Collection<EventData> fetchAndParseEventList(boolean excludeDeletions) {
+    private Collection<EventData> fetchAndParseEventList() {
         final Set<EventData> cacheEvents = new TreeSet<>(this.proceedToFetchEventList());
 
         final int currentTime = (int) (System.currentTimeMillis()/1000L);
 
         return cacheEvents
             .stream()
-            .filter(q -> !excludeDeletions || q.getKind() != EventKind.DELETION )
             .filter(q -> q.getExpiration() == 0 || q.getExpiration() > currentTime)
             .collect(Collectors.toList());
     }
 
     private byte refreshCacheList() {
-        final Collection<EventData> eventList = this.fetchAndParseEventList(false);
+        final Collection<EventData> eventList = this.fetchAndParseEventList();
 
         synchronized(this.eventCache) {
             this.eventCache.clear();
-            eventList
-                .stream()
+            eventList.stream()
                 .filter(q -> q.getKind() != EventKind.DELETION)
                 .forEach(this::updateCacheEntry);
         }
