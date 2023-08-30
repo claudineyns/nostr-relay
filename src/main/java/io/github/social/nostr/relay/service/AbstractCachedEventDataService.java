@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
@@ -160,4 +161,5 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     protected abstract byte proceedToSaveParameterizedReplaceable(final EventData eventData);
 
     protected abstract String fetchRawJsonListData();
+    
 }

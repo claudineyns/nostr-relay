@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+
 import org.apache.commons.io.IOUtils;
 
 import com.google.gson.Gson;
@@ -110,6 +111,30 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         } catch(JedisException e) {
             return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
         }
+    }
+
+    public final Collection<EventData> fetchEventListFromRemote() {
+        final Gson gson = new GsonBuilder().create();
+
+        final List<EventData> cacheEvents = new ArrayList<>();
+        try {
+            final String jsonEvents = fetchRemoteEvents();
+            gson.fromJson(jsonEvents, JsonArray.class)
+                .forEach(el -> cacheEvents.add(EventData.of(el.getAsJsonObject())) );
+        } catch(IOException e) {
+            logger.info("[Nostr] [Persistence] Could not fetch remote events: {}", e.getMessage());
+        }
+
+        final int currentTime = (int) (System.currentTimeMillis()/1000L);
+
+        for(int i = cacheEvents.size() - 1; i >= 0; --i) {
+            final EventData event = cacheEvents.get(i);
+            if( event.getExpiration() > 0 && event.getExpiration() < currentTime ) {
+                cacheEvents.remove(i);
+            }
+        }
+
+        return cacheEvents;
     }
 
     private String validateRegistration(final Jedis jedis, final EventData eventData) {
@@ -298,6 +323,10 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         );
 
         return 0;
+    }
+
+    protected Collection<EventData> fetchFullList() {
+        return this.fetchEventListFromRemote();
     }
 
     private final String validationHost = AppProperties.getEventValidationHost();
