@@ -17,8 +17,6 @@ import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.Utils;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.exceptions.JedisException;
 
 public abstract class AbstractCachedEventDataService implements IEventService {
 

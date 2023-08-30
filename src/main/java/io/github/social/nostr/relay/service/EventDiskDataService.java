@@ -34,20 +34,11 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
         return REG_REQUIRED;
     }
 
-    public byte deletionRequestEvent(final EventData eventDeletion) {
-        final Gson gson = new GsonBuilder().create();
-        final List<String> linkedEventId = new ArrayList<>();
-
-        eventDeletion.getTags().forEach(tagArray -> {
-            if(tagArray.size() < 2) return;
-
-            final String tagName = tagArray.get(0);
-            if( !"e".equals(tagName)) return;
-
-            linkedEventId.add(tagArray.get(1));
-        });
-
+    @Override
+    protected byte proceedToRemoveLinkedEvents(EventData eventDeletion) {
         final File eventDB = new File(directory, "/events");
+
+        final Gson gson = new GsonBuilder().create();
 
         final List<EventData> eventsMarkedForDeletion = new ArrayList<>();
         eventDB.listFiles(new FileFilter() {
@@ -67,7 +58,7 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
                     if( EventState.REGULAR.equals(eventData.getState()) 
                             && qEventKind != EventKind.DELETION
                             && qAuthorId.equals(eventData.getId())
-                            && linkedEventId.contains(qEventId)
+                            && eventDeletion.getReferencedEventList().contains(qEventId)
                     ) {
                         eventsMarkedForDeletion.add(eventData);
                     }
