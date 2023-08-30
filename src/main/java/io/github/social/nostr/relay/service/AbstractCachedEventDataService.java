@@ -1,8 +1,10 @@
 package io.github.social.nostr.relay.service;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import java.util.Set;
@@ -15,6 +17,8 @@ import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.Utils;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.exceptions.JedisException;
 
 public abstract class AbstractCachedEventDataService implements IEventService {
 
@@ -62,6 +66,26 @@ public abstract class AbstractCachedEventDataService implements IEventService {
         return null;
     }
 
+    public byte deletionRequestEvent(final EventData eventDeletion){
+        
+        final List<String> linkedEvents = new ArrayList<>();
+
+        eventDeletion.getTags().forEach(tagArray -> {
+            if (tagArray.size() < 2) return;
+
+            final String tagName = tagArray.get(0);
+            if (!"e".equals(tagName)) return;
+
+            linkedEvents.add(tagArray.get(1));
+        });
+
+        final Thread task = new Thread(() -> removeLinkedEventsAndUpdateCache(eventDeletion));
+        task.setDaemon(true);
+        this.cacheTask.submit(task);
+
+        return 0;
+    }
+
     public byte fetchActiveEvents(Collection<EventData> events) {
         synchronized(this.eventCache) {
             if( this.eventCache.isEmpty() ) {
@@ -85,13 +109,15 @@ public abstract class AbstractCachedEventDataService implements IEventService {
             .collect(Collectors.toList());
     }
 
-    private void refreshCacheList() {
+    private byte refreshCacheList() {
         final Collection<EventData> eventList = this.fetchAndParseEventList();
 
         synchronized(this.eventCache) {
             this.eventCache.clear();
             eventList.forEach(this::updateCacheEntry);
         }
+
+        return 0;
     }
 
     private byte saveEventAndUpdateCache(final EventData eventData) {
@@ -110,6 +136,12 @@ public abstract class AbstractCachedEventDataService implements IEventService {
         this.proceedToSaveParameterizedReplaceable(eventData);
 
         return this.syncEventCache(eventData);
+    }
+
+    private byte removeLinkedEventsAndUpdateCache(final EventData eventDeletion) {
+        this.proceedToRemoveLinkedEvents(eventDeletion);
+
+        return this.refreshCacheList();
     }
 
     private byte syncEventCache(final EventData eventData) {
@@ -149,6 +181,8 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     protected abstract byte proceedToSaveReplaceable(final EventData eventData);
 
     protected abstract byte proceedToSaveParameterizedReplaceable(final EventData eventData);
+
+    protected abstract byte proceedToRemoveLinkedEvents(final EventData eventDeletion);
 
     protected abstract Collection<EventData> proceedToFetchEventList();
     

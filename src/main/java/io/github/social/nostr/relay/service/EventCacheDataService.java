@@ -44,26 +44,6 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         }
     }
 
-    public byte deletionRequestEvent(final EventData eventDeletion){
-        
-        final List<String> linkedEvents = new ArrayList<>();
-
-        eventDeletion.getTags().forEach(tagArray -> {
-            if (tagArray.size() < 2) return;
-
-            final String tagName = tagArray.get(0);
-            if (!"e".equals(tagName)) return;
-
-            linkedEvents.add(tagArray.get(1));
-        });
-
-        try (final Jedis jedis = cache.connect()) {
-            return removeEvents(jedis, eventDeletion, linkedEvents);
-        } catch(JedisException e) {
-            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
-        }
-    }
-
     public byte fetchActiveEvents(Collection<EventData> events) {
         final Gson gson = new GsonBuilder().create();
 
@@ -176,6 +156,14 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         }
     }
 
+    protected byte proceedToRemoveLinkedEvents(EventData eventDeletion) {
+        try (final Jedis jedis = cache.connect()) {
+            return removeEvents(jedis, eventDeletion);
+        } catch(JedisException e) {
+            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+        }
+    }
+
     protected Collection<EventData> proceedToFetchEventList() {
         final Gson gson = new GsonBuilder().create();
 
@@ -265,12 +253,8 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
 
         return 0;
     }
-
-    private byte removeEvents(
-        final Jedis jedis,
-        final EventData eventDeletion,
-        final List<String> linkedEvents
-    ) {
+    
+    private byte removeEvents(final Jedis jedis, final EventData eventDeletion) {
         final Gson gson = new GsonBuilder().create();
 
         final List<EventData> eventsMarkedForDeletion = new ArrayList<>();
@@ -288,7 +272,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
                 if( EventState.REGULAR.equals(eventData.getState()) 
                         && qEventKind != EventKind.DELETION
                         && qAuthorId.equals(eventDeletion.getPubkey())
-                        && linkedEvents.contains(qEventId)
+                        && eventDeletion.getReferencedEventList().contains(qEventId)
                 ) {
                     eventsMarkedForDeletion.add(eventData);
                 }

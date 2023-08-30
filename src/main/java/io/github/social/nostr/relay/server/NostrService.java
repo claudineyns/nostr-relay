@@ -62,9 +62,6 @@ public class NostrService {
 
     private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
 
-    //private final Collection<EventData> eventCache = new TreeSet<>();
-    //private final ExecutorService cacheUpdateTask = Executors.newSingleThreadExecutor();
-
     public byte close() {
         return eventService.close();
     }
@@ -170,12 +167,12 @@ public class NostrService {
 
         boolean refresh = false;
 
-        final String responseText;
+        String responseText = null;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
             responseText = eventService.persistEvent(eventData);
             refresh = true;
         } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
-            responseText = eventService.persistReplaceable(eventData);
+            eventService.persistReplaceable(eventData);
             refresh = true;
         } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
             responseText = eventService.persistParameterizedReplaceable(eventData);
@@ -208,8 +205,6 @@ public class NostrService {
         if( eventData.getKind() == EventKind.DELETION ) {
             eventService.deletionRequestEvent(eventData);
         }
-
-        if(refresh) this.requestRefreshCache();
 
         return 0;
     }
@@ -280,43 +275,8 @@ public class NostrService {
         return validation;
     }
 
-    private Collection<EventData> fetchGlobalEvents() {
-        final Collection<EventData> eventList = new ArrayList<>();
-        try {
-            eventService.fetchActiveEvents(eventList);
-            this.eventCache.addAll(eventList);
-        } catch(Exception failure) {
-            logger.warning("[Nostr] [Persistence] could not fetch events\n{}", failure.getMessage());
-        }
-
-        return eventList;
-    }
-
     private byte fetchEventsFromDB(final WebsocketContext context, final List<EventData> events) {
-
-        synchronized(this.eventCache) {
-            if(this.eventCache.isEmpty()) {
-                final Collection<EventData> eventList = this.fetchGlobalEvents();
-                this.eventCache.addAll(eventList);
-            }
-
-            events.addAll(this.eventCache);
-        }
-
-        return 0;
-    }
-
-    private byte requestRefreshCache() {
-        this.cacheUpdateTask.submit(() -> {
-            logger.info("[Task] update event cache");
-            final Collection<EventData> eventList = this.fetchGlobalEvents();
-            synchronized(this.eventCache) {
-                this.eventCache.clear();
-                this.eventCache.addAll(eventList);
-            }
-        });
-
-        return 0;
+        return eventService.fetchActiveEvents(events);
     }
 
     private byte fetchAndBroadcastEvents(final WebsocketContext context, final String subscriptionId) {
