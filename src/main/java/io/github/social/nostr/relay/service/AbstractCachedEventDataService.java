@@ -1,10 +1,8 @@
 package io.github.social.nostr.relay.service;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import java.util.Set;
@@ -83,7 +81,7 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     public byte fetchActiveEvents(Collection<EventData> events) {
         synchronized(this.eventCache) {
             if( this.eventCache.isEmpty() ) {
-                this.fetchAndParseEventList();
+                this.fetchAndParseEventList(true);
             }
 
             events.addAll(new TreeSet<>(this.eventCache.values()));
@@ -92,19 +90,20 @@ public abstract class AbstractCachedEventDataService implements IEventService {
         return 0;
     }
 
-    private Collection<EventData> fetchAndParseEventList() {
+    private Collection<EventData> fetchAndParseEventList(boolean excludeDeletions) {
         final Set<EventData> cacheEvents = new TreeSet<>(this.proceedToFetchEventList());
 
         final int currentTime = (int) (System.currentTimeMillis()/1000L);
 
         return cacheEvents
             .stream()
+            .filter(q -> !excludeDeletions || q.getKind() != EventKind.DELETION )
             .filter(q -> q.getExpiration() == 0 || q.getExpiration() > currentTime)
             .collect(Collectors.toList());
     }
 
     private byte refreshCacheList() {
-        final Collection<EventData> eventList = this.fetchAndParseEventList();
+        final Collection<EventData> eventList = this.fetchAndParseEventList(false);
 
         synchronized(this.eventCache) {
             this.eventCache.clear();
