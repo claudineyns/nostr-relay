@@ -86,7 +86,7 @@ public abstract class AbstractCachedEventDataService implements IEventService {
 
             events.addAll(new TreeSet<>(
                 this.eventCache.values().stream()
-                .filter(q -> q.getKind() != EventKind.DELETION)
+                .filter(q -> q.getKind() != EventKind.DELETION )
                 .collect(Collectors.toList())
             ));
         }
