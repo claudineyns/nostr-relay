@@ -33,8 +33,6 @@ public abstract class AbstractCachedEventDataService implements IEventService {
             if (EventState.REGULAR.equals(eventData.getState()) && eventCache.containsKey(eventData.getId())) {
                 return "duplicate: event has already been registered.";
             }
-
-            eventCache.put(eventData.getId(), eventData);
         }
 
         final Thread task = new Thread(() -> saveEventAndUpdateCache(eventData));
@@ -65,7 +63,6 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     }
 
     public byte deletionRequestEvent(final EventData eventDeletion){
-        
         final List<String> linkedEvents = new ArrayList<>();
 
         eventDeletion.getTags().forEach(tagArray -> {
