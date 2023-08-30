@@ -17,9 +17,11 @@ import java.util.stream.Collectors;
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventState;
+import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
 
 public abstract class AbstractCachedEventDataService implements IEventService {
+    private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     private final Map<String, EventData> eventCache = new HashMap<>();
 
@@ -114,7 +116,7 @@ public abstract class AbstractCachedEventDataService implements IEventService {
             eventList.forEach(this::updateCacheEntry);
         }
 
-        return 0;
+        return logger.info("[Task] Cache updated.");
     }
 
     private byte saveEventAndUpdateCache(final EventData eventData) {
