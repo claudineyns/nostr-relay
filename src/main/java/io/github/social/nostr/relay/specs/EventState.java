@@ -8,6 +8,7 @@ public enum EventState {
     public static EventState byKind(final int n) {
         if ((1000 <= n && n < 10000) || Arrays.asList(
                 EventKind.TEXT_NOTE,
+                EventKind.ENCRYPTED_DIRECT,
                 EventKind.DELETION,
                 EventKind.REACTION,
                 EventKind.REPOST,

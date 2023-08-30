@@ -8,6 +8,7 @@ public final class EventKind {
     public static int METADATA = 0;
     public static int TEXT_NOTE = 1;
     public static int CONTACT_LIST = 3;
+    public static int ENCRYPTED_DIRECT = 4;
     public static int DELETION = 5;
     public static int REPOST = 6;
     public static int REACTION = 7;
