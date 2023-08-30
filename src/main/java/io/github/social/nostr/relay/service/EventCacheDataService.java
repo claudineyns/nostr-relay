@@ -8,6 +8,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -175,13 +176,23 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         }
     }
 
-    protected String fetchRawJsonListData() {
+    protected Collection<EventData> proceedToFetchEventList() {
+        final Gson gson = new GsonBuilder().create();
+
+        final Collection<EventData> cacheEvents = new ArrayList<>();
+
+        final String jsonEvents;
         try {
-            return this.fetchRemoteEvents();
+            jsonEvents = this.fetchRemoteEvents();
         } catch (IOException e) {
             logger.warning("[Nostr] [Persistence] [Remote] Could not fetch remote data", e.getMessage());
-            return "[]";
+            return Collections.emptyList();
         }
+
+        gson.fromJson(jsonEvents, JsonArray.class)
+            .forEach(el -> cacheEvents.add(EventData.of(el.getAsJsonObject())) );
+
+        return cacheEvents;
     }
 
     private String saveEvent(final Jedis jedis, EventData eventData) {

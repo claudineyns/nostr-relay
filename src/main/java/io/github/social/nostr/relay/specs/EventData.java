@@ -32,6 +32,8 @@ public class EventData implements Comparable<EventData> {
 
     private final String payload;
 
+    private final JsonObject json;
+
     private EventData(final JsonObject json) {
         this.id = json.get("id").getAsString();
         this.kind = json.get("kind").getAsInt();
@@ -45,6 +47,7 @@ public class EventData implements Comparable<EventData> {
         Optional.ofNullable(json.get("tags")).ifPresent(this::fetchTags);
 
         this.payload = json.toString();
+        this.json = json;
     }
 
     public static EventData gsonEngine(final Gson gson, final InputStream in) {
@@ -117,6 +120,10 @@ public class EventData implements Comparable<EventData> {
 
     public String toString() {
         return payload;
+    }
+
+    public JsonObject toJson() {
+        return this.json;
     }
 
     public int compareTo(EventData o) {

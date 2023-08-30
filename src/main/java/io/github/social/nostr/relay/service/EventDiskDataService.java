@@ -13,14 +13,13 @@ import java.util.Collection;
 import java.util.List;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
 
-public class EventDiskDataService implements IEventService {
+public class EventDiskDataService extends AbstractCachedEventDataService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     private final File directory = new File("/var/nostr/data/");
@@ -33,191 +32,6 @@ public class EventDiskDataService implements IEventService {
         }
 
         return REG_REQUIRED;
-    }
-
-    public String persistEvent(EventData eventData) {
-        final File eventDB = new File(directory, "/events/"+eventData.getId());
-        if( EventState.REGULAR.equals(eventData.getState()) && eventDB.exists() ) {
-            return "duplicate: event has already been registered.";
-        }
-
-        final byte[] eventRaw = eventData.toString().getBytes(StandardCharsets.UTF_8);
-
-        final File eventVersionDB = new File(eventDB, "/version");
-        if ( ! eventVersionDB.exists() ) eventVersionDB.mkdirs();
-        final File eventVersion = new File(eventVersionDB, "data-" + System.currentTimeMillis() + ".json");
-        try (final OutputStream eventRecord = new FileOutputStream(eventVersion)) {
-            eventRecord.write(eventRaw);
-            logger.info("[Nostr] [Persistence] [Event] Version saved");
-        } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Event] Could not save version: {}", failure.getMessage());
-            return DB_ERROR;
-        }
-
-        final File eventCurrentDB = new File(eventDB, "/current");
-        if( ! eventCurrentDB.exists() ) eventCurrentDB.mkdirs();
-        final File eventFile = new File(eventCurrentDB, "data.json");
-        try (final OutputStream eventRecord = new FileOutputStream(eventFile)) {
-            eventRecord.write(eventRaw);
-            logger.info("[Nostr] [Persistence] [Event] data updated");
-        } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Event] Could not update data: {}", failure.getMessage());
-        }
-
-        return null;
-    }
-
-    public synchronized String persistProfile(final String authorId, final String eventJson) {
-        final File profileDB = new File(directory, "/profile/"+authorId);
-
-        if( ! profileDB.exists() ) profileDB.mkdirs();
-
-        final File profileVersionDB = new File(profileDB, "/version");
-        if ( ! profileVersionDB.exists() ) profileVersionDB.mkdirs();
-        final File profileVersion = new File(profileVersionDB, "data-" + System.currentTimeMillis() + ".json");
-        try (final OutputStream profileRecord = new FileOutputStream(profileVersion)) {
-            profileRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
-            logger.info("[Nostr] [Persistence] [Profile] Version saved");
-        } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Profile] Could not save version: {}", failure.getMessage());
-            return DB_ERROR;
-        }
-
-        final File profileCurrentDB = new File(profileDB, "/current");
-        if( ! profileCurrentDB.exists() ) profileCurrentDB.mkdirs();
-        final File profileData = new File(profileCurrentDB, "data.json");
-        try (final OutputStream profileRecord = new FileOutputStream(profileData)) {
-            profileRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
-            logger.info("[Nostr] [Persistence] [Profile] data updated");
-        } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Profile] Could not update data: {}", failure.getMessage());
-            return DB_ERROR;
-        }
-
-        return null;
-    }
-
-    public synchronized String persistContactList(final String authorId, final String eventJson) {
-        final File contactDB = new File(directory, "/contact/"+authorId);
-
-        if( ! contactDB.exists() ) contactDB.mkdirs();
-
-        final File contactVersionDB = new File(contactDB, "/version");
-        if ( ! contactVersionDB.exists() ) contactVersionDB.mkdirs();
-        final File contactVersion = new File(contactVersionDB, "data-" + System.currentTimeMillis() + ".json");
-        try (final OutputStream contactRecord = new FileOutputStream(contactVersion)) {
-            contactRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
-            logger.info("[Nostr] [Persistence] [Contact] Version saved");
-        } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Contact] Could not save version: {}", failure.getMessage());
-            return DB_ERROR;
-        }
-
-        final File contactCurrentDB = new File(contactDB, "/current");
-        if( ! contactCurrentDB.exists() ) contactCurrentDB.mkdirs();
-        final File profileData = new File(contactCurrentDB, "data.json");
-        try (final OutputStream profileRecord = new FileOutputStream(profileData)) {
-            profileRecord.write(eventJson.getBytes(StandardCharsets.UTF_8));
-            logger.info("[Nostr] [Persistence] [Contact] data updated");
-        } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Contact] Could not update data: {}", failure.getMessage());
-            return DB_ERROR;
-        }
-
-        return null;
-    }
-
-    public String persistReplaceable(EventData eventData) {
-
-        final String data = Utils.sha256 (
-            (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
-        );
-
-        final File dataDB = new File(directory, "/replaceable/"+data);
-        if( ! dataDB.exists() ) dataDB.mkdirs();
-
-        final File dataVersionDB = new File(dataDB, "/version");
-        if ( ! dataVersionDB.exists() ) dataVersionDB.mkdirs();
-
-        final byte[] eventRaw = eventData.toString().getBytes(StandardCharsets.UTF_8);
-
-        final File paramVersion = new File(dataVersionDB, "data-" + System.currentTimeMillis() + ".json");
-        try (final OutputStream paramRecord = new FileOutputStream(paramVersion)) {
-            paramRecord.write(eventRaw);
-            logger.info("[Nostr] [Persistence] [Replaceable] Version saved");
-        } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Replaceable] Could not save version: {}", failure.getMessage());
-            return DB_ERROR;
-        }
-
-        final File dataCurrentDB = new File(dataDB, "/current");
-        if ( ! dataCurrentDB.exists() ) dataCurrentDB.mkdirs();
-
-        final File contentData = new File(dataCurrentDB, "data.json");
-        try (final OutputStream paramRecord = new FileOutputStream(contentData)) {
-            paramRecord.write(eventRaw);
-            logger.info("[Nostr] [Persistence] [Replaceable] data updated");
-        } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Replaceable] Could not update data: {}", failure.getMessage());
-            return DB_ERROR;
-        }
-
-        return null;
-    }
-
-    public String persistParameterizedReplaceable(EventData eventData) {
-        final Collection<String> dTagList = new ArrayList<>();
-
-        eventData.getTags().forEach(tagArray -> {
-            if(tagArray.size() < 2) return;
-
-            final String tagName = tagArray.get(0);
-            if( !"d".equals(tagName)) return;
-
-            dTagList.add(tagArray.get(1));
-        });
-
-        if( dTagList.isEmpty() ) {
-            return "blocked: event must contain 'd' tag entry";
-        }
-
-        for(final String param: dTagList) {
-            final String data = Utils.sha256 (
-                (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
-            );
-
-            final File dataDB = new File(directory, "/parameter/"+data);
-            if( ! dataDB.exists() ) dataDB.mkdirs();
-
-            final File dataVersionDB = new File(dataDB, "/version");
-            if ( ! dataVersionDB.exists() ) dataVersionDB.mkdirs();
-
-            final byte[] eventRaw = eventData.toString().getBytes(StandardCharsets.UTF_8);
-
-            final File paramVersion = new File(dataVersionDB, "data-" + System.currentTimeMillis() + ".json");
-            try (final OutputStream paramRecord = new FileOutputStream(paramVersion)) {
-                paramRecord.write(eventRaw);
-                logger.info("[Nostr] [Persistence] [Parameter] Version saved");
-            } catch(IOException failure) {
-                logger.warning("[Nostr] [Persistence] [Parameter] Could not save version: {}", failure.getMessage());
-                return DB_ERROR;
-            }
-
-            final File dataCurrentDB = new File(dataDB, "/current");
-            if ( ! dataCurrentDB.exists() ) dataCurrentDB.mkdirs();
-
-            final File contentData = new File(dataCurrentDB, "data.json");
-            try (final OutputStream paramRecord = new FileOutputStream(contentData)) {
-                paramRecord.write(eventRaw);
-                logger.info("[Nostr] [Persistence] [Parameter] data updated");
-            } catch(IOException failure) {
-                logger.warning("[Nostr] [Persistence] [Parameter] Could not update data: {}", failure.getMessage());
-                return DB_ERROR;
-            }
-
-        }
-
-        return null;
     }
 
     public byte deletionRequestEvent(final EventData eventDeletion) {
@@ -289,37 +103,127 @@ public class EventDiskDataService implements IEventService {
         return 0;
     }
 
-    public byte fetchActiveEvents(Collection<EventData> events) {
+    protected Collection<EventData> proceedToFetchEventList() {
         final List<EventData> cacheEvents = new ArrayList<>();
 
         this.fetchEvents(cacheEvents);
         this.fetchReplaceables(cacheEvents);
         this.fetchParameters(cacheEvents);
 
-        final int currentTime = (int) (System.currentTimeMillis()/1000L);
-
-        for(int i = cacheEvents.size() - 1; i >= 0; --i) {
-            final EventData event = cacheEvents.get(i);
-            if( event.getExpiration() > 0 && event.getExpiration() < currentTime ) {
-                cacheEvents.remove(i);
-            }
-        }
-
-        events.addAll(cacheEvents);
-
-        return 0;
+        return cacheEvents;
     }
 
     public byte fetchEvents(final Collection<EventData> events) {
-        return this.fetchCurrent(events, new File(directory, "events"));
+        return this.fetchCurrent(events, new File(directory, "/event"));
     }
 
     public byte fetchReplaceables(final Collection<EventData> events) {
-        return this.fetchCurrent(events, new File(directory, "replaceable"));
+        return this.fetchCurrent(events, new File(directory, "/replaceable"));
     }
 
     public byte fetchParameters(final Collection<EventData> events) {
         return fetchCurrent(events, new File(directory, "/parameter"));
+    }
+
+    protected byte proceedToSaveEvent(EventData eventData) {
+        final File eventDB = new File(directory, "/event/"+eventData.getId());
+
+        final byte[] eventRaw = eventData.toString().getBytes(StandardCharsets.UTF_8);
+
+        final File eventVersionDB = new File(eventDB, "/version");
+        if ( ! eventVersionDB.exists() ) eventVersionDB.mkdirs();
+        final File eventVersion = new File(eventVersionDB, "data-" + System.currentTimeMillis() + ".json");
+        try (final OutputStream eventRecord = new FileOutputStream(eventVersion)) {
+            eventRecord.write(eventRaw);
+            logger.info("[Nostr] [Persistence] [Event] Version saved");
+        } catch(IOException failure) {
+            return logger.warning("[Nostr] [Persistence] [Event] Could not save version: {}", failure.getMessage());
+        }
+
+        final File eventCurrentDB = new File(eventDB, "/current");
+        if( ! eventCurrentDB.exists() ) eventCurrentDB.mkdirs();
+        final File eventFile = new File(eventCurrentDB, "data.json");
+        try (final OutputStream eventRecord = new FileOutputStream(eventFile)) {
+            eventRecord.write(eventRaw);
+            logger.info("[Nostr] [Persistence] [Event] data updated");
+        } catch(IOException failure) {
+            logger.warning("[Nostr] [Persistence] [Event] Could not update data: {}", failure.getMessage());
+        }
+
+        return 0;
+    }
+
+    protected byte proceedToSaveReplaceable(EventData eventData) {
+        final String data = Utils.sha256 (
+            (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
+        );
+
+        final File dataDB = new File(directory, "/replaceable/"+data);
+        if( ! dataDB.exists() ) dataDB.mkdirs();
+
+        final File dataVersionDB = new File(dataDB, "/version");
+        if ( ! dataVersionDB.exists() ) dataVersionDB.mkdirs();
+
+        final byte[] eventRaw = eventData.toString().getBytes(StandardCharsets.UTF_8);
+
+        final File paramVersion = new File(dataVersionDB, "data-" + System.currentTimeMillis() + ".json");
+        try (final OutputStream paramRecord = new FileOutputStream(paramVersion)) {
+            paramRecord.write(eventRaw);
+            logger.info("[Nostr] [Persistence] [Replaceable] Version saved");
+        } catch(IOException failure) {
+            return logger.warning("[Nostr] [Persistence] [Replaceable] Could not save version: {}", failure.getMessage());
+        }
+
+        final File dataCurrentDB = new File(dataDB, "/current");
+        if ( ! dataCurrentDB.exists() ) dataCurrentDB.mkdirs();
+
+        final File contentData = new File(dataCurrentDB, "data.json");
+        try (final OutputStream paramRecord = new FileOutputStream(contentData)) {
+            paramRecord.write(eventRaw);
+            logger.info("[Nostr] [Persistence] [Replaceable] data updated");
+        } catch(IOException failure) {
+            return logger.warning("[Nostr] [Persistence] [Replaceable] Could not update data: {}", failure.getMessage());
+        }
+
+        return 0;
+    }
+
+    protected byte proceedToSaveParameterizedReplaceable(EventData eventData) {
+        for(final String param: eventData.getInfoNameList()) {
+            final String data = Utils.sha256 (
+                (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
+            );
+
+            final File dataDB = new File(directory, "/parameter/"+data);
+            if( ! dataDB.exists() ) dataDB.mkdirs();
+
+            final File dataVersionDB = new File(dataDB, "/version");
+            if ( ! dataVersionDB.exists() ) dataVersionDB.mkdirs();
+
+            final byte[] eventRaw = eventData.toString().getBytes(StandardCharsets.UTF_8);
+
+            final File paramVersion = new File(dataVersionDB, "data-" + System.currentTimeMillis() + ".json");
+            try (final OutputStream paramRecord = new FileOutputStream(paramVersion)) {
+                paramRecord.write(eventRaw);
+                logger.info("[Nostr] [Persistence] [Parameter] Version saved");
+            } catch(IOException failure) {
+                return logger.warning("[Nostr] [Persistence] [Parameter] Could not save version: {}", failure.getMessage());
+            }
+
+            final File dataCurrentDB = new File(dataDB, "/current");
+            if ( ! dataCurrentDB.exists() ) dataCurrentDB.mkdirs();
+
+            final File contentData = new File(dataCurrentDB, "data.json");
+            try (final OutputStream paramRecord = new FileOutputStream(contentData)) {
+                paramRecord.write(eventRaw);
+                logger.info("[Nostr] [Persistence] [Parameter] data updated");
+            } catch(IOException failure) {
+                return logger.warning("[Nostr] [Persistence] [Parameter] Could not update data: {}", failure.getMessage());
+            }
+
+        }
+
+        return 0;
     }
 
     private byte fetchCurrent(final Collection<EventData> events, final File dataDB) {

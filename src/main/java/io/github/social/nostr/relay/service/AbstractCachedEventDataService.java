@@ -11,10 +11,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventState;
@@ -79,19 +75,13 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     }
 
     private Collection<EventData> fetchAndParseEventList() {
-        final Gson gson = new GsonBuilder().create();
-
-        final Set<EventData> cacheEvents = new TreeSet<>();
-
-        final String jsonEvents = this.fetchRawJsonListData();
-        gson.fromJson(jsonEvents, JsonArray.class)
-            .forEach(el -> cacheEvents.add(EventData.of(el.getAsJsonObject())) );
+        final Set<EventData> cacheEvents = new TreeSet<>(this.proceedToFetchEventList());
 
         final int currentTime = (int) (System.currentTimeMillis()/1000L);
 
         return cacheEvents
             .stream()
-            .filter(q -> q.getExpiration() == 0 || q.getExpiration() < currentTime)
+            .filter(q -> q.getExpiration() == 0 || q.getExpiration() > currentTime)
             .collect(Collectors.toList());
     }
 
@@ -160,6 +150,6 @@ public abstract class AbstractCachedEventDataService implements IEventService {
 
     protected abstract byte proceedToSaveParameterizedReplaceable(final EventData eventData);
 
-    protected abstract String fetchRawJsonListData();
+    protected abstract Collection<EventData> proceedToFetchEventList();
     
 }
