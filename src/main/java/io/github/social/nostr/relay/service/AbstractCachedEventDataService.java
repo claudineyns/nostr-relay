@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import io.github.social.nostr.relay.def.IEventService;
@@ -23,6 +24,11 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     private final Map<String, EventData> eventCache = new HashMap<>();
 
     private final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
+
+    protected AbstractCachedEventDataService() {
+        Executors.newScheduledThreadPool(1)
+            .schedule(()->this.refreshCacheList(), 1500, TimeUnit.MILLISECONDS);
+    }
 
     public final String persistEvent(EventData eventData) {
         synchronized(eventCache) {
