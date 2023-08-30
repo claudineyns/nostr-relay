@@ -35,8 +35,13 @@ public abstract class AbstractCachedEventDataService implements IEventService {
 
     public final String persistEvent(EventData eventData) {
         synchronized(eventCache) {
-            if (EventState.REGULAR.equals(eventData.getState()) && eventCache.containsKey(eventData.getId())) {
-                return "duplicate: event has already been registered.";
+            if (EventState.REGULAR.equals(eventData.getState())) {
+                if (eventCache.containsKey(eventData.getId())) {
+                    return "duplicate: event has already been registered.";
+                }
+                if(this.checkRemovalHistory(eventData)) {
+                    return "invalid: this event has been asked to be removed from this relay.";
+                }
             }
         }
 
@@ -94,7 +99,6 @@ public abstract class AbstractCachedEventDataService implements IEventService {
 
         return cacheEvents
             .stream()
-            .filter(q -> q.getKind() != EventKind.DELETION )
             .filter(q -> q.getExpiration() == 0 || q.getExpiration() > currentTime)
             .collect(Collectors.toList());
     }
@@ -104,7 +108,10 @@ public abstract class AbstractCachedEventDataService implements IEventService {
 
         synchronized(this.eventCache) {
             this.eventCache.clear();
-            eventList.forEach(this::updateCacheEntry);
+            eventList
+                .stream()
+                .filter(q -> q.getKind() != EventKind.DELETION)
+                .forEach(this::updateCacheEntry);
         }
 
         return logger.info("[Task] Cache updated.");
@@ -126,6 +133,14 @@ public abstract class AbstractCachedEventDataService implements IEventService {
         this.proceedToSaveParameterizedReplaceable(eventData);
 
         return this.syncEventCache(eventData);
+    }
+
+    private boolean checkRemovalHistory(final EventData eventData) {
+        return this.eventCache.values().stream()
+            .filter( event -> event.getKind() == EventKind.DELETION )
+            .filter( event -> event.getPubkey().equals(eventData.getPubkey()) )
+            .filter( event -> event.getReferencedEventList().contains(eventData.getId()) )
+            .count() > 0;
     }
 
     private byte removeLinkedEventsAndUpdateCache(final EventData eventDeletion) {
