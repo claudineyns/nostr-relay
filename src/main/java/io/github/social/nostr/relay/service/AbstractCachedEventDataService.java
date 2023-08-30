@@ -109,7 +109,7 @@ public abstract class AbstractCachedEventDataService implements IEventService {
         final Collection<EventData> eventList = this.fetchAndParseEventList();
 
         synchronized(this.eventCache) {
-            if(!eventList.isEmpty()) {
+            if( ! eventList.isEmpty() ) {
                 this.eventCache.clear();
                 eventList.stream().forEach(this::updateCacheEntry);
             }
