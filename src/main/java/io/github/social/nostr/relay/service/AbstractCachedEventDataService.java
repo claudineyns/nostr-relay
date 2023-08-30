@@ -67,17 +67,6 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     }
 
     public byte deletionRequestEvent(final EventData eventDeletion){
-        final List<String> linkedEvents = new ArrayList<>();
-
-        eventDeletion.getTags().forEach(tagArray -> {
-            if (tagArray.size() < 2) return;
-
-            final String tagName = tagArray.get(0);
-            if (!"e".equals(tagName)) return;
-
-            linkedEvents.add(tagArray.get(1));
-        });
-
         final Thread task = new Thread(() -> removeLinkedEventsAndUpdateCache(eventDeletion));
         task.setDaemon(true);
         this.cacheTask.submit(task);

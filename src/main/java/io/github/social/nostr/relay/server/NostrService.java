@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,7 +61,8 @@ public class NostrService {
 
     private ExecutorService eventProcessor = Executors.newCachedThreadPool();
 
-    private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
+    //private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> subscriptions = new ConcurrentHashMap<>();
 
     public byte close() {
         return eventService.close();
@@ -186,21 +188,13 @@ public class NostrService {
         if( responseText == null ){
             response.addAll(Arrays.asList(Boolean.TRUE, ""));
 
-            this.subscriptions.keySet()
-            .stream()
-            .filter(key -> key.endsWith(":"+context.getContextID()))
-            .forEach(key -> {
-                final String subscriptionId = key.substring(0, key.lastIndexOf(":"));
-                final boolean newEvents = true;
-                this.eventProcessor.submit(() -> this.filterAndBroadcastEvents(
-                    context, subscriptionId, Collections.singletonList(eventData), newEvents
-                ));
-            });
+            this.broadcastNewEvent(context, gson, eventData);
+
         } else {
             response.addAll(Arrays.asList(Boolean.FALSE, responseText));
         }
 
-        broadcastClient(context, gson.toJson(response));
+        this.broadcastClient(context, gson.toJson(response));
 
         if( eventData.getKind() == EventKind.DELETION ) {
             eventService.deletionRequestEvent(eventData);
@@ -215,17 +209,23 @@ public class NostrService {
 
         logger.info("[Nostr] [Subscription] [{}] request received.", subscriptionId);
 
-        final Collection<JsonObject> filter = new ConcurrentLinkedQueue<>();
+        final Collection<JsonObject> filters = new ConcurrentLinkedQueue<>();
         for(int i = 2; i < nostrMessage.size(); ++i) {
             final JsonObject entry = nostrMessage.get(i).getAsJsonObject();
-            filter.add(entry);
+            filters.add(entry);
         }
 
-        this.subscriptions.put(subscriptionKey, filter);
+        this.subscriptions.put(subscriptionKey, Boolean.TRUE);
         logger.info("[Nostr] [Subscription] [{}] registered.", subscriptionId);
 
-        logger.info("[Nostr] [Subscription] [{}] await for data fetch.", subscriptionId);
-        this.eventProcessor.submit(() -> fetchAndBroadcastEvents(context, subscriptionId));
+        if( filters.isEmpty() ) {
+            logger.info("[Nostr] [Subscription] [{}] no filters were provided.", subscriptionId);
+            final String response = new GsonBuilder().create().toJson(Arrays.asList("EOSE", subscriptionId));
+            return this.broadcastClient(context, response);
+        }
+
+        logger.info("[Nostr] [Subscription] [{}] await for fetching data.", subscriptionId);
+        this.eventProcessor.submit(() -> fetchAndBroadcastEvents(context, subscriptionId, filters));
 
         return 0;
     }
@@ -279,24 +279,17 @@ public class NostrService {
         return eventService.fetchActiveEvents(events);
     }
 
-    private byte fetchAndBroadcastEvents(final WebsocketContext context, final String subscriptionId) {
+    private byte fetchAndBroadcastEvents(
+            final WebsocketContext context,
+            final String subscriptionId,
+            final Collection<JsonObject> filters
+    ) {
         final List<EventData> events = new ArrayList<>();
 
-        final String subscriptionKey = subscriptionId+":"+context.getContextID();
-        final Collection<JsonObject> filters = Optional
-            .ofNullable(this.subscriptions.get(subscriptionKey))
-            .orElseGet(Collections::emptyList);
+        logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
+        this.fetchEventsFromDB(context, events);
 
-        if( ! filters.isEmpty() ) {
-            logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
-            this.fetchEventsFromDB(context, events);
-            logger.info("[Nostr] [Subscription] [{}] total events fetch: {}", subscriptionId, events.size());
-        } else {
-            logger.info("[Nostr] [Subscription] [{}] no filters provided.", subscriptionId);
-        }
-
-        final boolean newEvents = false;
-        return this.filterAndBroadcastEvents(context, subscriptionId, events, newEvents);
+        return this.filterAndBroadcastEvents(context, subscriptionId, events, filters);
     }
 
     private static <T> boolean any(Collection<T> in, Collection<T> from) {
@@ -307,20 +300,13 @@ public class NostrService {
         final WebsocketContext context,
         final String subscriptionId,
         final Collection<EventData> events,
-        final boolean newEvents
+        final Collection<JsonObject> filters
     ) {
         final Gson gson = new GsonBuilder().create();
 
-        final String subscriptionKey = subscriptionId+":"+context.getContextID();
-        final Collection<JsonObject> filters = Optional
-            .ofNullable(this.subscriptions.get(subscriptionKey))
-            .orElseGet(Collections::emptyList);
+        logger.info("[Nostr] [Subscription] [{}] filter criteria\n{}", subscriptionId, filters);
 
-        if( ! filters.isEmpty() ) {
-            logger.info("[Nostr] [Subscription] [{}] filter criteria\n{}", subscriptionId, filters);
-
-            logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
-        }
+        logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
 
         final List<EventData> selectedEvents = new ArrayList<>();
 
@@ -431,29 +417,21 @@ public class NostrService {
                 if( include ) {
                     filteredEvents.add(eventData);
 
-                    if(newEvents) break;
-
                     if( limit[0] > 0 && filteredEvents.size() == limit[0] ) break;
                 }
 
             }
 
             if( filteredEvents.isEmpty() ) {
-                // logger.info("[Nostr] [Subscription] [{}] filter did not match any event\n{}", entry);
                 continue;
             }
 
             filteredEvents.stream().forEach(evt -> {
                 if( ! selectedEvents.contains(evt) ) selectedEvents.add(evt);
             });
-
-            if(newEvents && selectedEvents.size() > 0) break;
-
         }
 
-        if( !newEvents ) {
-            logger.info("[Nostr] [Subscription] [{}] total events to sent: {}", subscriptionId, selectedEvents.size());
-        }
+        logger.info("[Nostr] [Subscription] [{}] total events to sent: {}", subscriptionId, selectedEvents.size());
 
         if( ! selectedEvents.isEmpty() ) {
             final List<Object> subscriptionResponse = new ArrayList<>();
@@ -467,11 +445,23 @@ public class NostrService {
             this.broadcastClient(context, gson.toJson(subscriptionResponse));
         }
 
-        if( ! newEvents ) {
-            this.broadcastClient(context, gson.toJson(Arrays.asList("EOSE", subscriptionId)));
-        }
+        this.broadcastClient(context, gson.toJson(Arrays.asList("EOSE", subscriptionId)));
 
         return 0;
+    }
+
+    private void broadcastNewEvent(
+            final WebsocketContext context,
+            final Gson gson,
+            final EventData eventData
+    ) {
+        this.subscriptions.keySet()
+            .stream()
+            .filter(key -> key.endsWith(":"+context.getContextID()))
+            .map(key -> key.substring(0, key.lastIndexOf(":")))
+            .map(subscriptionId -> Arrays.asList("EVENT", subscriptionId, eventData.toJson()))
+            .map(gson::toJson)
+            .forEach(jsonResponse -> this.eventProcessor.submit(() ->  context.broadcast(jsonResponse)));
     }
     
 }
