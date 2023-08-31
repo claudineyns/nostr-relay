@@ -968,7 +968,7 @@ public class ClientHandler implements Runnable {
 			do {
 				byte octet = this.packet[counter++];
 				this.remainingBytes--;
-				
+
 				if( stage == CHECK_FIN ) {
 					isFinal = (octet & FIN_ON) == FIN_ON;
 					current_opcode = octet & OPCODE_BITSPACE_FLAG;
@@ -1057,16 +1057,20 @@ public class ClientHandler implements Runnable {
 					}
 				}
 
-			} while(counter < packetRead);
+			} while(counter < this.packetRead);
 
 			this.lastPacketReceivedTime = System.currentTimeMillis();
 
 			if( opcode == Opcode.OPCODE_TEXT.code() ) {
-				this.notifyWebsocketTextMessage(message.toByteArray());
+				final byte[] textData = message.toByteArray();
+				message.reset();
+				this.notifyWebsocketTextMessage(textData);
 			}
 
 			if( opcode == Opcode.OPCODE_BINARY.code() ) {
-				this.notifyWebsocketBinaryMessage(message.toByteArray());
+				final byte[] binaryData = message.toByteArray();
+				message.reset();
+				this.notifyWebsocketBinaryMessage(binaryData);
 			}
 
 			if( opcode == Opcode.OPCODE_PONG.code() ) {
