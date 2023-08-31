@@ -898,6 +898,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private long lastPacketReceivedTime = System.currentTimeMillis();
+
 	private byte consumeWebsocketClientPacket() throws IOException {
 		final ByteArrayOutputStream message = new ByteArrayOutputStream();
 		final ByteArrayOutputStream controlMessage = new ByteArrayOutputStream();
