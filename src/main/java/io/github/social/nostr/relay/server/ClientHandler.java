@@ -1062,6 +1062,7 @@ public class ClientHandler implements Runnable {
 			} while(counter < this.packetRead);
 
 			if(!complete) continue;
+			complete = false;
 
 			this.lastPacketReceivedTime = System.currentTimeMillis();
 
