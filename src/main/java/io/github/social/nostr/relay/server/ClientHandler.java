@@ -281,7 +281,7 @@ public class ClientHandler implements Runnable {
 				break;
 			}
 
-			this.remainingBytes = this.packetRead = -1;;
+			this.remainingBytes = this.packetRead;
 
 			int counter = 0;
 			do {
