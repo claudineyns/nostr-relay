@@ -256,56 +256,48 @@ public class ClientHandler implements Runnable {
 	}
 
 	private void startHandleHttpRequest() throws IOException {
-		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
+		//final ByteArrayOutputStream cache = new ByteArrayOutputStream();
 
 		final byte[] packet = new byte[1024];
-		int packetRead = -1;
+		
+		final int[] octets = new int[] {0, 0, 0, 0};
 
 		while(true) {
 			if(this.interrupt) return;
 
+			int packetRead = -1;
 			try {
-				while((packetRead = in.read(packet)) != -1) {
-					cache.write(packet, 0, packetRead);
-				}
+				packetRead = in.read(packet);
 			} catch(SocketTimeoutException timeout) {
 			// OK, continue
 			} catch(IOException failure) {
 				throw failure;
 			}
 
-			if(cache.size() == 0) continue;
+			if(packetRead == -1) continue;
 
-			break;
-		}
+			int counter = 0;
+			do {
+				byte octet = packet[counter++];
 
-		final byte[] rawData = cache.toByteArray();
-		cache.reset();
+				octets[0] = octets[1];
+				octets[1] = octets[2];
+				octets[2] = octets[3];
+				octets[3] = octet;
 
-		final int[] octets = new int[] {0, 0, 0, 0};
+				if (	octets[0] == '\r' 
+					&&	octets[1] == '\n'
+					&&	octets[2] == '\r' 
+					&&	octets[3] == '\n'
+				) {
 
-		int counter = 0;
-		byte octet = -1;
-		while(true) {
-			octet = rawData[counter++];
+					final byte[] rawHeaders = Arrays.copyOfRange(packet, 0, packet.length - 4);
+					this.httpRawRequestHeaders.write(rawHeaders);
+					this.analyseRequestHeader(rawHeaders);
+					break;
+				}
 
-			octets[0] = octets[1];
-			octets[1] = octets[2];
-			octets[2] = octets[3];
-			octets[3] = octet;
-
-			if (	octets[0] == '\r' 
-				&&	octets[1] == '\n'
-				&&	octets[2] == '\r' 
-				&&	octets[3] == '\n'
-			) {
-
-				final byte[] rawHeaders = Arrays.copyOfRange(packet, 0, packet.length - 4);
-				this.httpRawRequestHeaders.write(rawHeaders);
-				this.analyseRequestHeader(rawHeaders);
-				break;
-			}
-
+			} while(counter < packetRead);
 		}
 
 	}
@@ -929,38 +921,49 @@ public class ClientHandler implements Runnable {
 		int[] decoder = new int[4];
 		int decoderIndex = 0;
 
-		// int octet = -1;
-		// while ((octet = in.read()) != -1) {
-
 		final byte[] packet = new byte[1024];
 		int packetRead = -1;
 
-		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
+		int remainingBytes = 0;
 
 		while(true) {
 			if(this.interrupt) break;
 
-			try {
-				while((packetRead = in.read(packet)) != -1) {
-					cache.write(packet, 0, packetRead);
+			if(remainingBytes > 0) {
+				final byte[] remainingData = Arrays.copyOfRange(packet, packetRead - remainingBytes, packetRead);
+				for(byte c = 0; c < remainingBytes; ++c) {
+					remainingData[c] = packet[ c + packetRead - remainingBytes ];
 				}
+
+				packetRead = remainingData.length;
+				for(byte c = 0; c < packetRead; ++c) {
+					packet[c] = remainingData[c];
+				}
+
+				remainingBytes = 0;
+			}
+
+			try {
+				packetRead = in.read(packet);
 			} catch(SocketTimeoutException timeout) {
 			// OK, continue
 			} catch(IOException failure) {
 				throw failure;
 			}
 
-			if(cache.size() == 0) continue;
+			if(packetRead == -1) continue;
 
-			final byte[] rawData = cache.toByteArray();
-			cache.reset();
+			remainingBytes = packetRead;
 
-			for(byte octet: rawData) {
+			int counter = 0;
+			do {
+				byte octet = packet[counter++];
+				remainingBytes--;
+				
 				if( stage == CHECK_FIN ) {
 					isFinal = (octet & FIN_ON) == FIN_ON;
 					current_opcode = octet & OPCODE_BITSPACE_FLAG;
 					c_opcode = Opcode.byCode(current_opcode);
-					//logger.info("[WS] fin/opcode frame received: {}, {}", isFinal, c_opcode.name());
 
 					if(c_opcode.isReserved()) {
 						logger.warning("[WS] Parsing error. Aborting connection at all");
@@ -1045,7 +1048,7 @@ public class ClientHandler implements Runnable {
 					}
 				}
 
-			}
+			} while(counter < packetRead);
 
 			this.lastPacketReceivedTime = System.currentTimeMillis();
 
