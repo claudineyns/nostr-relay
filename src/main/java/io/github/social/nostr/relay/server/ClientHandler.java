@@ -259,7 +259,7 @@ public class ClientHandler implements Runnable {
 		//final ByteArrayOutputStream cache = new ByteArrayOutputStream();
 
 		final byte[] packet = new byte[1024];
-		
+
 		final int[] octets = new int[] {0, 0, 0, 0};
 
 		while(true) {
