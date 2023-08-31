@@ -261,14 +261,22 @@ public class ClientHandler implements Runnable {
 		final byte[] packet = new byte[1024];
 		int packetRead = -1;
 
-		try {
-			while((packetRead = in.read(packet)) != -1) {
-				cache.write(packet, 0, packetRead);
+		while(true) {
+			if(this.interrupt) return;
+
+			try {
+				while((packetRead = in.read(packet)) != -1) {
+					cache.write(packet, 0, packetRead);
+				}
+			} catch(SocketTimeoutException timeout) {
+			// OK, continue
+			} catch(IOException failure) {
+				throw failure;
 			}
-		} catch(SocketTimeoutException timeout) {
-		// OK, continue
-		} catch(IOException failure) {
-			throw failure;
+
+			if(cache.size() == 0) continue;
+
+			break;
 		}
 
 		final byte[] rawData = cache.toByteArray();
