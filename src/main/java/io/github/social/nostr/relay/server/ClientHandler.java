@@ -262,6 +262,7 @@ public class ClientHandler implements Runnable {
 
 		final int[] octets = new int[] {0, 0, 0, 0};
 
+		loopData:
 		while(true) {
 			if(this.interrupt) return;
 
@@ -294,7 +295,7 @@ public class ClientHandler implements Runnable {
 					final byte[] rawHeaders = Arrays.copyOfRange(packet, 0, packet.length - 4);
 					this.httpRawRequestHeaders.write(rawHeaders);
 					this.analyseRequestHeader(rawHeaders);
-					break;
+					break loopData;
 				}
 
 			} while(counter < packetRead);
