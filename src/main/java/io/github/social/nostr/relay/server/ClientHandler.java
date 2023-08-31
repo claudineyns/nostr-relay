@@ -256,6 +256,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private final byte[] packet = new byte[1024];
+	private int packetRead = 0;
 	private int remainingBytes = 0;
 
 	private void startHandleHttpRequest() throws IOException {
@@ -267,18 +268,20 @@ public class ClientHandler implements Runnable {
 		while(true) {
 			if(this.interrupt) return;
 
-			int packetRead = -1;
-			try {
-				packetRead = in.read(packet);
-			} catch(SocketTimeoutException timeout) {
-			// OK, continue
-			} catch(IOException failure) {
-				throw failure;
+			this.packetRead = 0;
+
+			while(true) {
+				try {
+					this.packetRead = in.read(packet);
+				} catch(SocketTimeoutException timeout) {
+					continue;
+				} catch(IOException failure) {
+					throw failure;
+				}
+				break;
 			}
 
-			if(packetRead == -1) continue;
-
-			remainingBytes = packetRead;
+			this.remainingBytes = this.packetRead = -1;;
 
 			int counter = 0;
 			do {
@@ -926,41 +929,45 @@ public class ClientHandler implements Runnable {
 		int[] decoder = new int[4];
 		int decoderIndex = 0;
 
-		int packetRead = -1;
-
 		while(true) {
 			if(this.interrupt) break;
 
-			if(remainingBytes > 0) {
-				final byte[] remainingData = Arrays.copyOfRange(packet, packetRead - remainingBytes, packetRead);
-				for(byte c = 0; c < remainingBytes; ++c) {
-					remainingData[c] = packet[ c + packetRead - remainingBytes ];
+			if(this.remainingBytes > 0) {
+				final byte[] remainingData = Arrays.copyOfRange(
+					this.packet,
+					this.packetRead - this.remainingBytes,
+					this.packetRead);
+
+				for(byte c = 0; c < this.remainingBytes; ++c) {
+					remainingData[c] = this.packet[ c + this.packetRead - this.remainingBytes ];
 				}
 
-				packetRead = remainingData.length;
-				for(byte c = 0; c < packetRead; ++c) {
-					packet[c] = remainingData[c];
+				this.packetRead = this.remainingBytes;
+				for(byte c = 0; c < this.packetRead; ++c) {
+					this.packet[c] = remainingData[c];
 				}
 
-				remainingBytes = 0;
+			} else {
+
+				while(true) {
+					try {
+						this.packetRead = in.read(this.packet);
+					} catch(SocketTimeoutException timeout) {
+						continue;
+					} catch(IOException failure) {
+						throw failure;
+					}
+					break;
+				}
+
 			}
 
-			try {
-				packetRead = in.read(packet);
-			} catch(SocketTimeoutException timeout) {
-			// OK, continue
-			} catch(IOException failure) {
-				throw failure;
-			}
-
-			if(packetRead == -1) continue;
-
-			remainingBytes = packetRead;
+			this.remainingBytes = this.packetRead;
 
 			int counter = 0;
 			do {
-				byte octet = packet[counter++];
-				remainingBytes--;
+				byte octet = this.packet[counter++];
+				this.remainingBytes--;
 				
 				if( stage == CHECK_FIN ) {
 					isFinal = (octet & FIN_ON) == FIN_ON;
