@@ -51,7 +51,7 @@ public class WebsocketHandler implements Websocket {
 
     @Override
     public byte onMessage(final WebsocketContext context, final TextMessage message) {
-        logger.info("[WS] Server received text message of content\n{}", message.getMessage());
+        // logger.info("[WS] Server received text message of content\n{}", message.getMessage());
         return nostr.consume(context, message);
     }
 
