@@ -957,12 +957,12 @@ public class ClientHandler implements Runnable {
 					} catch(IOException failure) {
 						throw failure;
 					}
+
+					this.remainingBytes = this.packetRead;
 					break;
 				}
 
 			}
-
-			this.remainingBytes = this.packetRead;
 
 			int counter = 0;
 			do {
