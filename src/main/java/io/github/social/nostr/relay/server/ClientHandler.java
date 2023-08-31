@@ -96,7 +96,7 @@ public class ClientHandler implements Runnable {
 
 	private boolean websocket = false;
 
-	final int socket_timeout = 10000;
+	final int socket_timeout_millis = 250;
 
 	@Override
 	public void run() {
@@ -118,7 +118,8 @@ public class ClientHandler implements Runnable {
 		});
 
 		try {
-			// this.client.setSoTimeout(socket_timeout); // <-- websocket: do not apply
+			// this.client.setSoTimeout(socket_timeout_millis); // <-- websocket: do not apply
+			this.client.setSoTimeout(socket_timeout_millis);
 			this.in = client.getInputStream();
 			this.out = client.getOutputStream();
 		} catch(IOException failure) {
@@ -256,12 +257,29 @@ public class ClientHandler implements Runnable {
 
 	private void startHandleHttpRequest() throws IOException {
 		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
-		
+
+		final byte[] packet = new byte[1024];
+		int packetRead = -1;
+
+		try {
+			while((packetRead = in.read(packet)) != -1) {
+				cache.write(packet, 0, packetRead);
+			}
+		} catch(SocketTimeoutException timeout) {
+		// OK, continue
+		} catch(IOException failure) {
+			throw failure;
+		}
+
+		final byte[] rawData = cache.toByteArray();
+		cache.reset();
+
 		final int[] octets = new int[] {0, 0, 0, 0};
 
-		int octet = -1;
-		while ((octet = in.read()) != -1) {
-			cache.write(octet);
+		int counter = 0;
+		byte octet = -1;
+		while(true) {
+			octet = rawData[counter++];
 
 			octets[0] = octets[1];
 			octets[1] = octets[2];
@@ -274,14 +292,14 @@ public class ClientHandler implements Runnable {
 				&&	octets[3] == '\n'
 			) {
 
-				final byte[] rawHeaders = cache.toByteArray();
+				final byte[] rawHeaders = Arrays.copyOfRange(packet, 0, packet.length - 4);
 				this.httpRawRequestHeaders.write(rawHeaders);
-				this.analyseRequestHeader(Arrays.copyOfRange(rawHeaders, 0, rawHeaders.length - 4));
+				this.analyseRequestHeader(rawHeaders);
 				break;
-
 			}
 
 		}
+
 	}
 	
 	static final byte Q_BAD_REQUEST = -1;
@@ -545,7 +563,11 @@ public class ClientHandler implements Runnable {
 	private byte sendNirPage() throws IOException {
 		synchronized(nirData) {
 			if(nirData.size() == 0) {
-				try(final InputStream in = new FileInputStream(nirFullpath) ) {
+				// try(final InputStream in = new FileInputStream(nirFullpath) ) {
+				// 	IOUtils.copy(in, nirData);
+				// }
+
+				try(final InputStream in = getClass().getResourceAsStream("/META-INF/resources/nir.json") ) {
 					IOUtils.copy(in, nirData);
 				}
 			}
@@ -570,7 +592,8 @@ public class ClientHandler implements Runnable {
 			final String content = new String(html.toByteArray(), StandardCharsets.UTF_8)
 				.replaceAll("[\\r\\n]", "")
 				.replaceAll("\\s+", " ")
-				.replace("https://example.com", redirectPage);
+				.replace("https://example.com", redirectPage)
+				;
 
 			page.append(content);
 		}
@@ -902,132 +925,156 @@ public class ClientHandler implements Runnable {
 		int[] decoder = new int[4];
 		int decoderIndex = 0;
 
-		int octet = -1;
-		while ((octet = in.read()) != -1) {
-			// System.out.printf("%d, ", octet);
-			// if(opcode != 0) continue;
+		// int octet = -1;
+		// while ((octet = in.read()) != -1) {
 
-			if( stage == CHECK_FIN ) {
-				isFinal = (octet & FIN_ON) == FIN_ON;
-				current_opcode = octet & OPCODE_BITSPACE_FLAG;
-				c_opcode = Opcode.byCode(current_opcode);
-				//logger.info("[WS] fin/opcode frame received: {}, {}", isFinal, c_opcode.name());
+		final byte[] packet = new byte[1024];
+		int packetRead = -1;
 
-				if(c_opcode.isReserved()) {
-					logger.warning("[WS] Parsing error. Aborting connection at all");
-					this.interrupt = true;
-					return 0;
+		final ByteArrayOutputStream cache = new ByteArrayOutputStream();
+
+		while(true) {
+			if(this.interrupt) break;
+
+			try {
+				while((packetRead = in.read(packet)) != -1) {
+					cache.write(packet, 0, packetRead);
 				}
-
-				if(opcode == -1) {
-					opcode = current_opcode;
-				}
-				stage = PAYLOAD_LENGTH;
-				continue;
+			} catch(SocketTimeoutException timeout) {
+			// OK, continue
+			} catch(IOException failure) {
+				throw failure;
 			}
 
-			if( stage == PAYLOAD_LENGTH ) {
-				if( nextBytes == 0 ) {
-					int byteCheck = octet & UNMASK;
+			if(cache.size() == 0) continue;
 
-					if( byteCheck <= 125 ) {
-						payloadLength = byteCheck;
+			final byte[] rawData = cache.toByteArray();
+			cache.reset();
 
-						stage = MASKING;
-						continue;
-					} else if( byteCheck == 126 ) {
-						nextBytes = 2;
-						continue;
-					} else if( byteCheck == 127 ) {
-						nextBytes = 8;
-						continue;
+			for(byte octet: rawData) {
+				if( stage == CHECK_FIN ) {
+					isFinal = (octet & FIN_ON) == FIN_ON;
+					current_opcode = octet & OPCODE_BITSPACE_FLAG;
+					c_opcode = Opcode.byCode(current_opcode);
+					//logger.info("[WS] fin/opcode frame received: {}, {}", isFinal, c_opcode.name());
+
+					if(c_opcode.isReserved()) {
+						logger.warning("[WS] Parsing error. Aborting connection at all");
+						this.interrupt = true;
+						return 0;
 					}
-				} else {
-					final String rawBinaryOctet = "0000000"+Integer.toBinaryString(octet);
-					final String binaryOctet = rawBinaryOctet.substring(rawBinaryOctet.length() - 8);
-					byteLength.append(binaryOctet);
 
-					if( --nextBytes == 0 ) {						
-						payloadLength = Integer.parseInt(byteLength.toString(), 2);
-						byteLength = new StringBuilder("");
-
-						stage = MASKING;
-						continue;
+					if(opcode == -1) {
+						opcode = current_opcode;
 					}
+					stage = PAYLOAD_LENGTH;
+					continue;
 				}
-			}
 
-			if( stage == MASKING ) {
-				decoder[decoderIndex++] = octet;
-				if(decoderIndex == decoder.length) {
-					decoderIndex = 0;
+				if( stage == PAYLOAD_LENGTH ) {
+					if( nextBytes == 0 ) {
+						int byteCheck = octet & UNMASK;
 
-					if(payloadLength == 0) {
-						if( isFinal ){
-							break;
-						} else {
-							stage = CHECK_FIN;
+						if( byteCheck <= 125 ) {
+							payloadLength = byteCheck;
+
+							stage = MASKING;
+							continue;
+						} else if( byteCheck == 126 ) {
+							nextBytes = 2;
+							continue;
+						} else if( byteCheck == 127 ) {
+							nextBytes = 8;
+							continue;
+						}
+					} else {
+						final String rawBinaryOctet = "0000000"+Integer.toBinaryString(octet);
+						final String binaryOctet = rawBinaryOctet.substring(rawBinaryOctet.length() - 8);
+						byteLength.append(binaryOctet);
+
+						if( --nextBytes == 0 ) {						
+							payloadLength = Integer.parseInt(byteLength.toString(), 2);
+							byteLength = new StringBuilder("");
+
+							stage = MASKING;
 							continue;
 						}
 					}
-					stage = PAYLOAD_CONSUMPTION;
-					continue;
 				}
+
+				if( stage == MASKING ) {
+					decoder[decoderIndex++] = octet;
+					if(decoderIndex == decoder.length) {
+						decoderIndex = 0;
+
+						if(payloadLength == 0) {
+							if( isFinal ){
+								break;
+							} else {
+								stage = CHECK_FIN;
+								continue;
+							}
+						}
+						stage = PAYLOAD_CONSUMPTION;
+						continue;
+					}
+				}
+
+				if( stage == PAYLOAD_CONSUMPTION ) {
+					/*
+					* XOR bitwise operation
+					*/
+					int decoded = (octet ^ decoder[decoderIndex++ % decoder.length]);
+
+					if( c_opcode.isControl() ) {
+						controlMessage.write(decoded);
+					} else {
+						message.write(decoded);
+					}
+
+					if( --payloadLength == 0 ) {
+						if(isFinal) break;
+
+						payloadLength = 0;
+						stage = CHECK_FIN;
+						continue;
+					}
+				}
+
 			}
 
-			if( stage == PAYLOAD_CONSUMPTION ) {
-				/*
-				 * XOR bitwise operation
-				 */
-				int decoded = (octet ^ decoder[decoderIndex++ % decoder.length]);
+			this.lastPacketReceivedTime = System.currentTimeMillis();
 
-				if( c_opcode.isControl() ) {
-					controlMessage.write(decoded);
-				} else {
-					message.write(decoded);
-				}
-
-				if( --payloadLength == 0 ) {
-					if(isFinal) break;
-
-					payloadLength = 0;
-					stage = CHECK_FIN;
-					continue;
-				}
+			if( opcode == Opcode.OPCODE_TEXT.code() ) {
+				this.notifyWebsocketTextMessage(message.toByteArray());
 			}
 
-		}
+			if( opcode == Opcode.OPCODE_BINARY.code() ) {
+				this.notifyWebsocketBinaryMessage(message.toByteArray());
+			}
 
-		this.lastPacketReceivedTime = System.currentTimeMillis();
+			if( opcode == Opcode.OPCODE_PONG.code() ) {
+				// logger.info("[WS] Client sent PONG frame.");
+				return 0;
+			}
 
-		if( opcode == Opcode.OPCODE_TEXT.code() ) {
-			this.notifyWebsocketTextMessage(message.toByteArray());
-		}
+			if( opcode == Opcode.OPCODE_PING.code() ) {
+				// logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
+				return this.sendWebsocketPongClient(message.toByteArray());
+			}
 
-		if( opcode == Opcode.OPCODE_BINARY.code() ) {
-			this.notifyWebsocketBinaryMessage(message.toByteArray());
-		}
+			if( opcode == Opcode.OPCODE_CLOSE.code() ) {
+				final short closeCode = parseCode(controlMessage.toByteArray());
+				logger.info("[WS] Client sent CLOSE frame with code {}.", closeCode);
 
-		if( opcode == Opcode.OPCODE_PONG.code() ) {
-			// logger.info("[WS] Client sent PONG frame.");
-			return 0;
-		}
+				if( this.interrupt ) return 0;
 
-		if( opcode == Opcode.OPCODE_PING.code() ) {
-			// logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
-			return this.sendWebsocketPongClient(message.toByteArray());
-		}
+				logger.info("[WS] Send client back a CLOSE confirmation frame.");
+				this.sendWebsocketCloseFrame(controlMessage.toByteArray());
 
-		if( opcode == Opcode.OPCODE_CLOSE.code() ) {
-			final short closeCode = parseCode(controlMessage.toByteArray());
-			logger.info("[WS] Client sent CLOSE frame with code {}.", closeCode);
+				this.interrupt = true;
+			}
 
-			if( this.interrupt ) return 0;
-
-			logger.info("[WS] Send client back a CLOSE confirmation frame.");
-			this.sendWebsocketCloseFrame(controlMessage.toByteArray());
-
-			this.interrupt = true;
 		}
 
 		return 0;

@@ -173,8 +173,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try {
             jsonEvents = this.fetchRemoteEvents();
         } catch (IOException e) {
-            e.printStackTrace();
-            //logger.warning("[Nostr] [Persistence] [Remote] Could not fetch remote data: {}", e.getMessage());
+            logger.warning("[Nostr] [Persistence] [Remote] Could not fetch remote data: {}", e.getMessage());
             return Collections.emptyList();
         }
 
