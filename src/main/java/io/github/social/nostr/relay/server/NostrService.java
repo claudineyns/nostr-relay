@@ -149,7 +149,7 @@ public class NostrService {
         }
 
         if( eventData.getCreatedAt() > (currentTime + 600) ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: event creation date is too far off from the current time. Is your system clock in sync?"));
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event created_at field is out of the acceptable range (, +5min) for this relay"));
 
             return broadcastClient(context, gson.toJson(response));
         }
