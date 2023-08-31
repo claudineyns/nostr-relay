@@ -930,6 +930,8 @@ public class ClientHandler implements Runnable {
 		int[] decoder = new int[4];
 		int decoderIndex = 0;
 
+		boolean complete = false;
+
 		while(true) {
 			if(this.interrupt) break;
 
@@ -940,12 +942,7 @@ public class ClientHandler implements Runnable {
 					this.packetRead);
 
 				for(byte c = 0; c < this.remainingBytes; ++c) {
-					remainingData[c] = this.packet[ c + this.packetRead - this.remainingBytes ];
-				}
-
-				this.packetRead = this.remainingBytes;
-				for(byte c = 0; c < this.packetRead; ++c) {
-					this.packet[c] = remainingData[c];
+					this.packet[c] = this.packet[ c + this.packetRead - this.remainingBytes ];
 				}
 
 			} else {
@@ -1026,6 +1023,7 @@ public class ClientHandler implements Runnable {
 
 						if(payloadLength == 0) {
 							if( isFinal ){
+								complete = true;
 								break;
 							} else {
 								stage = CHECK_FIN;
@@ -1050,7 +1048,10 @@ public class ClientHandler implements Runnable {
 					}
 
 					if( --payloadLength == 0 ) {
-						if(isFinal) break;
+						if(isFinal) {
+							complete = true;
+							break;
+						}
 
 						payloadLength = 0;
 						stage = CHECK_FIN;
@@ -1059,6 +1060,8 @@ public class ClientHandler implements Runnable {
 				}
 
 			} while(counter < this.packetRead);
+
+			if(!complete) continue;
 
 			this.lastPacketReceivedTime = System.currentTimeMillis();
 
