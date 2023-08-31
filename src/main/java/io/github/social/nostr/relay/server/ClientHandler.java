@@ -897,6 +897,39 @@ public class ClientHandler implements Runnable {
 		return this.sendWebsocketCloseFrame(message.toByteArray());
 	}
 
+	private byte fetchData() throws IOException {
+
+		if(this.remainingBytes > 0) {
+
+			final byte[] remainingData = Arrays.copyOfRange(
+				this.packet,
+				this.packetRead - this.remainingBytes,
+				this.packetRead);
+
+			for(byte c = 0; c < this.remainingBytes; ++c) {
+				this.packet[c] = this.packet[ c + this.packetRead - this.remainingBytes ];
+			}
+
+		} else {
+
+			while(true) {
+				try {
+					this.packetRead = in.read(this.packet);
+				} catch(SocketTimeoutException timeout) {
+					continue;
+				} catch(IOException failure) {
+					throw failure;
+				}
+
+				this.remainingBytes = this.packetRead;
+				break;
+			}
+
+		}
+
+		return 0;
+	}
+
 	static final int CHECK_FIN = 0;
 	static final int PAYLOAD_LENGTH = 1;
 	static final int MASKING = 2;
@@ -931,34 +964,11 @@ public class ClientHandler implements Runnable {
 		int[] decoder = new int[4];
 		int decoderIndex = 0;
 
-		fetchData:
+		fetchRawData:
 		while(true) {
 			if(this.interrupt) break;
 
-			if(this.remainingBytes > 0) {
-				final byte[] remainingData = Arrays.copyOfRange(
-					this.packet,
-					this.packetRead - this.remainingBytes,
-					this.packetRead);
-				for(byte c = 0; c < this.remainingBytes; ++c) {
-					this.packet[c] = this.packet[ c + this.packetRead - this.remainingBytes ];
-				}
-			} else {
-
-				while(true) {
-					try {
-						this.packetRead = in.read(this.packet);
-					} catch(SocketTimeoutException timeout) {
-						continue;
-					} catch(IOException failure) {
-						throw failure;
-					}
-
-					this.remainingBytes = this.packetRead;
-					break;
-				}
-
-			}
+			this.fetchData();
 
 			int counter = 0;
 			do {
@@ -1020,7 +1030,7 @@ public class ClientHandler implements Runnable {
 						decoderIndex = 0;
 
 						if(payloadLength == 0) {
-							if( isFinal ) break fetchData;
+							if( isFinal ) break fetchRawData;
 
 							stage = CHECK_FIN;
 							continue;
@@ -1043,7 +1053,7 @@ public class ClientHandler implements Runnable {
 					}
 
 					if( --payloadLength == 0 ) {
-						if( isFinal ) break fetchData;
+						if( isFinal ) break fetchRawData;
 
 						payloadLength = 0;
 						stage = CHECK_FIN;
