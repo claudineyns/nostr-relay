@@ -1058,15 +1058,11 @@ public class ClientHandler implements Runnable {
 		this.lastPacketReceivedTime = System.currentTimeMillis();
 
 		if( opcode == Opcode.OPCODE_TEXT.code() ) {
-			final byte[] textData = message.toByteArray();
-			message.reset();
-			this.notifyWebsocketTextMessage(textData);
+			this.notifyWebsocketTextMessage(message.toByteArray());
 		}
 
 		if( opcode == Opcode.OPCODE_BINARY.code() ) {
-			final byte[] binaryData = message.toByteArray();
-			message.reset();
-			this.notifyWebsocketBinaryMessage(binaryData);
+			this.notifyWebsocketBinaryMessage(message.toByteArray());
 		}
 
 		if( opcode == Opcode.OPCODE_PONG.code() ) {
