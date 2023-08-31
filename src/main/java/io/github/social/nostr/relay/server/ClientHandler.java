@@ -897,31 +897,32 @@ public class ClientHandler implements Runnable {
 		return this.sendWebsocketCloseFrame(message.toByteArray());
 	}
 
+	static final int CHECK_FIN = 0;
+	static final int PAYLOAD_LENGTH = 1;
+	static final int MASKING = 2;
+	static final int PAYLOAD_CONSUMPTION = 3;
+
+	static final int FIN_ON  = 0b10000000;
+
+	static final byte OPCODE_BITSPACE_FLAG = 0b00001111;
+
+	static final int OPCODE_CONTROL_FLAG = 0b1000;
+
+	static final int UNMASK = 0b01111111;
+
 	private long lastPacketReceivedTime = System.currentTimeMillis();
 
 	private byte consumeWebsocketClientPacket() throws IOException {
 		final ByteArrayOutputStream message = new ByteArrayOutputStream();
 		final ByteArrayOutputStream controlMessage = new ByteArrayOutputStream();
 
-		final int CHECK_FIN = 0;
-		final int PAYLOAD_LENGTH = 1;
-		final int MASKING = 2;
-		final int PAYLOAD_CONSUMPTION = 3;
-
 		int stage = CHECK_FIN;
-
-		final int FIN_ON  = 0b10000000;
+		
 		boolean isFinal = false;
-
-		final byte OPCODE_BITSPACE_FLAG = 0b00001111;
-
-		final int OPCODE_CONTROL_FLAG = 0b1000;
 
 		int opcode = -1;
 		int current_opcode = -1;
 		Opcode c_opcode = null;
-
-		final int UNMASK = 0b01111111;
 
 		StringBuilder byteLength = new StringBuilder("");
 		int payloadLength = 0;
@@ -930,8 +931,7 @@ public class ClientHandler implements Runnable {
 		int[] decoder = new int[4];
 		int decoderIndex = 0;
 
-		boolean complete = false;
-
+		fetchData:
 		while(true) {
 			if(this.interrupt) break;
 
@@ -940,11 +940,9 @@ public class ClientHandler implements Runnable {
 					this.packet,
 					this.packetRead - this.remainingBytes,
 					this.packetRead);
-
 				for(byte c = 0; c < this.remainingBytes; ++c) {
 					this.packet[c] = this.packet[ c + this.packetRead - this.remainingBytes ];
 				}
-
 			} else {
 
 				while(true) {
@@ -1022,13 +1020,10 @@ public class ClientHandler implements Runnable {
 						decoderIndex = 0;
 
 						if(payloadLength == 0) {
-							if( isFinal ){
-								complete = true;
-								break;
-							} else {
-								stage = CHECK_FIN;
-								continue;
-							}
+							if( isFinal ) break fetchData;
+
+							stage = CHECK_FIN;
+							continue;
 						}
 						stage = PAYLOAD_CONSUMPTION;
 						continue;
@@ -1048,10 +1043,7 @@ public class ClientHandler implements Runnable {
 					}
 
 					if( --payloadLength == 0 ) {
-						if(isFinal) {
-							complete = true;
-							break;
-						}
+						if( isFinal ) break fetchData;
 
 						payloadLength = 0;
 						stage = CHECK_FIN;
@@ -1061,45 +1053,42 @@ public class ClientHandler implements Runnable {
 
 			} while(counter < this.packetRead);
 
-			if(!complete) continue;
-			complete = false;
+		}
 
-			this.lastPacketReceivedTime = System.currentTimeMillis();
+		this.lastPacketReceivedTime = System.currentTimeMillis();
 
-			if( opcode == Opcode.OPCODE_TEXT.code() ) {
-				final byte[] textData = message.toByteArray();
-				message.reset();
-				this.notifyWebsocketTextMessage(textData);
-			}
+		if( opcode == Opcode.OPCODE_TEXT.code() ) {
+			final byte[] textData = message.toByteArray();
+			message.reset();
+			this.notifyWebsocketTextMessage(textData);
+		}
 
-			if( opcode == Opcode.OPCODE_BINARY.code() ) {
-				final byte[] binaryData = message.toByteArray();
-				message.reset();
-				this.notifyWebsocketBinaryMessage(binaryData);
-			}
+		if( opcode == Opcode.OPCODE_BINARY.code() ) {
+			final byte[] binaryData = message.toByteArray();
+			message.reset();
+			this.notifyWebsocketBinaryMessage(binaryData);
+		}
 
-			if( opcode == Opcode.OPCODE_PONG.code() ) {
-				// logger.info("[WS] Client sent PONG frame.");
-				return 0;
-			}
+		if( opcode == Opcode.OPCODE_PONG.code() ) {
+			// logger.info("[WS] Client sent PONG frame.");
+			return 0;
+		}
 
-			if( opcode == Opcode.OPCODE_PING.code() ) {
-				// logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
-				return this.sendWebsocketPongClient(message.toByteArray());
-			}
+		if( opcode == Opcode.OPCODE_PING.code() ) {
+			// logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
+			return this.sendWebsocketPongClient(message.toByteArray());
+		}
 
-			if( opcode == Opcode.OPCODE_CLOSE.code() ) {
-				final short closeCode = parseCode(controlMessage.toByteArray());
-				logger.info("[WS] Client sent CLOSE frame with code {}.", closeCode);
+		if( opcode == Opcode.OPCODE_CLOSE.code() ) {
+			final short closeCode = parseCode(controlMessage.toByteArray());
+			logger.info("[WS] Client sent CLOSE frame with code {}.", closeCode);
 
-				if( this.interrupt ) return 0;
+			if( this.interrupt ) return 0;
 
-				logger.info("[WS] Send client back a CLOSE confirmation frame.");
-				this.sendWebsocketCloseFrame(controlMessage.toByteArray());
+			logger.info("[WS] Send client back a CLOSE confirmation frame.");
+			this.sendWebsocketCloseFrame(controlMessage.toByteArray());
 
-				this.interrupt = true;
-			}
-
+			this.interrupt = true;
 		}
 
 		return 0;
