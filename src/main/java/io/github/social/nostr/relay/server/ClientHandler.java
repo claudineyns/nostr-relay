@@ -255,10 +255,11 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
+	private final byte[] packet = new byte[1024];
+	private int remainingBytes = 0;
+
 	private void startHandleHttpRequest() throws IOException {
 		//final ByteArrayOutputStream cache = new ByteArrayOutputStream();
-
-		final byte[] packet = new byte[1024];
 
 		final int[] octets = new int[] {0, 0, 0, 0};
 
@@ -277,9 +278,12 @@ public class ClientHandler implements Runnable {
 
 			if(packetRead == -1) continue;
 
+			remainingBytes = packetRead;
+
 			int counter = 0;
 			do {
 				byte octet = packet[counter++];
+				remainingBytes--;
 
 				octets[0] = octets[1];
 				octets[1] = octets[2];
@@ -922,10 +926,7 @@ public class ClientHandler implements Runnable {
 		int[] decoder = new int[4];
 		int decoderIndex = 0;
 
-		final byte[] packet = new byte[1024];
 		int packetRead = -1;
-
-		int remainingBytes = 0;
 
 		while(true) {
 			if(this.interrupt) break;
