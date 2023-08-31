@@ -12,6 +12,7 @@ public final class EventKind {
     public static int DELETION = 5;
     public static int REPOST = 6;
     public static int REACTION = 7;
+    public static int BADGE_AWARD = 8;
     public static int GENERIC_REPOST = 16;
     public static int CHANNEL_CREATE = 40;
     public static int CHANNEL_METADATA = 41;
