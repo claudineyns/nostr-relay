@@ -563,11 +563,7 @@ public class ClientHandler implements Runnable {
 	private byte sendNirPage() throws IOException {
 		synchronized(nirData) {
 			if(nirData.size() == 0) {
-				// try(final InputStream in = new FileInputStream(nirFullpath) ) {
-				// 	IOUtils.copy(in, nirData);
-				// }
-
-				try(final InputStream in = getClass().getResourceAsStream("/META-INF/resources/nir.json") ) {
+				try(final InputStream in = new FileInputStream(nirFullpath) ) {
 					IOUtils.copy(in, nirData);
 				}
 			}
