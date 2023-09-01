@@ -79,7 +79,7 @@ public final class LogService {
 	}
 
 	private byte log(final String message, final LogLevel level) {
-		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss", Locale.US));
+		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss.SSS", Locale.US));
 
 		final String outMessage = String.format("%s [%5s]%s%n%s%n", dateTime, level.name(), name, message);
 
