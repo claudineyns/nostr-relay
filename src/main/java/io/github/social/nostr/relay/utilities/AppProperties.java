@@ -13,7 +13,7 @@ public final class AppProperties {
 	private static final String DEFAULT_PORT = "8080";
 	private static final String DEFAULT_TLS_PORT = "8443";
 	private static final String DEFAULT_TLS_ACTIVE = "false";
-	private static final String DEFAULT_CLIENT_PING_SECOND = "60";
+	private static final String DEFAULT_CLIENT_PING_SECOND = "30";
 	private static final String DEFAULT_NIR_PATH = "/var/www/docs/nir.json";
 
 	private static final String DEFAULT_REDIS_HOST = "localhost";
