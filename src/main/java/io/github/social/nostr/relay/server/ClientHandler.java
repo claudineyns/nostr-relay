@@ -322,7 +322,9 @@ public class ClientHandler implements Runnable {
 			.ofNullable(this.httpRequestHeaders.get("host"))
 			.orElseGet(Collections::emptyList);
 
-		if( ! hostList.contains(host) ) return this.sendBadRequest();
+		hostList.forEach(host -> logger.info("[Server] Client given host: {}", host));
+
+		if( ! hostList.contains(this.host) ) return this.sendBadRequest();
 
 		byte returnCode = 0;
 		switch (this.requestMethod) {
