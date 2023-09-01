@@ -2,7 +2,7 @@ package io.github.social.nostr.relay.service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 
@@ -22,7 +22,7 @@ import io.github.social.nostr.relay.utilities.Utils;
 public abstract class AbstractCachedEventDataService implements IEventService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
-    private final Map<String, EventData> eventCache = new HashMap<>();
+    private final Map<String, EventData> eventCache = new LinkedHashMap<>();
 
     private final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
 
