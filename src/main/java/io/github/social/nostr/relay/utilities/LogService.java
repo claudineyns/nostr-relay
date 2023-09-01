@@ -4,6 +4,8 @@ import java.io.PrintStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class LogService {
 
@@ -100,8 +102,10 @@ public final class LogService {
 		return print(System.err, message);
 	}
 	
+	final ExecutorService logTask = Executors.newSingleThreadExecutor();
 	private byte print(final PrintStream writer, final String message) {
-		writer.print(message);
+		logTask.submit(()->writer.print(message));
+
 		return 0;
 	}
 
