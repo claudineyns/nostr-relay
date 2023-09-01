@@ -73,6 +73,7 @@ public class NostrService {
 
     private final String protocol = AppProperties.isTls() ? "wss" : "ws";
     private final String host = AppProperties.getHost();
+    private final int tlsPort = AppProperties.getTlsPort();
     private final int port = AppProperties.getPort();
 
     byte close() {
@@ -319,8 +320,10 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
-        final URI expectedFullUri = URI.create(protocol+"://"+host+":"+port);
-        final URI expectedSimpleUri = URI.create(protocol+"://"+host+(port == 443 || port == 80 ? "" : ":"+port));
+        final int serverPort = "wss".equals(this.protocol) ? tlsPort : port;
+
+        final URI expectedFullUri = URI.create(this.protocol+"://"+this.host+":"+serverPort);
+        final URI expectedSimpleUri = URI.create(this.protocol+"://"+this.host+(serverPort == 443 || serverPort == 80 ? "" : ":"+serverPort));
 
         final boolean[] ok = new boolean[] {true};
 
