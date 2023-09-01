@@ -102,10 +102,8 @@ public class NostrService {
         return 0;
     }
 
-    private boolean locked = false;
-
     byte consume(final WebsocketContext context, final TextMessage message) {
-        if(this.locked) return 0;
+        if(!context.isConnected()) return 0;
 
         final String jsonData = message.getMessage();
 
@@ -121,8 +119,7 @@ public class NostrService {
             logger.error(
                 "[Nostr] Abnormal state of connection\nRemote Address: {}\nUser-Agent:{}",
                 context.getRemoteAddress(), context.getUserAgent());
-
-            this.locked = true;
+            
             return context.requestClose();
         }
 
