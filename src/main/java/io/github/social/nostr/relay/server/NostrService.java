@@ -301,6 +301,8 @@ public class NostrService {
                 failure.getMessage());
         }
 
+        logger.info("[Nostr] Received request for authentication");
+
         final Gson gson = gsonBuilder.create();
 
         final List<Object> response = new ArrayList<>();
@@ -308,17 +310,23 @@ public class NostrService {
 
         final int now = (int) (System.currentTimeMillis()/1000L);
 
+        logger.info("[Nostr] [Auth] Validate 'created_at' attribute");
+
         if( eventData.getCreatedAt() < (now - 300) || eventData.getCreatedAt() > (now + 300) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event 'created_at' field is out of the acceptable range (-5min, +5min) for this relay."));
 
             return broadcastClient(context, gson.toJson(response));
         }
 
+        logger.info("[Nostr] [Auth] Validate 'kind' attribute");
+
         if( EventKind.CLIENT_AUTH != eventData.getKind() ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event kind for authentication must be '22242'."));
 
             return broadcastClient(context, gson.toJson(response));
         }
+
+        logger.info("[Nostr] [Auth] Validate 'challenge' and 'relay' tags");
 
         final int serverPort = "wss".equals(this.protocol) ? tlsPort : port;
 
