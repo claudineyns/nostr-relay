@@ -44,32 +44,6 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         }
     }
 
-    public byte fetchActiveEvents(Collection<EventData> events) {
-        final Gson gson = new GsonBuilder().create();
-
-        final List<EventData> cacheEvents = new ArrayList<>();
-        try {
-            final String jsonEvents = fetchRemoteEvents();
-            gson.fromJson(jsonEvents, JsonArray.class)
-                .forEach(el -> cacheEvents.add(EventData.of(el.getAsJsonObject())) );
-        } catch(IOException e) {
-            logger.info("[Nostr] [Persistence] Could not fetch remote events: {}", e.getMessage());
-        }
-
-        final int currentTime = (int) (System.currentTimeMillis()/1000L);
-
-        for(int i = cacheEvents.size() - 1; i >= 0; --i) {
-            final EventData event = cacheEvents.get(i);
-            if( event.getExpiration() > 0 && event.getExpiration() < currentTime ) {
-                cacheEvents.remove(i);
-            }
-        }
-
-        events.addAll(cacheEvents);
-
-        return 0;
-    }
-
     public byte fetchEvents(final Collection<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "event");
