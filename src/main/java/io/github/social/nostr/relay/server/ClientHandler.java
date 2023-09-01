@@ -80,11 +80,27 @@ public class ClientHandler implements Runnable {
 
 			return 0;
 		}
+
+		public String getRemoteAddress()  {
+			return remoteAddress;
+		}
+
+		public String getUserAgent() {
+			return userAgent;
+		}
+
+		public byte requestClose() {
+			interrupt = true;
+			return 0;
+		}
+
 	};
 
 	private final Socket client;
 	private InputStream in;
 	private OutputStream out;
+
+	private String userAgent;
 	private String remoteAddress = "0.0.0.0";
 
 	private final WebsocketHandler websocketHandler;
@@ -453,7 +469,12 @@ public class ClientHandler implements Runnable {
 
 		Optional
 			.ofNullable(this.httpRequestHeaders.get("user-agent"))
-			.ifPresent(lista -> lista.stream().forEach(q -> originDebug.append(String.format("%n> User-Agent: %s", q)) ));
+			.ifPresent(lista -> 
+				lista
+					.stream()
+					.peek(q -> { userAgent = q; })
+					.forEach(q -> originDebug.append(String.format("%n> User-Agent: %s", q)) )
+			);
 
 		Optional
 			.ofNullable(this.httpRequestHeaders.get("origin"))

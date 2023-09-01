@@ -26,6 +26,12 @@ public abstract class WebsocketContext {
         return connected;
     }
 
+    abstract byte requestClose();
+
     abstract byte broadcast(String message);
-    
+
+    abstract String getRemoteAddress();
+
+    abstract String getUserAgent();
+
 }
