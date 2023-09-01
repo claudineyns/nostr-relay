@@ -69,6 +69,12 @@ public final class LogService {
 	}
 	
 	private byte logv(final CharSequence template, final LogLevel level, final Object... args) {
+		logTask.submit(()->computeLog(template, level, args));
+
+		return 0;
+	}
+
+	private byte computeLog(final CharSequence template, final LogLevel level, final Object... args) {
 		String messageFormatted = template.toString();
 		
 		for(int i = 0; i < args.length; ++i) {
@@ -104,8 +110,7 @@ public final class LogService {
 	
 	final ExecutorService logTask = Executors.newSingleThreadExecutor();
 	private byte print(final PrintStream writer, final String message) {
-		logTask.submit(()->writer.print(message));
-
+		writer.print(message);
 		return 0;
 	}
 
