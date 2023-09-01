@@ -952,6 +952,8 @@ public class ClientHandler implements Runnable {
 					throw failure;
 				}
 
+				if(this.interrupt) break;
+
 				this.remainingBytes = this.packetRead;
 				break;
 			}
@@ -997,9 +999,9 @@ public class ClientHandler implements Runnable {
 
 		fetchRawData:
 		while(true) {
-			if(this.interrupt) break;
-
 			this.fetchData();
+
+			if(this.interrupt) return 0;
 
 			int counter = 0;
 			do {
