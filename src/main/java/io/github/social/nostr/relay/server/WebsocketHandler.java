@@ -41,23 +41,29 @@ public class WebsocketHandler implements Websocket {
 
     @Override
     public byte onOpen(final WebsocketContext context) {
-        return logger.info("[WS] Server ready to accept data.");
+        logger.info("[WS] Server ready to accept data.");
+
+        return nostr.openSession(context);
     }
 
     @Override
     public byte onClose(final WebsocketContext context) {
-        return logger.info("[WS] Client gone. Bye.");
+        logger.info("[WS] Client gone. Bye.");
+
+        return nostr.closeSession(context);
     }
 
     @Override
     public byte onMessage(final WebsocketContext context, final TextMessage message) {
         logger.info("[WS] Server received text message of content\n{}", message.getMessage());
+
         return nostr.consume(context, message);
     }
 
     @Override
     public byte onMessage(final WebsocketContext context, final BinaryMessage message) {
         //return logger.info("[WS] Server received message of type {}.", message.getType());
+
         return 0;
     }
 
@@ -70,6 +76,5 @@ public class WebsocketHandler implements Websocket {
     public byte onServerShutdown() {
         return nostr.close();
     }
-    
 
 }

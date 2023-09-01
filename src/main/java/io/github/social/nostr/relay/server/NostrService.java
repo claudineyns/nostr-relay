@@ -17,10 +17,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -61,19 +63,37 @@ public class NostrService {
 
     private ExecutorService eventProcessor = Executors.newCachedThreadPool();
 
-    //private final Map<String, Collection<JsonObject>> subscriptions = new ConcurrentHashMap<>();
     private final Map<String, Boolean> subscriptions = new ConcurrentHashMap<>();
 
-    public byte close() {
+    private final Map<String, Set<String>> challenges = new HashMap<>();
+    private final Map<String, Set<String>> authUsers = new HashMap<>();
+
+    byte close() {
         return eventService.close();
     }
 
-    public byte consume(final WebsocketContext context, final TextMessage message) {
+    byte openSession(final WebsocketContext context) {
+        synchronized(this.authUsers) {
+            this.authUsers.put(context.getContextID().toString(), new HashSet<>());
+        }
+
+        return 0;
+    }
+
+    byte closeSession(final WebsocketContext context) {
+        synchronized(this) {
+            this.authUsers.remove(context.getContextID().toString());
+        }
+
+        return 0;
+    }
+
+    byte consume(final WebsocketContext context, final TextMessage message) {
         final String jsonData = message.getMessage();
 
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
-        
+
         final Gson gson = new GsonBuilder().create();
 
         if( ! jsonData.startsWith("[") || ! jsonData.endsWith("]") ) {
@@ -109,7 +129,8 @@ public class NostrService {
             case "CLOSE":
                 return this.handleSubscriptionUnregistration(context, nostrMessage);
             default:
-                return logger.warning("[Nostr] Message not supported yet\n{}", message.getMessage());
+                notice.add("warning: message type '"+messageType+"' not supported yet");
+                return this.broadcastClient(context, gson.toJson(notice));
         }
     }
 
@@ -152,6 +173,14 @@ public class NostrService {
             response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event created_at field is out of the acceptable range (, +5min) for this relay"));
 
             return broadcastClient(context, gson.toJson(response));
+        }
+
+        if( eventData.getKind() == EventKind.ENCRYPTED_DIRECT) {
+            if( !this.checkAuthentication(context, eventData) ) {
+                response.addAll(Arrays.asList(Boolean.FALSE, "restricted: we do not accept such kind of event from unauthenticated users, does your client implement NIP-42?"));
+
+                return broadcastClient(context, gson.toJson(response));
+            }
         }
 
         // final String checkRegistration = eventService.checkRegistration(eventData);
@@ -244,6 +273,13 @@ public class NostrService {
         return null;
     }
 
+    private boolean checkAuthentication(final WebsocketContext context, final EventData eventData) {
+        synchronized(this.authUsers) {
+            final Set<String> users = this.authUsers.getOrDefault(context.getContextID().toString(), Collections.emptySet());
+            return users.contains(eventData.getPubkey());
+        }
+    }
+
     private EventValidation validate(final String eventJson) throws IOException {
         final Gson gson = new GsonBuilder().create();
 
@@ -308,6 +344,9 @@ public class NostrService {
 
         logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
 
+        boolean checkUnauthUsers = false;
+        boolean notifyUnauthUsers = false;
+
         final List<EventData> selectedEvents = new ArrayList<>();
 
         fetchFilters:
@@ -325,6 +364,7 @@ public class NostrService {
                 .getAsJsonArray().forEach( element -> filterKindList.add(element.getAsInt()) )
             );
             emptyFilter = emptyFilter && filterKindList.isEmpty();
+            checkUnauthUsers = checkUnauthUsers || filterKindList.contains(EventKind.ENCRYPTED_DIRECT);
 
             final List<String> filterPubkeyList = new ArrayList<>();
             Optional.ofNullable(entry.get("authors")).ifPresent(k -> k
@@ -375,6 +415,15 @@ public class NostrService {
             for(final EventData eventData: events) {
                 final List<String> evRefPubKeyList = new ArrayList<>();
                 final List<String> evRefParamList = new ArrayList<>();
+
+                if( EventKind.ENCRYPTED_DIRECT == eventData.getKind() ) {
+                    if( !checkAuthentication(context, eventData) ) {
+                        if(checkUnauthUsers) {
+                            notifyUnauthUsers = true;
+                        }
+                        continue;
+                    }
+                }
 
                 eventData.getTags().forEach(tagList -> {
                     if(tagList.size() < 2) return;
@@ -444,6 +493,10 @@ public class NostrService {
         }
 
         this.broadcastClient(context, gson.toJson(Arrays.asList("EOSE", subscriptionId)));
+
+        if( notifyUnauthUsers ) {
+            this.broadcastClient(context, gson.toJson(Arrays.asList("NOTICE", "restricted: some kind of events cannot be served by this relay to unauthenticated users, does your client implement NIP-42?")));
+        }
 
         return 0;
     }
