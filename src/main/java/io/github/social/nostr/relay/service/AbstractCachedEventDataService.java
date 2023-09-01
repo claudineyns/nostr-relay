@@ -84,11 +84,11 @@ public abstract class AbstractCachedEventDataService implements IEventService {
                 this.fetchAndParseEventList();
             }
 
-            events.addAll(new TreeSet<>(
+            events.addAll(
                 this.eventCache.values().stream()
-                .filter(q -> q.getKind() != EventKind.DELETION )
+                .filter( q -> q.getKind() != EventKind.DELETION )
                 .collect(Collectors.toList())
-            ));
+            );
         }
 
         return 0;
