@@ -118,6 +118,10 @@ public class NostrService {
             notice.add("error: Not a json array payload.");
             this.broadcastClient(context, gson.toJson(notice));
 
+            logger.error(
+                "[Nostr] Abnormal state of connection\nRemote Address: {}\nUser-Agent:{}",
+                context.getRemoteAddress(), context.getUserAgent());
+
             this.locked = true;
             return context.requestClose();
         }
