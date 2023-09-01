@@ -566,6 +566,7 @@ public class NostrService {
 
                 if( include ) {
                     if( EventKind.ENCRYPTED_DIRECT == eventData.getKind() ) {
+                        logger.info("[Nostr] [Auth] DM event\n{}", eventData.toString());
                         notifyUnauthUsers = notifyUnauthUsers || (checkUnauthUsers && !checkAuthentication(context, eventData));
                         continue;
                     }
