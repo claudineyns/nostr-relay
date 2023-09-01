@@ -331,7 +331,7 @@ public class NostrService {
         eventData.getTagsByName("relay")
             .stream()
             .filter(tagList -> tagList.size() > 1)
-            .map(tagList -> tagList.get(0))
+            .map(tagList -> tagList.get(1))
             .peek(tagValue -> logger.info("[Nostr] [Auth] givenUri -> {}", tagValue))
             .map(tagValue -> URI.create(tagValue))
             .forEach(givenUri -> {
@@ -342,7 +342,7 @@ public class NostrService {
             eventData.getTagsByName("challenge")
             .stream()
             .filter(tagList -> tagList.size() > 1)
-            .map(tagList -> tagList.get(0))
+            .map(tagList -> tagList.get(1))
             .forEach(challenge -> {
                 final Set<String> challengeSet = this.challenges.get(context.getContextID().toString());
                 ok[0] = ok[0] && challengeSet.contains(challenge);
