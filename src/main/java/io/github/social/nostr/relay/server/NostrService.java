@@ -373,7 +373,7 @@ public class NostrService {
     private boolean checkAuthentication(final WebsocketContext context, final EventData eventData) {
         // Deixa passar tudo por enquanto
         return true;
-        
+
         // final Set<String> users;
 
         // synchronized(this.authUsers) {
@@ -513,11 +513,13 @@ public class NostrService {
             Optional
                 .ofNullable(entry.get("since"))
                 .ifPresent(time -> since[0] = time.getAsInt());
+            emptyFilter = emptyFilter && since[0] == 0;
 
             final int[] until = new int[] {0};
             Optional
                 .ofNullable(entry.get("until"))
                 .ifPresent(time -> until[0] = time.getAsInt());
+            emptyFilter = emptyFilter && until[0] == 0;
 
             final int[] limit = new int[]{0};
             Optional
