@@ -373,6 +373,7 @@ public class NostrService {
     private boolean checkAuthentication(final WebsocketContext context, final EventData eventData) {
         // Deixa passar tudo por enquanto
         return true;
+        
         // final Set<String> users;
 
         // synchronized(this.authUsers) {
