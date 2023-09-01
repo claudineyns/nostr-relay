@@ -372,8 +372,9 @@ public class NostrService {
 
     private boolean checkAuthentication(final WebsocketContext context, final EventData eventData) {
         synchronized(this.authUsers) {
-            final Set<String> users = this.authUsers.getOrDefault(context.getContextID().toString(), Collections.emptySet());
-            return users.contains(eventData.getPubkey());
+            return this.authUsers
+                .getOrDefault(context.getContextID().toString(), Collections.emptySet())
+                .contains(eventData.getPubkey());
         }
     }
 
@@ -452,7 +453,6 @@ public class NostrService {
 
         logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
 
-        boolean checkUnauthUsers = false;
         boolean notifyUnauthUsers = false;
 
         final List<EventData> selectedEvents = new ArrayList<>();
@@ -472,7 +472,7 @@ public class NostrService {
                 .getAsJsonArray().forEach( element -> filterKindList.add(element.getAsInt()) )
             );
             emptyFilter = emptyFilter && filterKindList.isEmpty();
-            checkUnauthUsers = checkUnauthUsers || filterKindList.contains(EventKind.ENCRYPTED_DIRECT);
+            boolean checkUnauthUsers = filterKindList.contains(EventKind.ENCRYPTED_DIRECT);
 
             final List<String> filterPubkeyList = new ArrayList<>();
             Optional.ofNullable(entry.get("authors")).ifPresent(k -> k
@@ -524,26 +524,19 @@ public class NostrService {
                 final List<String> evRefPubKeyList = new ArrayList<>();
                 final List<String> evRefParamList = new ArrayList<>();
 
-                if( EventKind.ENCRYPTED_DIRECT == eventData.getKind() ) {
-                    if( !checkAuthentication(context, eventData) ) {
-                        if(checkUnauthUsers) {
-                            notifyUnauthUsers = true;
-                        }
-                        continue;
-                    }
-                }
+                evRefPubKeyList.addAll(
+                    eventData.getTagsByName("p")
+                        .stream()
+                        .map(tagList -> tagList.get(1))
+                        .collect(Collectors.toList())
+                );
 
-                eventData.getTags().forEach(tagList -> {
-                    if(tagList.size() < 2) return;
-
-                    final String t = tagList.get(0);
-                    final String v = tagList.get(1);
-                    switch(t) {
-                        case "p": evRefPubKeyList.add(v); break;
-                        case "d": evRefParamList.add(v); break;
-                        default: break;
-                    }
-                });
+                evRefParamList.addAll(
+                    eventData.getTagsByName("d")
+                        .stream()
+                        .map(tagList -> tagList.get(1))
+                        .collect(Collectors.toList())
+                );
 
                 boolean include = true;
 
@@ -572,6 +565,11 @@ public class NostrService {
                 include = include && (until[0] == 0 || eventData.getCreatedAt() <= until[0] );
 
                 if( include ) {
+                    if( EventKind.ENCRYPTED_DIRECT == eventData.getKind() ) {
+                        notifyUnauthUsers = notifyUnauthUsers || (checkUnauthUsers && !checkAuthentication(context, eventData));
+                        continue;
+                    }
+
                     filteredEvents.add(eventData);
 
                     if( limit[0] > 0 && filteredEvents.size() == limit[0] ) break;
