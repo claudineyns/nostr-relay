@@ -332,6 +332,7 @@ public class NostrService {
             .stream()
             .filter(tagList -> tagList.size() > 1)
             .map(tagList -> tagList.get(0))
+            .peek(tagValue -> logger.info("[Nostr] [Auth] givenUri -> {}", tagValue))
             .map(tagValue -> URI.create(tagValue))
             .forEach(givenUri -> {
                 ok[0] = ok[0] && (givenUri.equals(expectedFullUri) || givenUri.equals(expectedSimpleUri));
