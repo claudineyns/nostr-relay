@@ -102,7 +102,11 @@ public class NostrService {
         return 0;
     }
 
+    private boolean locked = false;
+
     byte consume(final WebsocketContext context, final TextMessage message) {
+        if(this.locked) return 0;
+
         final String jsonData = message.getMessage();
 
         final List<String> notice = new ArrayList<>();
@@ -112,8 +116,10 @@ public class NostrService {
 
         if( ! jsonData.startsWith("[") || ! jsonData.endsWith("]") ) {
             notice.add("error: Not a json array payload.");
+            this.broadcastClient(context, gson.toJson(notice));
 
-            return this.broadcastClient(context, gson.toJson(notice));
+            this.locked = true;
+            return context.requestClose();
         }
 
         final JsonArray nostrMessage;

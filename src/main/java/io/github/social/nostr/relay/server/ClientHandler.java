@@ -89,7 +89,7 @@ public class ClientHandler implements Runnable {
 			return userAgent;
 		}
 
-		public byte requestClose() {
+		public synchronized byte requestClose() {
 			interrupt = true;
 			return 0;
 		}
