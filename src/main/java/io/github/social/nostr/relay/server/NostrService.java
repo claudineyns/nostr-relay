@@ -326,14 +326,13 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
-        logger.info("[Nostr] [Auth] Validate 'challenge' and 'relay' tags");
+        logger.info("[Nostr] [Auth] Validate 'relay' tag");
+        
+        final boolean[] ok = new boolean[] {true};
 
         final int serverPort = "wss".equals(this.protocol) ? tlsPort : port;
-
         final URI expectedFullUri = URI.create(this.protocol+"://"+this.host+":"+serverPort);
         final URI expectedSimpleUri = URI.create(this.protocol+"://"+this.host+(serverPort == 443 || serverPort == 80 ? "" : ":"+serverPort));
-
-        final boolean[] ok = new boolean[] {true};
 
         eventData.getTagsByName("relay")
             .stream()
@@ -343,6 +342,8 @@ public class NostrService {
             .forEach(givenUri -> {
                 ok[0] = ok[0] && (givenUri.equals(expectedFullUri) || givenUri.equals(expectedSimpleUri));
             });
+
+        logger.info("[Nostr] [Auth] Validate 'challenge' tag");
 
         synchronized(this.challenges) {
             eventData.getTagsByName("challenge")
@@ -356,19 +357,24 @@ public class NostrService {
             });
         }
 
-        if( EventKind.CLIENT_AUTH != eventData.getKind() ) {
+        logger.info("[Nostr] [Auth] check result");
+
+        if( !ok[0] ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the authentication event does not contain valid 'challenge' or 'relay' tag values."));
 
             return broadcastClient(context, gson.toJson(response));
         }
 
+        logger.info("[Nostr] [Auth] Register authentication");
+
         synchronized(this.authUsers)  {
             this.authUsers.get(context.getContextID().toString()).add(eventData.getPubkey());
         }
 
-        response.addAll(Arrays.asList(Boolean.TRUE, ""));
+        logger.info("[Nostr] [Auth] Send response");
 
-        return 0;
+        response.addAll(Arrays.asList(Boolean.TRUE, ""));
+        return broadcastClient(context, gson.toJson(response));
     }
 
     private String consumeEphemeralEvent(final EventData eventJson) {
