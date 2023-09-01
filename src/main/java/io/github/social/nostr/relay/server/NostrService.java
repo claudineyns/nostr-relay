@@ -371,11 +371,19 @@ public class NostrService {
     }
 
     private boolean checkAuthentication(final WebsocketContext context, final EventData eventData) {
+        final Set<String> users;
+
         synchronized(this.authUsers) {
-            return this.authUsers
-                .getOrDefault(context.getContextID().toString(), Collections.emptySet())
-                .contains(eventData.getPubkey());
+            users = this.authUsers.getOrDefault(context.getContextID().toString(), Collections.emptySet());
         }
+
+        return users.contains(eventData.getPubkey()) || eventData
+            .getTagsByName("p")
+            .stream()
+            .map(tagList -> tagList.get(1))
+            .filter(pubkey -> users.contains(pubkey))
+            .count() > 0
+        ;
     }
 
     private byte requestAuthentication(final WebsocketContext context) {
