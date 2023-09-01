@@ -3,6 +3,7 @@ package io.github.social.nostr.relay.service;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 
 import java.util.Set;
@@ -95,7 +96,7 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     }
 
     private Collection<EventData> fetchAndParseEventList() {
-        final Set<EventData> cacheEvents = new TreeSet<>(this.proceedToFetchEventList());
+        final Set<EventData> cacheEvents = new LinkedHashSet<>(this.proceedToFetchEventList());
 
         final int currentTime = (int) (System.currentTimeMillis()/1000L);
 
