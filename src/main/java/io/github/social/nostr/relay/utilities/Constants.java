@@ -3,6 +3,8 @@ package io.github.social.nostr.relay.utilities;
 public final class Constants {
 	public static final String PROPERTY_ACME_CHALLENGE_PATH = 
 		"acme.challenge-path";
+	public static final String PROPERTY_HOST  = 
+		"nostr.server.host";
 	public static final String PROPERTY_PORT  = 
 		"nostr.server.port";
 	public static final String PROPERTY_TLS_PORT = 
@@ -34,6 +36,8 @@ public final class Constants {
 	public static final String ENV_ACME_CHALLENGE_PATH = 
 		"ACME_CHALLENGE_PATH";
 
+	public static final String ENV_HOST = 
+		"NOSTR_SERVER_HOST";
 	public static final String ENV_PORT = 
 		"NOSTR_SERVER_PORT";
 	public static final String ENV_TLS_PORT = 

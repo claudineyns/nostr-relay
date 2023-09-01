@@ -65,6 +65,8 @@ public class ClientHandler implements Runnable {
 
 	private final String nirFullpath = AppProperties.getNirFullpath();
 
+	private final String host = AppProperties.getHost();
+
 	private final WebsocketContext websocketContext = new WebsocketContext() {
 		public synchronized byte broadcast(final String message) {
 			clientBroadcaster.submit(() -> {
@@ -316,6 +318,12 @@ public class ClientHandler implements Runnable {
 	static final byte Q_SWITCHING_PROTOCOL = 1;
 
 	private byte continueHandleHttpRequest() throws IOException {
+		final List<String> hostList = Optional
+			.ofNullable(this.httpRequestHeaders.get("host"))
+			.orElseGet(Collections::emptyList);
+
+		if( ! hostList.contains(host) ) return this.sendBadRequest();
+
 		byte returnCode = 0;
 		switch (this.requestMethod) {
 		case GET:
@@ -471,22 +479,17 @@ public class ClientHandler implements Runnable {
 
 	private byte sendStatusLine(HttpStatus status) throws IOException {
 		final String statusLine = "HTTP/1.1 " + status.code() + " " + status.text();
-		logger.info(statusLine);
-		this.sendBytes((statusLine + CRLF).getBytes(StandardCharsets.US_ASCII));
+		logger.info("[Server] Status: {}", statusLine);
 
-		return 0;
+		return this.sendBytes((statusLine + CRLF).getBytes(StandardCharsets.US_ASCII));
 	}
 
 	private byte sendDateHeader() throws IOException {
-		this.sendBytes(String.format("Date: %s%s", gmt(), CRLF).getBytes(StandardCharsets.US_ASCII));
-
-		return 0;
+		return this.sendBytes(String.format("Date: %s%s", gmt(), CRLF).getBytes(StandardCharsets.US_ASCII));
 	}
 
 	private byte sendETagHeader() throws IOException {
-		this.sendBytes(("ETag:\"" + UUID.randomUUID().toString() + "\"" + CRLF).getBytes(StandardCharsets.US_ASCII));
-
-		return 0;
+		return this.sendBytes(("ETag:\"" + UUID.randomUUID().toString() + "\"" + CRLF).getBytes(StandardCharsets.US_ASCII));
 	}
 
 	private byte sendContentHeader(final String type, final int length) throws IOException {
@@ -637,6 +640,10 @@ public class ClientHandler implements Runnable {
 
 	private byte mountHeadersTermination() throws IOException {
 		return this.sendBytes(CRLF_RAW);
+	}
+
+	private byte sendBadRequest() throws IOException {
+		return sendBadRequest(null);
 	}
 
 	private byte sendBadRequest(String cause) throws IOException {

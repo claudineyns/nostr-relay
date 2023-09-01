@@ -10,6 +10,7 @@ public final class AppProperties {
 
 	private static final String DEFAULT_ACME_CHALLENGE_PATH = "/var/www/.well-known/acme-challenge/";
 
+	private static final String DEFAULT_HOST = "localhost";
 	private static final String DEFAULT_PORT = "8080";
 	private static final String DEFAULT_TLS_PORT = "8443";
 	private static final String DEFAULT_TLS_ACTIVE = "false";
@@ -30,6 +31,14 @@ public final class AppProperties {
 				System.getProperty(Constants.PROPERTY_ACME_CHALLENGE_PATH),
 				System.getenv(Constants.ENV_ACME_CHALLENGE_PATH),
 				DEFAULT_ACME_CHALLENGE_PATH
+			);
+	}
+
+	public static String getHost() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_HOST),
+				System.getenv(Constants.ENV_HOST),
+				DEFAULT_HOST
 			);
 	}
 

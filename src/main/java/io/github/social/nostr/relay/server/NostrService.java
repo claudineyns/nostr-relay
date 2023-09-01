@@ -68,6 +68,8 @@ public class NostrService {
     private final Map<String, Set<String>> challenges = new HashMap<>();
     private final Map<String, Set<String>> authUsers = new HashMap<>();
 
+    private final GsonBuilder gsonBuilder = new GsonBuilder();
+
     byte close() {
         return eventService.close();
     }
@@ -76,13 +78,19 @@ public class NostrService {
         synchronized(this.authUsers) {
             this.authUsers.put(context.getContextID().toString(), new HashSet<>());
         }
+        synchronized(this.challenges) {
+            this.challenges.put(context.getContextID().toString(), new HashSet<>());
+        }
 
         return 0;
     }
 
     byte closeSession(final WebsocketContext context) {
-        synchronized(this) {
+        synchronized(this.authUsers) {
             this.authUsers.remove(context.getContextID().toString());
+        }
+        synchronized(this.challenges) {
+            this.challenges.remove(context.getContextID().toString());
         }
 
         return 0;
@@ -94,7 +102,7 @@ public class NostrService {
         final List<String> notice = new ArrayList<>();
         notice.add("NOTICE");
 
-        final Gson gson = new GsonBuilder().create();
+        final Gson gson = gsonBuilder.create();
 
         if( ! jsonData.startsWith("[") || ! jsonData.endsWith("]") ) {
             notice.add("error: Not a json array payload.");
@@ -128,6 +136,8 @@ public class NostrService {
                 return this.handleSubscriptionRegistration(context, nostrMessage);
             case "CLOSE":
                 return this.handleSubscriptionUnregistration(context, nostrMessage);
+            case "AUTH":
+                return this.handleAuthentication(context, nostrMessage);
             default:
                 notice.add("warning: message type '"+messageType+"' not supported yet");
                 return this.broadcastClient(context, gson.toJson(notice));
@@ -179,7 +189,9 @@ public class NostrService {
             if( !this.checkAuthentication(context, eventData) ) {
                 response.addAll(Arrays.asList(Boolean.FALSE, "restricted: we do not accept such kind of event from unauthenticated users, does your client implement NIP-42?"));
 
-                return broadcastClient(context, gson.toJson(response));
+                broadcastClient(context, gson.toJson(response));
+
+                return this.requestAuthentication(context);
             }
         }
 
@@ -249,7 +261,7 @@ public class NostrService {
 
         if( filters.isEmpty() ) {
             logger.info("[Nostr] [Subscription] [{}] no filters were provided.", subscriptionId);
-            final String response = new GsonBuilder().create().toJson(Arrays.asList("EOSE", subscriptionId));
+            final String response = gsonBuilder.create().toJson(Arrays.asList("EOSE", subscriptionId));
             return this.broadcastClient(context, response);
         }
 
@@ -258,6 +270,7 @@ public class NostrService {
 
         return 0;
     }
+    
 
     private byte handleSubscriptionUnregistration(final WebsocketContext context, final JsonArray nostrMessage) {
         final String subscriptionId = nostrMessage.get(1).getAsString();
@@ -265,6 +278,22 @@ public class NostrService {
         logger.info("[Nostr] [Message] subscription unregistered: {}", subscriptionId);
 
         subscriptions.remove(subscriptionKey);
+
+        return 0;
+    }
+
+    private byte handleAuthentication(final WebsocketContext context, final JsonArray nostrMessage) {
+        final EventData eventData;
+        final EventValidation validation;
+        try {
+            eventData = EventData.of(nostrMessage.get(1).getAsJsonObject());
+            validation = this.validate(eventData.toString());
+        } catch(final Exception failure) {
+            return logger.info(
+                "[Nostr] [Message] could not parse event\n{}: {}",
+                failure.getClass().getCanonicalName(),
+                failure.getMessage());
+        }
 
         return 0;
     }
@@ -280,8 +309,19 @@ public class NostrService {
         }
     }
 
+    private byte requestAuthentication(final WebsocketContext context) {
+        final String challenge = Utils.secureHash();
+
+        synchronized(this.challenges) {
+            this.challenges.get(context.getContextID().toString()).add(challenge);
+        }
+
+        final String auth = gsonBuilder.create().toJson(Arrays.asList("AUTH", challenge));
+        return this.broadcastClient(context, auth);
+    }
+
     private EventValidation validate(final String eventJson) throws IOException {
-        final Gson gson = new GsonBuilder().create();
+        final Gson gson = gsonBuilder.create();
 
         final URL url = new URL("http://"+validationHost+":"+validationPort+"/event");
         final HttpURLConnection http = (HttpURLConnection) url.openConnection();
@@ -338,7 +378,7 @@ public class NostrService {
         final Collection<EventData> events,
         final Collection<JsonObject> filters
     ) {
-        final Gson gson = new GsonBuilder().create();
+        final Gson gson = gsonBuilder.create();
 
         logger.info("[Nostr] [Subscription] [{}] filter criteria\n{}", subscriptionId, filters);
 
@@ -496,6 +536,7 @@ public class NostrService {
 
         if( notifyUnauthUsers ) {
             this.broadcastClient(context, gson.toJson(Arrays.asList("NOTICE", "restricted: some kind of events cannot be served by this relay to unauthenticated users, does your client implement NIP-42?")));
+            this.requestAuthentication(context);
         }
 
         return 0;
