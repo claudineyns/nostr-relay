@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -88,6 +89,14 @@ public class EventData implements Comparable<EventData> {
 
     public int getCreatedAt() {
         return created_at;
+    }
+
+    public List<List<String>> getTagsByName(final String tagName) {
+        return this.getTags()
+            .stream()
+            .filter(tagList -> tagList.size() > 0)
+            .filter(tagList -> tagName.equals(tagList.get(0)))
+            .collect(Collectors.toList());
     }
 
     public Collection<List<String>> getTags() {

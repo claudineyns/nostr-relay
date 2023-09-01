@@ -19,4 +19,6 @@ public final class EventKind {
     public static int CHANNEL_MESSAGE = 42;
     public static int CHANNEL_HIDE = 43;
     public static int CHANNEL_MUTE_USER = 44;
+
+    public static int CLIENT_AUTH = 22242;
 }

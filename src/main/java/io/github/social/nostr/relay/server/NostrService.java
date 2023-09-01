@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -69,6 +70,10 @@ public class NostrService {
     private final Map<String, Set<String>> authUsers = new HashMap<>();
 
     private final GsonBuilder gsonBuilder = new GsonBuilder();
+
+    private final String protocol = AppProperties.isTls() ? "wss" : "ws";
+    private final String host = AppProperties.getHost();
+    private final int port = AppProperties.getPort();
 
     byte close() {
         return eventService.close();
@@ -180,7 +185,7 @@ public class NostrService {
         }
 
         if( eventData.getCreatedAt() > (currentTime + 600) ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event created_at field is out of the acceptable range (, +5min) for this relay"));
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event 'created_at' field is out of the acceptable range (, +10min) for this relay"));
 
             return broadcastClient(context, gson.toJson(response));
         }
@@ -294,6 +299,63 @@ public class NostrService {
                 failure.getClass().getCanonicalName(),
                 failure.getMessage());
         }
+
+        final Gson gson = gsonBuilder.create();
+
+        final List<Object> response = new ArrayList<>();
+        response.add("OK");
+
+        final int now = (int) (System.currentTimeMillis()/1000L);
+
+        if( eventData.getCreatedAt() < (now - 300) || eventData.getCreatedAt() > (now + 300) ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event 'created_at' field is out of the acceptable range (-5min, +5min) for this relay."));
+
+            return broadcastClient(context, gson.toJson(response));
+        }
+
+        if( EventKind.CLIENT_AUTH != eventData.getKind() ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event kind for authentication must be '22242'."));
+
+            return broadcastClient(context, gson.toJson(response));
+        }
+
+        final URI expectedFullUri = URI.create(protocol+"://"+host+":"+port);
+        final URI expectedSimpleUri = URI.create(protocol+"://"+host+(port == 443 || port == 80 ? "" : ":"+port));
+
+        final boolean[] ok = new boolean[] {true};
+
+        eventData.getTagsByName("relay")
+            .stream()
+            .filter(tagList -> tagList.size() > 1)
+            .map(tagList -> tagList.get(0))
+            .map(tagValue -> URI.create(tagValue))
+            .forEach(givenUri -> {
+                ok[0] = ok[0] && (givenUri.equals(expectedFullUri) || givenUri.equals(expectedSimpleUri));
+            });
+
+        synchronized(this.challenges) {
+            eventData.getTagsByName("challenge")
+            .stream()
+            .filter(tagList -> tagList.size() > 1)
+            .map(tagList -> tagList.get(0))
+            .forEach(challenge -> {
+                final Set<String> challengeSet = this.challenges.get(context.getContextID().toString());
+                ok[0] = ok[0] && challengeSet.contains(challenge);
+                challengeSet.remove(challenge);
+            });
+        }
+
+        if( EventKind.CLIENT_AUTH != eventData.getKind() ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the authentication event does not contain valid 'challenge' or 'relay' tag values."));
+
+            return broadcastClient(context, gson.toJson(response));
+        }
+
+        synchronized(this.authUsers)  {
+            this.authUsers.get(context.getContextID().toString()).add(eventData.getPubkey());
+        }
+
+        response.addAll(Arrays.asList(Boolean.TRUE, ""));
 
         return 0;
     }
