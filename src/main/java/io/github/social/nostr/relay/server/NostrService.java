@@ -129,7 +129,7 @@ public class NostrService {
 
             if( countFailure.get(context.getContextID().toString()).incrementAndGet() == 5 ) {
                 logger.error(
-                    "[Nostr] Abnormal state of connection\nRemote Address: {}\nUser-Agent:{}",
+                    "[Nostr] [Context] Abnormal state of connection\nRemote Address: {}\nUser-Agent:{}",
                     context.getRemoteAddress(), context.getUserAgent());            
                 return context.requestClose();
             }
