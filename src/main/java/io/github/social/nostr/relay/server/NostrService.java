@@ -84,6 +84,8 @@ public class NostrService {
     }
 
     byte openSession(final WebsocketContext context) {
+        logger.info("[Nostr] [Context] {} startup session");
+
         countFailure.put(context.getContextID().toString(), new AtomicInteger());
 
         synchronized(this.authUsers) {
@@ -97,6 +99,8 @@ public class NostrService {
     }
 
     byte closeSession(final WebsocketContext context) {
+        logger.info("[Nostr] [Context] {} cleanup session");
+
         countFailure.remove(context.getContextID().toString());
 
         synchronized(this.authUsers) {
