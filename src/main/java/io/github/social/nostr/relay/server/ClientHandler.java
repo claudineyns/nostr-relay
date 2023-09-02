@@ -91,6 +91,9 @@ public class ClientHandler implements Runnable {
 
 		public synchronized byte requestClose() {
 			interrupt = true;
+			try {
+				endStreams();
+			} catch (IOException e) { /***/ }
 			return 0;
 		}
 
@@ -177,7 +180,6 @@ public class ClientHandler implements Runnable {
 			} catch (CloseConnectionException failure) {
 				logger.warning("Connection closed");
 
-				this.notifyWebsocketClosure();
 			} catch (IOException failure) {
 				logger.warning(
 					"I/O Request handling error: {}: {}",
