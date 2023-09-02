@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.apache.commons.codec.binary.Hex;
@@ -69,6 +70,8 @@ public class NostrService {
     private final Map<String, Set<String>> challenges = new HashMap<>();
     private final Map<String, Set<String>> authUsers = new HashMap<>();
 
+    private final Map<String, AtomicInteger> countFailure = new ConcurrentHashMap<>();
+
     private final GsonBuilder gsonBuilder = new GsonBuilder();
 
     private final String protocol = AppProperties.isTls() ? "wss" : "ws";
@@ -81,6 +84,8 @@ public class NostrService {
     }
 
     byte openSession(final WebsocketContext context) {
+        countFailure.put(context.getContextID().toString(), new AtomicInteger());
+
         synchronized(this.authUsers) {
             this.authUsers.put(context.getContextID().toString(), new HashSet<>());
         }
@@ -92,6 +97,8 @@ public class NostrService {
     }
 
     byte closeSession(final WebsocketContext context) {
+        countFailure.remove(context.getContextID().toString());
+
         synchronized(this.authUsers) {
             this.authUsers.remove(context.getContextID().toString());
         }
@@ -116,12 +123,15 @@ public class NostrService {
             notice.add("error: Not a json array payload.");
             this.broadcastClient(context, gson.toJson(notice));
 
-            logger.error(
-                "[Nostr] Abnormal state of connection\nRemote Address: {}\nUser-Agent:{}",
-                context.getRemoteAddress(), context.getUserAgent());
-            
-            return context.requestClose();
+            if( countFailure.get(context.getContextID().toString()).incrementAndGet() == 5 ) {
+                logger.error(
+                    "[Nostr] Abnormal state of connection\nRemote Address: {}\nUser-Agent:{}",
+                    context.getRemoteAddress(), context.getUserAgent());            
+                return context.requestClose();
+            }
         }
+
+        countFailure.get(context.getContextID().toString()).set(0);
 
         final JsonArray nostrMessage;
         try {
