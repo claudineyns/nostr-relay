@@ -91,9 +91,6 @@ public class ClientHandler implements Runnable {
 
 		public synchronized byte requestClose() {
 			interrupt = true;
-			try {
-				endStreams();
-			} catch (IOException e) { /***/ }
 			return 0;
 		}
 
@@ -946,6 +943,8 @@ public class ClientHandler implements Runnable {
 		} else {
 
 			while(true) {
+				if(this.interrupt) break;
+
 				try {
 					this.packetRead = in.read(this.packet);
 				} catch(SocketTimeoutException timeout) {
@@ -953,8 +952,6 @@ public class ClientHandler implements Runnable {
 				} catch(IOException failure) {
 					throw failure;
 				}
-
-				if(this.interrupt) break;
 
 				this.remainingBytes = this.packetRead;
 				break;
