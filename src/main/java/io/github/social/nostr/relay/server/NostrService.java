@@ -133,6 +133,8 @@ public class NostrService {
                     context.getRemoteAddress(), context.getUserAgent());            
                 return context.requestClose();
             }
+
+            return 0;
         }
 
         countFailure.get(context.getContextID().toString()).set(0);
