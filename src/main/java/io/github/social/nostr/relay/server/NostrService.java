@@ -84,7 +84,7 @@ public class NostrService {
     }
 
     byte openSession(final WebsocketContext context) {
-        logger.info("[Nostr] [Context] {} startup session");
+        logger.info("[Nostr] [Context] {} startup session.", context.getContextID());
 
         countFailure.put(context.getContextID().toString(), new AtomicInteger());
 
@@ -99,7 +99,7 @@ public class NostrService {
     }
 
     byte closeSession(final WebsocketContext context) {
-        logger.info("[Nostr] [Context] {} cleanup session");
+        logger.info("[Nostr] [Context] {} cleanup session.", context.getContextID());
 
         countFailure.remove(context.getContextID().toString());
 
