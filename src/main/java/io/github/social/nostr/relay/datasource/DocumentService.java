@@ -17,24 +17,27 @@ public class DocumentService {
     private boolean closed = false;
 
     final MongoClientSettings settings;
+    final ConnectionString connection;
     private DocumentService() {
         final String host = AppProperties.getMongoDbHost();
         final int port = AppProperties.getMongoDbPort();
 
         // Replace the placeholder with your Atlas connection string
         final String uri = "mongodb://"+host+":"+port+"/"+DB_NAME+"?maxPoolSize=10";
+        this.connection = new ConnectionString(uri);
 
         // Construct a ServerApi instance using the ServerApi.builder() method
         final ServerApi serverApi = ServerApi.builder().version(ServerApiVersion.V1).build();
 
         settings = MongoClientSettings.builder()
-                .applyConnectionString(new ConnectionString(uri))
+                .applyConnectionString(this.connection)
                 .serverApi(serverApi)
                 .build();
     }
 
     public MongoClient connect() {
-        return MongoClients.create(this.settings);
+        //return MongoClients.create(this.settings);
+        return MongoClients.create(this.connection);
     }
 
     public synchronized byte close() {
