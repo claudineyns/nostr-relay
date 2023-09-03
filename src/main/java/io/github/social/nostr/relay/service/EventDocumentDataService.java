@@ -66,7 +66,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
     protected byte proceedToSaveEvent(EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
-            saveEvent(client.getDatabase(DB_NAME), eventData);
+            storeEvent(client.getDatabase(DB_NAME), eventData);
         } catch(Throwable e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
@@ -75,7 +75,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
     protected byte proceedToSaveReplaceable(EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
-            saveReplaceable(client.getDatabase(DB_NAME), eventData);
+            storeReplaceable(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
@@ -85,7 +85,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
     protected byte proceedToSaveParameterizedReplaceable(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
-            return saveParameterizedReplaceable(client.getDatabase(DB_NAME), eventData);
+            return storeParameterizedReplaceable(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
             return logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
@@ -135,7 +135,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         }
     }
 
-    private String saveEvent(final MongoDatabase db, EventData eventData) {
+    private String storeEvent(final MongoDatabase db, EventData eventData) {
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         final Document eventDoc = Document.parse(eventData.toString());
@@ -161,7 +161,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         return null;
     }
 
-    private String saveReplaceable(final MongoDatabase db, EventData eventData) {
+    private String storeReplaceable(final MongoDatabase db, EventData eventData) {
         final String data = Utils.sha256(
             (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
         );
@@ -191,7 +191,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         return null;
     }
 
-    private byte saveParameterizedReplaceable(final MongoDatabase db, EventData eventData) {
+    private byte storeParameterizedReplaceable(final MongoDatabase db, EventData eventData) {
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         final Document eventBase = Document.parse(eventData.toString());

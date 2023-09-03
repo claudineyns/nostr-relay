@@ -81,7 +81,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
 
     protected byte proceedToSaveEvent(EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
-            saveEvent(jedis, eventData);
+            storeEvent(jedis, eventData);
         } catch(JedisException e) {
             logger.warning("[Redis] Failure: {}", e.getMessage());
         }
@@ -90,7 +90,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
 
     protected byte proceedToSaveReplaceable(EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
-            saveReplaceable(jedis, eventData);
+            storeReplaceable(jedis, eventData);
         } catch(JedisException e) {
             logger.warning("[Redis] Failure: {}", e.getMessage());
         }
@@ -100,7 +100,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
 
     protected byte proceedToSaveParameterizedReplaceable(final EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
-            return saveParameterizedReplaceable(jedis, eventData);
+            return storeParameterizedReplaceable(jedis, eventData);
         } catch(JedisException e) {
             return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
@@ -137,7 +137,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         throw new IllegalCallerException();
     }
 
-    private String saveEvent(final Jedis jedis, EventData eventData) {
+    private String storeEvent(final Jedis jedis, EventData eventData) {
         final String cache = "event";
 
         final String currentDataKey = cache+"#"+eventData.getId();
@@ -156,7 +156,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         return null;
     }
 
-    private String saveReplaceable(final Jedis jedis, final EventData eventData) {
+    private String storeReplaceable(final Jedis jedis, final EventData eventData) {
         final Pipeline pipeline = jedis.pipelined();
 
         final long score = System.currentTimeMillis();
@@ -181,7 +181,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         return null;
     }
 
-    private byte saveParameterizedReplaceable(final Jedis jedis, final EventData eventData) {
+    private byte storeParameterizedReplaceable(final Jedis jedis, final EventData eventData) {
         final Pipeline pipeline = jedis.pipelined();
 
         final long score = System.currentTimeMillis();

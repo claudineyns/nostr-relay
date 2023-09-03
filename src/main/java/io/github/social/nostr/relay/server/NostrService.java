@@ -275,8 +275,6 @@ public class NostrService {
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
 
-        logger.info("[Nostr] [Subscription] [{}] request received.", subscriptionId);
-
         final Collection<JsonObject> filters = new ConcurrentLinkedQueue<>();
         for(int i = 2; i < nostrMessage.size(); ++i) {
             final JsonObject entry = nostrMessage.get(i).getAsJsonObject();
@@ -292,7 +290,6 @@ public class NostrService {
             return this.broadcastClient(context, response);
         }
 
-        logger.info("[Nostr] [Subscription] [{}] await for fetching data.", subscriptionId);
         this.eventProcessor.submit(() -> fetchAndBroadcastEvents(context, subscriptionId, filters));
 
         return 0;
@@ -483,10 +480,6 @@ public class NostrService {
     ) {
         final Gson gson = gsonBuilder.create();
 
-        logger.info("[Nostr] [Subscription] [{}] filter criteria\n{}", subscriptionId, filters);
-
-        logger.info("[Nostr] [Subscription] [{}] performing event filtering.", subscriptionId);
-
         boolean notifyUnauthUsers = false;
 
         final List<EventData> selectedEvents = new ArrayList<>();
@@ -621,8 +614,6 @@ public class NostrService {
                 if( ! selectedEvents.contains(evt) ) selectedEvents.add(evt);
             });
         }
-
-        logger.info("[Nostr] [Subscription] [{}] total events to sent: {}", subscriptionId, selectedEvents.size());
 
         if( ! selectedEvents.isEmpty() ) {
             final List<Object> subscriptionResponse = new ArrayList<>();
