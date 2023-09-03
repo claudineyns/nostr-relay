@@ -25,6 +25,13 @@ public final class Constants {
 	public static final String PROPERTY_REDIS_PASS = 
 		"redis.pass";
 
+	public static final String PROPERTY_MONGODB_HOST = 
+		"mongodb.host";
+	public static final String PROPERTY_MONGODB_PORT = 
+		"mongodb.port";
+	public static final String PROPERTY_MONGODB_PASS = 
+		"mongodb.pass";
+
 	public static final String PROPERTY_VALIDATION_HOST = 
 		"event.validation.host";
 	public static final String PROPERTY_VALIDATION_PORT = 
@@ -57,6 +64,13 @@ public final class Constants {
 		"REDIS_PORT";
 	public static final String ENV_REDIS_PASS = 
 		"REDIS_PASS";
+
+	public static final String ENV_MONGODB_HOST = 
+		"MONGODB_HOST";
+	public static final String ENV_MONGODB_PORT = 
+		"MONGODB_PORT";
+	public static final String ENV_MONGODB_PASS = 
+		"MONGODB_PASS";
 
 	public static final String ENV_VALIDATION_HOST = 
 		"EVENT_VALIDATION_HOST";

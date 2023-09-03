@@ -1,7 +1,7 @@
 package io.github.social.nostr.relay.def;
 
 import java.util.Collection;
-import io.github.social.nostr.relay.service.EventCacheDataService;
+import io.github.social.nostr.relay.service.EventDocumentDataService;
 import io.github.social.nostr.relay.specs.EventData;
 
 public interface IEventService {
@@ -9,7 +9,8 @@ public interface IEventService {
     static final String REG_REQUIRED = "blocked: pubkey must be registered.";
 
     // public static final IEventService INSTANCE = new EventDiskDataService();
-    public static final IEventService INSTANCE = new EventCacheDataService();
+    // public static final IEventService INSTANCE = new EventCacheDataService();
+    public static final IEventService INSTANCE = new EventDocumentDataService();
 
     String checkRegistration(final EventData eventData);
 

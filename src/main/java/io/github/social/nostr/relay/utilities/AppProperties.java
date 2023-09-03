@@ -21,6 +21,10 @@ public final class AppProperties {
 	private static final String DEFAULT_REDIS_PORT = "6379";
 	private static final String DEFAULT_REDIS_PASS = "";
 
+	private static final String DEFAULT_MONGODB_HOST = "localhost";
+	private static final String DEFAULT_MONGODB_PORT = "27017";
+	private static final String DEFAULT_MONGODB_PASS = "";
+
 	private static final String DEFAULT_VALIDATION_HOST = "localhost";
 	private static final String DEFAULT_VALIDATION_PORT = "8888";
 
@@ -91,6 +95,31 @@ public final class AppProperties {
 				System.getProperty(Constants.PROPERTY_REDIS_PASS),
 				System.getenv(Constants.ENV_REDIS_PASS),
 				DEFAULT_REDIS_PASS
+			);
+	}
+
+	public static String getMongoDbHost() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_MONGODB_HOST),
+				System.getenv(Constants.ENV_MONGODB_HOST),
+				DEFAULT_MONGODB_HOST
+			);
+	}
+
+	public static int getMongoDbPort() {
+		final String port = nullValue(
+				System.getProperty(Constants.PROPERTY_MONGODB_PORT),
+				System.getenv(Constants.ENV_MONGODB_PORT),
+				DEFAULT_MONGODB_PORT
+			);
+		return Integer.parseInt(port);
+	}
+
+	public static String getMongoDbSecret() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_MONGODB_PASS),
+				System.getenv(Constants.ENV_MONGODB_PASS),
+				DEFAULT_MONGODB_PASS
 			);
 	}
 

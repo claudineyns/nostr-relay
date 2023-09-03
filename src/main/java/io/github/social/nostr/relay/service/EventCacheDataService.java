@@ -18,7 +18,8 @@ import org.apache.commons.io.IOUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
-import io.github.social.nostr.relay.cache.CacheService;
+
+import io.github.social.nostr.relay.datasource.CacheService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;

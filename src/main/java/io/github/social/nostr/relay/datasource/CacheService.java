@@ -1,4 +1,4 @@
-package io.github.social.nostr.relay.cache;
+package io.github.social.nostr.relay.datasource;
 
 import java.time.Duration;
 
