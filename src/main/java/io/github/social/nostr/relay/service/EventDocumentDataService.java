@@ -115,7 +115,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         list
             .stream()
             .forEach(eventData -> {
-                if(!unique.contains(eventData.getId())) {
+                if( ! unique.contains(eventData.getId()) ) {
                     unique.add(eventData.getId());
                     events.add(eventData);
                 }
@@ -279,7 +279,6 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
                 doc.remove("_id");
 
                 final EventData eventData = EventData.gsonEngine(gson, gson.toJson(doc));
-                logger.info("[MongoDB] event from 'current'\n{}", eventData.toString());
                 eventList.add(eventData);
             });
         }

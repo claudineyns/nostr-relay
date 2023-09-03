@@ -90,12 +90,11 @@ public abstract class AbstractCachedEventDataService implements IEventService {
 
             events.addAll(
                 this.getCacheList().stream()
+                .peek(event -> logger.info("[Nostr] [Debugging] event\n{}", event.toString()))
                 .filter( q -> q.getKind() != EventKind.DELETION )
                 .collect(Collectors.toList())
             );
         }
-
-        events.stream().forEach(event -> logger.info("[Nostr] [Debugging] event\n{}", event.toString()));
 
         return 0;
     }
