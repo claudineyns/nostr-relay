@@ -270,18 +270,16 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     private byte fetchList(final MongoDatabase db, final Collection<EventData> events) {
         final Gson gson = gsonBuilder.create();
 
-        final MongoCollection<Document> cacheCurrent = db.getCollection("current");
+        final MongoCollection<Document> current = db.getCollection("current");
 
         final Collection<EventData> eventList = new ArrayList<>();
 
-        try(final MongoCursor<Document> cursor = cacheCurrent.find().cursor()) {
+        try(final MongoCursor<Document> cursor = current.find().cursor()) {
             cursor.forEachRemaining(doc -> {
                 doc.remove("_id");
-                doc.remove("_kid");
-                doc.remove("_updated_at");
-                doc.remove("_status");
 
                 final EventData eventData = EventData.gsonEngine(gson, gson.toJson(doc));
+                logger.info("[MongoDB] event from 'current'\n{}", eventData.toString());
                 eventList.add(eventData);
             });
         }
