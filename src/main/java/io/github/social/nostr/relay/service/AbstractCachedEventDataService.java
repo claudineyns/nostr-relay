@@ -51,8 +51,6 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     }
 
     public final byte persistReplaceable(final EventData eventData) {
-        logger.info("[Nostr] [Persistence] [MongoDB] #persistReplaceable()\n{}", eventData.toString());
-
         final Thread task = new Thread(() -> saveReplaceableAndUpdateCache(eventData));
         task.setDaemon(true);
         this.cacheTask.submit(task);

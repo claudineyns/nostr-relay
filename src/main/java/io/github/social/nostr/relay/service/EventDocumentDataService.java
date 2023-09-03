@@ -14,7 +14,6 @@ import org.bson.conversions.Bson;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mongodb.MongoException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -93,6 +92,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         try (final MongoClient client = datasource.connect()) {
             saveEvent(client.getDatabase(DB_NAME), eventData);
+            logger.info("[Nostr] [Persistence] [MongoDB] #proceedToSaveEvent() DONE.");
         } catch(Exception e) {
             logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
         }
