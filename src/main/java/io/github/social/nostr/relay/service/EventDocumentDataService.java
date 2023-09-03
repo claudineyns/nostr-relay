@@ -14,6 +14,7 @@ import org.bson.conversions.Bson;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.mongodb.MongoException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
@@ -202,7 +203,12 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         final UpdateOptions options = new UpdateOptions().upsert(true);        
 
         logger.info("[MongoDB] replace data");
-        cacheCurrent.updateOne(new Document("_pk", data), eventDoc, options);
+        try {
+            cacheCurrent.updateOne(new Document("_pk", data), eventDoc, options);
+        } catch(MongoException failure) {
+            logger.info("[MongoDB] could not replace data");
+            throw failure;
+        }
         logger.info("[MongoDB] data replaced");
 
         logger.info("[MongoDB] prepare version");
