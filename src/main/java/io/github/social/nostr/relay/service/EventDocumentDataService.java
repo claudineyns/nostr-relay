@@ -192,10 +192,9 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         logger.info("[MongoDB] replace data");
         try {
-            cacheCurrent.updateOne(new Document("kid", data), eventDoc);
-        } catch(MongoException failure) {
             cacheCurrent.insertOne(eventDoc);
-        }
+        } catch(MongoException failure) { /***/ }
+        cacheCurrent.updateOne(new Document("kid", data), eventDoc);
         logger.info("[MongoDB] data replaced");
 
         final Document eventVersion = new Document(eventDoc);
