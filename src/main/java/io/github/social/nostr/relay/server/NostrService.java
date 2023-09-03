@@ -44,7 +44,6 @@ import com.google.gson.JsonParseException;
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.dto.EventValidation;
 import io.github.social.nostr.relay.service.EventCacheDataService;
-import io.github.social.nostr.relay.service.EventDiskDataService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;

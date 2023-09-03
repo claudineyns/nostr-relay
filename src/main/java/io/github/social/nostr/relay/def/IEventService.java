@@ -8,7 +8,7 @@ public interface IEventService {
     static final String DB_ERROR     = "error: Could not connect to database.";
     static final String REG_REQUIRED = "blocked: pubkey must be registered.";
 
-    // public static final IEventService INSTANCE = new EventDiskDataService();
+    // public static final IEventService INSTANCE = new EventLocalStorageDataService();
     // public static final IEventService INSTANCE = new EventCacheDataService();
     public static final IEventService INSTANCE = new EventDocumentDataService();
 
