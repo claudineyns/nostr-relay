@@ -159,10 +159,14 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     }
 
     private String saveEvent(final MongoDatabase db, EventData eventData) {
+        logger.info("[Nostr] [Persistence] [MongoDB] #saveEvent()\n{}", eventData.toString());
 
         final int now = (int) (System.currentTimeMillis()/1000L);
 
+        logger.info("[Nostr] [Persistence] [MongoDB] parsing event...");
         final Document eventDoc = Document.parse(eventData.toString());
+        logger.info("[Nostr] [Persistence] [MongoDB] event parsed");
+
         eventDoc.put("_id", UUID.randomUUID());
 
         final UpdateOptions options = new UpdateOptions().upsert(true);        
