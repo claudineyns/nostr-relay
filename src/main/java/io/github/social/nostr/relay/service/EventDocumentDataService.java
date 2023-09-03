@@ -204,7 +204,8 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         final UpdateOptions options = new UpdateOptions().upsert(true);        
 
         logger.info("[MongoDB] replace data");
-        cacheCurrent.updateOne(new Document("_pk", data), eventDoc, options);
+        // cacheCurrent.updateOne(new Document("_pk", data), eventDoc, options);
+        cacheCurrent.insertOne(eventDoc);
         logger.info("[MongoDB] data replaced");
 
         logger.info("[MongoDB] prepare version");
