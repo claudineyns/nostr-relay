@@ -100,6 +100,8 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     }
 
     protected byte proceedToSaveReplaceable(EventData eventData) {
+        logger.info("[Nostr] [Persistence] [MongoDB] #proceedToSaveReplaceable()\n{}", eventData.toString());
+
         try (final MongoClient client = datasource.connect()) {
             saveReplaceable(client.getDatabase(DB_NAME), eventData);
         } catch(MongoException e) {

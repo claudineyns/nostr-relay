@@ -8,12 +8,9 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 
 import io.github.social.nostr.relay.utilities.AppProperties;
-import io.github.social.nostr.relay.utilities.LogService;
 
 public class DocumentService {
     public static final DocumentService INSTANCE = new DocumentService();
-
-    private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     public static final String DB_NAME = "nostr";
 
