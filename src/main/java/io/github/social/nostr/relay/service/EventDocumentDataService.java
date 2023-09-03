@@ -21,6 +21,8 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.result.InsertOneResult;
+
 import io.github.social.nostr.relay.datasource.DocumentService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
@@ -185,19 +187,20 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         final Document eventDoc = Document.parse(eventData.toString());
 
-        eventDoc.put("_id", UUID.randomUUID().toString());
-        eventDoc.put("kid", data);
+        eventDoc.put("_id", data);
 
         final MongoCollection<Document> cacheCurrent = db.getCollection("replaceableCurrent");
 
         logger.info("[MongoDB] replace data");
-        try {
-            cacheCurrent.insertOne(eventDoc);
-        } catch(MongoException failure) { /***/ }
-        cacheCurrent.updateOne(new Document("kid", data), eventDoc);
+
+        cacheCurrent.insertOne(eventDoc);
+        cacheCurrent.updateOne(new Document("_id", data), eventDoc);
+
         logger.info("[MongoDB] data replaced");
 
         final Document eventVersion = new Document(eventDoc);
+        eventVersion.put("_id", UUID.randomUUID().toString());
+        eventVersion.put("kid", data);
         eventVersion.put("updated_at", now);
 
         final MongoCollection<Document> cacheVersion = db.getCollection("replaceableVersion");
