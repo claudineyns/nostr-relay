@@ -39,7 +39,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     public String checkRegistration(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
             return validateRegistration(client.getDatabase(DB_NAME), eventData);
-        } catch(MongoException e) {
+        } catch(Exception e) {
             logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
             return DB_ERROR;
         }
@@ -50,7 +50,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         try (final MongoClient client = datasource.connect()) {
             return this.fetchList(client.getDatabase(DB_NAME), events, cache);
-        } catch(MongoException e) {
+        } catch(Exception e) {
             return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
         }
     }
@@ -58,7 +58,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     public byte fetchReplaceables(final Collection<EventData> events) {
         try (final MongoClient client = datasource.connect()) {
             return this.fetchList(client.getDatabase(DB_NAME), events, "replaceable");
-        } catch(MongoException e) {
+        } catch(Exception e) {
             return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
         }
     }
@@ -66,7 +66,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     public byte fetchParameters(final Collection<EventData> events) {
         try (final MongoClient client = datasource.connect()) {
             return this.fetchList(client.getDatabase(DB_NAME), events, "parameter");
-        } catch(MongoException e) {
+        } catch(Exception e) {
             return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
         }
     }
@@ -93,7 +93,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         try (final MongoClient client = datasource.connect()) {
             saveEvent(client.getDatabase(DB_NAME), eventData);
-        } catch(MongoException e) {
+        } catch(Exception e) {
             logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
         }
         return 0;
@@ -104,7 +104,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         try (final MongoClient client = datasource.connect()) {
             saveReplaceable(client.getDatabase(DB_NAME), eventData);
-        } catch(MongoException e) {
+        } catch(Exception e) {
             logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
         }
 
@@ -114,7 +114,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     protected byte proceedToSaveParameterizedReplaceable(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
             return saveParameterizedReplaceable(client.getDatabase(DB_NAME), eventData);
-        } catch(MongoException e) {
+        } catch(Exception e) {
             return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
         }
     }
@@ -122,7 +122,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     protected byte proceedToRemoveLinkedEvents(EventData eventDeletion) {
         try (final MongoClient client = datasource.connect()) {
             return removeEvents(client.getDatabase(DB_NAME), eventDeletion);
-        } catch(MongoException e) {
+        } catch(Exception e) {
             return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
         }
     }
@@ -136,7 +136,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
             fetchList(db, list, "event");
             fetchList(db, list, "replaceable");
             fetchList(db, list, "parameter");
-        } catch(MongoException e) {
+        } catch(Exception e) {
             logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
 
             return Collections.emptyList();
