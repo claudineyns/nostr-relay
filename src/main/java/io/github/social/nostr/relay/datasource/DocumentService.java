@@ -8,9 +8,12 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 
 import io.github.social.nostr.relay.utilities.AppProperties;
+import io.github.social.nostr.relay.utilities.LogService;
 
 public class DocumentService {
     public static final DocumentService INSTANCE = new DocumentService();
+
+    private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     private boolean closed = false;
 
@@ -20,7 +23,8 @@ public class DocumentService {
         final int port = AppProperties.getMongoDbPort();
 
         // Replace the placeholder with your Atlas connection string
-        final String uri = "mongodb://"+host+":"+port+"?maxPoolSize=20&w=majority";
+        final String uri = "mongodb://"+host+":"+port+"/nostr?maxPoolSize=20&w=majority";
+        logger.info("[MongoDB] Connecting to {}", uri);
 
         // Construct a ServerApi instance using the ServerApi.builder() method
         final ServerApi serverApi = ServerApi.builder().version(ServerApiVersion.V1).build();
