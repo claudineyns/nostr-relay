@@ -93,7 +93,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         try (final MongoClient client = datasource.connect()) {
             saveEvent(client.getDatabase(DB_NAME), eventData);
             logger.info("[Nostr] [Persistence] [MongoDB] #proceedToSaveEvent() DONE.");
-        } catch(Exception e) {
+        } catch(Throwable e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
         return 0;
