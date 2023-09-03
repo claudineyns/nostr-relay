@@ -14,14 +14,12 @@ import org.bson.conversions.Bson;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.mongodb.MongoException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.result.InsertOneResult;
+import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 
 import io.github.social.nostr.relay.datasource.DocumentService;
@@ -91,11 +89,8 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     }
 
     protected byte proceedToSaveEvent(EventData eventData) {
-        logger.info("[MongoDB] #proceedToSaveEvent()\n{}", eventData.toString());
-
         try (final MongoClient client = datasource.connect()) {
             saveEvent(client.getDatabase(DB_NAME), eventData);
-            logger.info("[MongoDB] #proceedToSaveEvent() DONE.");
         } catch(Throwable e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
@@ -132,11 +127,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         final Collection<EventData> list = new LinkedHashSet<>();
 
         try (final MongoClient client = datasource.connect()) {
-            final MongoDatabase db = client.getDatabase(DB_NAME);
-
-            fetchList(db, list, "event");
-            fetchList(db, list, "replaceable");
-            fetchList(db, list, "parameter");
+            fetchList(client.getDatabase(DB_NAME), list, "event");
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
 
@@ -163,18 +154,24 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         final Document eventDoc = Document.parse(eventData.toString());
+        eventDoc.put("_id", eventData.getId());
 
-        eventDoc.put("_id", UUID.randomUUID().toString());
-
-        final UpdateOptions options = new UpdateOptions().upsert(true);        
-        final MongoCollection<Document> cacheCurrent = db.getCollection("eventCurrent");
-        cacheCurrent.updateOne(new Document("id", eventData.getId()), eventDoc, options);
+        final MongoCollection<Document> current = db.getCollection("current");
+        final UpdateResult result = current.replaceOne(Filters.eq("_id", eventData.getId()), eventDoc);
+        if(result.getModifiedCount() == 0) {
+            current.insertOne(eventDoc);
+        }
 
         final Document eventVersion = new Document(eventDoc);
-        eventVersion.put("updated_at", now);
+        eventVersion.put("_id", UUID.randomUUID().toString());
+        eventVersion.put("_kid", eventData.getId());
+        eventVersion.put("_updated_at", now);
+        eventVersion.put("_status", "inserted");
 
-        final MongoCollection<Document> cacheVersion = db.getCollection("eventVersion");
+        final MongoCollection<Document> cacheVersion = db.getCollection("version");
         cacheVersion.insertOne(eventVersion);
+
+        logger.info("[MongoDB] [Event] event {} saved.", eventData.getId());
 
         return null;
     }
@@ -187,28 +184,21 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         final Document eventDoc = Document.parse(eventData.toString());
-
         eventDoc.put("_id", data);
 
-        final MongoCollection<Document> cacheCurrent = db.getCollection("replaceableCurrent");
-
-        logger.info("[MongoDB] replace data");
-
+        final MongoCollection<Document> cacheCurrent = db.getCollection("current");
         final UpdateResult result = cacheCurrent.replaceOne(Filters.eq("_id", data), eventDoc);
-
         if(result.getModifiedCount() == 0) {
-            logger.warning("[MongoDB] new data");
             cacheCurrent.insertOne(eventDoc);
         }
 
-        logger.info("[MongoDB] data replaced");
-
         final Document eventVersion = new Document(eventDoc);
         eventVersion.put("_id", UUID.randomUUID().toString());
-        eventVersion.put("kid", data);
-        eventVersion.put("updated_at", now);
+        eventVersion.put("_kid", data);
+        eventVersion.put("_updated_at", now);
+        eventVersion.put("_status", "inserted");
 
-        final MongoCollection<Document> cacheVersion = db.getCollection("replaceableVersion");
+        final MongoCollection<Document> cacheVersion = db.getCollection("version");
         cacheVersion.insertOne(eventVersion);
 
         logger.info("[MongoDB] [Replaceable] event {} consumed.", eventData.getId());
@@ -226,20 +216,22 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
                 (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
             );
 
-            final UUID _id = UUID.randomUUID();
-
             final Document eventDoc = new Document(eventBase);
-            eventDoc.put("_id", _id.toString());
-            eventDoc.put("kid", data);
+            eventDoc.put("_id", data);
 
-            final UpdateOptions options = new UpdateOptions().upsert(true);        
-            final MongoCollection<Document> cacheCurrent = db.getCollection("parameterCurrent");
-            cacheCurrent.updateOne(new Document("kid", data), eventDoc, options);
+            final MongoCollection<Document> cacheCurrent = db.getCollection("current");
+            final UpdateResult result = cacheCurrent.replaceOne(Filters.eq("_id", data), eventDoc);
+            if(result.getModifiedCount() == 0) {
+                cacheCurrent.insertOne(eventDoc);
+            }
 
             final Document eventVersion = new Document(eventDoc);
-            eventVersion.put("updated_at", now);
+            eventVersion.put("_id", UUID.randomUUID().toString());
+            eventVersion.put("_kid", data);
+            eventVersion.put("_updated_at", now);
+            eventVersion.put("_status", "inserted");
 
-            final MongoCollection<Document> cacheVersion = db.getCollection("parameterVersion");
+            final MongoCollection<Document> cacheVersion = db.getCollection("version");
             cacheVersion.insertOne(eventVersion);
         }
 
@@ -253,10 +245,10 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         final List<Document> eventsMarkedForDeletion = new ArrayList<>();
 
-        final MongoCollection<Document> cacheCurrent = db.getCollection("eventCurrent");
+        final MongoCollection<Document> cacheCurrent = db.getCollection("current");
 
-        final Bson filter = Filters.in("id", eventDeletion.getReferencedEventList());
-        try(final MongoCursor<Document> cursor = cacheCurrent.find(filter).cursor()) {
+        final Bson removalListFilter = Filters.in("id", eventDeletion.getReferencedEventList());
+        try(final MongoCursor<Document> cursor = cacheCurrent.find(removalListFilter).cursor()) {
             cursor.forEachRemaining(eventDoc -> {
                 final String qAuthorId = eventDoc.get("pubkey").toString();
                 final int qEventKind   = Integer.parseInt(eventDoc.get("kind").toString());
@@ -271,16 +263,20 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
             });
         }
 
-        final MongoCollection<Document> cacheVersion = db.getCollection("eventVersion");
+        final MongoCollection<Document> cacheVersion = db.getCollection("version");
 
         eventsMarkedForDeletion.forEach(eventDoc -> {
-            cacheCurrent.deleteOne(new Document("id", eventDoc.get("id")));
+            final Bson removedItemFilter = Filters.eq("id", eventDoc.get("id"));
+            final DeleteResult result = cacheCurrent.deleteOne(removedItemFilter);
 
             final Document eventVersion = new Document(eventDoc);
             eventVersion.put("_id", UUID.randomUUID().toString());
-            eventVersion.put("updated_at", now);
+            eventVersion.put("_status", "deleted");
+            eventVersion.put("_updated_at", now);
 
-            cacheVersion.insertOne(eventVersion);
+            if(result.getDeletedCount() > 0) {
+                cacheVersion.insertOne(eventVersion);
+            }
         });
 
         return logger.info("[Event] events related by event {} has been deleted.", eventDeletion.getId());
@@ -296,8 +292,9 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         try(final MongoCursor<Document> cursor = cacheCurrent.find().cursor()) {
             cursor.forEachRemaining(doc -> {
                 doc.remove("_id");
-                doc.remove("kid");
-                doc.remove("updated_at");
+                doc.remove("_kid");
+                doc.remove("_updated_at");
+                doc.remove("_status");
 
                 final EventData eventData = EventData.gsonEngine(gson, gson.toJson(doc));
                 eventList.add(eventData);

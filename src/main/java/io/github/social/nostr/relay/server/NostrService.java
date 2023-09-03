@@ -257,9 +257,7 @@ public class NostrService {
 
         if( responseText == null ){
             response.addAll(Arrays.asList(Boolean.TRUE, ""));
-
             this.broadcastNewEvent(context, gson, eventData);
-
         } else {
             response.addAll(Arrays.asList(Boolean.FALSE, responseText));
         }
