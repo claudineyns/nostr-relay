@@ -34,7 +34,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
     private final DocumentService datasource = DocumentService.INSTANCE;
 
-    private final String DB_NAME = "nostr";
+    static final String DB_NAME = DocumentService.DB_NAME;
 
     public String checkRegistration(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
