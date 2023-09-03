@@ -27,8 +27,8 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     private final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
 
     protected AbstractCachedEventDataService() {
-        Executors.newScheduledThreadPool(1)
-            .schedule(()->this.refreshCacheList(), 1500, TimeUnit.MILLISECONDS);
+        // Executors.newScheduledThreadPool(1)
+        //     .schedule(()->this.refreshCacheList(), 1500, TimeUnit.MILLISECONDS);
     }
 
     private Object lock() {
@@ -36,7 +36,7 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     }
 
     public final String persistEvent(EventData eventData) {
-        synchronized(lock()) {
+        // synchronized(lock()) {
             if (EventState.REGULAR.equals(eventData.getState())) {
                 if (this.checkStoredEvent(eventData)) {
                     return "duplicate: event has already been stored.";
@@ -45,7 +45,7 @@ public abstract class AbstractCachedEventDataService implements IEventService {
                     return "invalid: this event has been asked to be removed from this relay.";
                 }
             }
-        }
+        // }
 
         final Thread task = new Thread(() -> saveEventAndUpdateCache(eventData));
         task.setDaemon(true);
@@ -83,18 +83,27 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     }
 
     public byte fetchActiveEvents(Collection<EventData> events) {
-        synchronized(lock()) {
-            if( this.checkCacheEmpty() ) {
-                this.fetchAndParseEventList();
-            }
+        // synchronized(lock()) {
+        //     if( this.checkCacheEmpty() ) {
+        //         this.fetchAndParseEventList();
+        //     }
 
-            events.addAll(
-                this.getCacheList().stream()
+        //     events.addAll(
+        //         this.getCacheList()
+        //             .stream()
+        //             .peek(event -> logger.info("[Nostr] [Debugging] event\n{}", event.toString()))
+        //             .filter( q -> q.getKind() != EventKind.DELETION )
+        //             .collect(Collectors.toList())
+        //     );
+        // }
+
+        events.addAll(
+            this.fetchAndParseEventList()
+                .stream()
                 .peek(event -> logger.info("[Nostr] [Debugging] event\n{}", event.toString()))
                 .filter( q -> q.getKind() != EventKind.DELETION )
                 .collect(Collectors.toList())
-            );
-        }
+        );
 
         return 0;
     }
@@ -114,98 +123,108 @@ public abstract class AbstractCachedEventDataService implements IEventService {
             .collect(Collectors.toList());
     }
 
-    private byte refreshCacheList() {
-        final Collection<EventData> eventList = this.fetchAndParseEventList();
+    // private byte refreshCacheList() {
+    //     final Collection<EventData> eventList = this.fetchAndParseEventList();
 
-        synchronized(lock()) {
-            if( ! this.checkCacheEmpty() ) {
-                this.clearCache();
-                eventList.stream().forEach(this::updateCacheEntry);
-            }
-        }
+    //     synchronized(lock()) {
+    //         if( ! this.checkCacheEmpty() ) {
+    //             this.clearCache();
+    //             eventList.stream().forEach(this::updateCacheEntry);
+    //         }
+    //     }
 
-        return logger.info("[Task] Cache updated.");
-    }
+    //     return logger.info("[Task] Cache updated.");
+    // }
 
     private byte saveEventAndUpdateCache(final EventData eventData) {
         this.proceedToSaveEvent(eventData);
 
-        return this.syncEventCache(eventData);
+        //return this.syncEventCache(eventData);
+        return 0;
     }
 
     private byte saveReplaceableAndUpdateCache(final EventData eventData) {
         this.proceedToSaveReplaceable(eventData);        
 
-        return this.syncEventCache(eventData);
+        //return this.syncEventCache(eventData);
+        return 0;
     }
 
     private byte saveParameterizedReplaceableAndUpdateCache(final EventData eventData) {
         this.proceedToSaveParameterizedReplaceable(eventData);
 
-        return this.syncEventCache(eventData);
+        //return this.syncEventCache(eventData);
+        return 0;
     }
 
     private byte removeLinkedEventsAndUpdateCache(final EventData eventDeletion) {
         this.proceedToRemoveLinkedEvents(eventDeletion);
 
-        return this.refreshCacheList();
+        //return this.refreshCacheList();
+        return 0;
     }
 
     private boolean checkStoredEvent(final EventData eventData) {
-        return eventCache.containsKey(eventData.getId());
+        // return eventCache.containsKey(eventData.getId());
+        return findEvent(eventData.getId()) != null;
     }
 
     private boolean checkRemovalHistory(final EventData eventData) {
-        return this.eventCache.values().stream()
+        return this.fetchAndParseEventList().stream()
+        // return this.eventCache.values().stream()
             .filter( event -> event.getKind() == EventKind.DELETION )
             .filter( event -> event.getPubkey().equals(eventData.getPubkey()) )
             .filter( event -> event.getReferencedEventList().contains(eventData.getId()) )
             .count() > 0;
     }
 
-    private boolean checkCacheEmpty() {
-        return this.eventCache.isEmpty();
-    }
+    // private boolean checkCacheEmpty() {
+    //     return this.eventCache.isEmpty();
+    // }
 
-    private void clearCache() {
-        this.eventCache.clear();
-    }
+    // private void clearCache() {
+    //     this.eventCache.clear();
+    // }
 
-    private byte syncEventCache(final EventData eventData) {
-        synchronized(lock()) {
-            return this.updateCacheEntry(eventData);
-        }
-    }
+    // private byte syncEventCache(final EventData eventData) {
+    //     synchronized(lock()) {
+    //         return this.updateCacheEntry(eventData);
+    //     }
+    // }
 
-    private Collection<EventData> getCacheList() {
-        return this.eventCache.values();
-    }
+    // private Collection<EventData> getCacheList() {
+    //     // return this.eventCache.values();
+    //     return this.fetchAndParseEventList().stream()
+    //         .filter( event -> event.getKind() != EventKind.DELETION )
+    //         .collect(Collectors.toList());
 
-    private byte updateCacheEntry(final EventData eventData ) {
-        if( EventState.REGULAR.equals(eventData.getState()) ) {
+    // }
 
-            this.eventCache.put(eventData.getId(), eventData);
+    // private byte updateCacheEntry(final EventData eventData ) {
+    //     if( EventState.REGULAR.equals(eventData.getState()) ) {
 
-        } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
+    //         this.eventCache.put(eventData.getId(), eventData);
 
-            final String data = Utils.sha256(
-                (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
-            );
-            this.eventCache.put(data, eventData);
+    //     } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
 
-        } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
+    //         final String data = Utils.sha256(
+    //             (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
+    //         );
+    //         this.eventCache.put(data, eventData);
 
-            eventData.getInfoNameList().forEach(d -> {
-                final String data = Utils.sha256(
-                    (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
-                );
-                this.eventCache.put(data, eventData);
-            });
+    //     } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
 
-        }
+    //         eventData.getInfoNameList().forEach(d -> {
+    //             final String data = Utils.sha256(
+    //                 (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
+    //             );
+    //             this.eventCache.put(data, eventData);
+    //         });
 
-        return 0;
-    }
+    //     }
+
+    //     return 0;
+    // }
 
     protected abstract byte proceedToSaveEvent(final EventData eventData);
 
