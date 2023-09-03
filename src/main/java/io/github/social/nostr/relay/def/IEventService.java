@@ -22,8 +22,6 @@ public interface IEventService {
 
     byte deletionRequestEvent(final EventData eventData);
 
-    EventData findEvent(final String eventId);
-
     byte fetchActiveEvents(final Collection<EventData> events);
 
     byte close();

@@ -9,6 +9,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -23,13 +27,14 @@ import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 
 import io.github.social.nostr.relay.datasource.DocumentService;
+import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
 
-public class EventDocumentDataService extends AbstractCachedEventDataService {
+public class EventDocumentDataService implements IEventService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     private final DocumentService datasource = DocumentService.INSTANCE;
@@ -38,6 +43,8 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
     private final GsonBuilder gsonBuilder = new GsonBuilder();
 
+    private final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
+
     public String checkRegistration(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
             return validateRegistration(client.getDatabase(DB_NAME), eventData);
@@ -45,6 +52,63 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
             return DB_ERROR;
         }
+    }
+
+    public final String persistEvent(EventData eventData) {
+        if (EventState.REGULAR.equals(eventData.getState())) {
+            if ( this.hasEvent(eventData)) {
+                return "duplicate: event has already been stored.";
+            }
+            if( this.checkRequestForRemoval(eventData) ) {
+                return "invalid: this event has already been requested to be removed from this relay.";
+            }
+        }
+
+        final Thread task = new Thread(() -> storeEvent(eventData));
+        task.setDaemon(true);
+        this.cacheTask.submit(task);
+
+        return null;
+    }
+
+    public byte persistReplaceable(EventData eventData) {
+        final Thread task = new Thread(() -> storeReplaceable(eventData));
+        task.setDaemon(true);
+        this.cacheTask.submit(task);
+
+        return 0;
+    }
+
+    public String persistParameterizedReplaceable(EventData eventData) {
+        if(eventData.getInfoNameList().isEmpty()) {
+            return "invalid: event must contain tag 'd'";
+        }
+
+        final Thread task = new Thread(() -> storeParameterizedReplaceable(eventData));
+        task.setDaemon(true);
+        this.cacheTask.submit(task);
+
+        return null;
+    }
+
+    public byte deletionRequestEvent(EventData eventData) {
+        final Thread task = new Thread(() -> removeLinkedEvents(eventData));
+        task.setDaemon(true);
+        this.cacheTask.submit(task);
+
+        return 0;
+    }
+
+    public byte fetchActiveEvents(final Collection<EventData> events) {
+        events.addAll(
+            fetchEventsFromDatasource()
+                .stream()
+                .filter(event -> EventKind.DELETION != event.getKind())
+                .sorted()
+                .collect(Collectors.toList())
+        );
+
+        return 0;
     }
 
     private String validateRegistration(final MongoDatabase db, final EventData eventData) {
@@ -64,7 +128,37 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         return REG_REQUIRED;
     }
 
-    protected byte proceedToSaveEvent(EventData eventData) {
+    private boolean hasEvent(final EventData eventData) {
+        return this.findEvent(eventData.getId()) != null;
+    }
+
+    private EventData findEvent(final String eventId) {
+        try (final MongoClient client = datasource.connect()) {
+            return acquireEventFromStorage(client.getDatabase(DB_NAME), eventId);
+        } catch(Exception e) {
+            logger.warning("[MongoDB] Failure: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private boolean checkRequestForRemoval(final EventData eventData) {
+        return this.fetchDeletionEvents()
+            .stream()
+            .filter(event -> EventKind.DELETION == event.getKind())
+            .filter(event -> event.getReferencedEventList().contains(eventData.getId()))
+            .count() > 0;
+    }
+
+    private Collection<EventData> fetchDeletionEvents() {
+        try (final MongoClient client = datasource.connect()) {
+            return acquireDeletionEventsFromStorage(client.getDatabase(DB_NAME));
+        } catch(Exception e) {
+            logger.warning("[MongoDB] Failure: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private byte storeEvent(EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
             storeEvent(client.getDatabase(DB_NAME), eventData);
         } catch(Throwable e) {
@@ -73,7 +167,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         return 0;
     }
 
-    protected byte proceedToSaveReplaceable(EventData eventData) {
+    private byte storeReplaceable(EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
             storeReplaceable(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
@@ -83,7 +177,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         return 0;
     }
 
-    protected byte proceedToSaveParameterizedReplaceable(final EventData eventData) {
+    private byte storeParameterizedReplaceable(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
             return storeParameterizedReplaceable(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
@@ -91,29 +185,32 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         }
     }
 
-    protected byte proceedToRemoveLinkedEvents(EventData eventDeletion) {
+    private byte removeLinkedEvents(EventData eventDeletion) {
         try (final MongoClient client = datasource.connect()) {
-            return removeEvents(client.getDatabase(DB_NAME), eventDeletion);
+            return removeEventsFromStorage(client.getDatabase(DB_NAME), eventDeletion);
         } catch(Exception e) {
             return logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
     }
 
-    protected Collection<EventData> proceedToFetchEventList() {
+    protected Collection<EventData> fetchEventsFromDatasource() {
         final Collection<EventData> list = new LinkedHashSet<>();
 
         try (final MongoClient client = datasource.connect()) {
-            fetchList(client.getDatabase(DB_NAME), list);
+            list.addAll(acquireListFromStorage(client.getDatabase(DB_NAME)));
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
 
             return Collections.emptyList();
         }
 
+        final int now = (int) (System.currentTimeMillis()/1000L);
+
         final Set<String> unique = new HashSet<>();
         final List<EventData> events = new ArrayList<>();
         list
             .stream()
+            .filter(eventData -> eventData.getExpiration() == 0 || eventData.getExpiration() > now)
             .forEach(eventData -> {
                 if( ! unique.contains(eventData.getId()) ) {
                     unique.add(eventData.getId());
@@ -124,15 +221,6 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         Collections.sort(events);
 
         return events;
-    }
-
-    protected EventData proceedToFindEvent(String eventId) {
-        try (final MongoClient client = datasource.connect()) {
-            return searchEvent(client.getDatabase(DB_NAME), eventId);
-        } catch(Exception e) {
-            logger.warning("[MongoDB] Failure: {}", e.getMessage());
-            return null;
-        }
     }
 
     private String storeEvent(final MongoDatabase db, EventData eventData) {
@@ -225,7 +313,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         return 0;
     }
     
-    private byte removeEvents(final MongoDatabase db, EventData eventDeletion) {
+    private byte removeEventsFromStorage(final MongoDatabase db, EventData eventDeletion) {
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         final List<Document> eventsMarkedForDeletion = new ArrayList<>();
@@ -267,7 +355,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         return logger.info("[Event] events related by event {} has been deleted.", eventDeletion.getId());
     }
 
-    private byte fetchList(final MongoDatabase db, final Collection<EventData> events) {
+    private Collection<EventData> acquireListFromStorage(final MongoDatabase db) {
         final Gson gson = gsonBuilder.create();
 
         final MongoCollection<Document> current = db.getCollection("current");
@@ -283,12 +371,30 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
             });
         }
 
-        events.addAll(eventList);
-
-        return 0;
+        return eventList;
     }
 
-    private EventData searchEvent(final MongoDatabase db, final String eventId) {
+    private Collection<EventData> acquireDeletionEventsFromStorage(final MongoDatabase db) {
+        final Gson gson = gsonBuilder.create();
+
+        final MongoCollection<Document> current = db.getCollection("current");
+
+        final Collection<EventData> eventList = new ArrayList<>();
+
+        final Bson filter = Filters.eq("kind", EventKind.DELETION);
+        try(final MongoCursor<Document> cursor = current.find(filter).cursor()) {
+            cursor.forEachRemaining(doc -> {
+                doc.remove("_id");
+
+                final EventData eventData = EventData.gsonEngine(gson, gson.toJson(doc));
+                eventList.add(eventData);
+            });
+        }
+
+        return eventList;
+    }
+
+    private EventData acquireEventFromStorage(final MongoDatabase db, final String eventId) {
         final Gson gson = gsonBuilder.create();
 
         final MongoCollection<Document> current = db.getCollection("current");
