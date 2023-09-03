@@ -95,8 +95,6 @@ public abstract class AbstractCachedEventDataService implements IEventService {
             );
         }
 
-        events.stream().forEach(event -> logger.info("[Nostr] [Debugging] event\n{}", event.toString()));
-
         return 0;
     }
 

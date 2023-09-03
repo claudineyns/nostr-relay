@@ -47,32 +47,6 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         }
     }
 
-    public byte fetchEvents(final Collection<EventData> events) {
-        final String cache = "event";
-
-        try (final MongoClient client = datasource.connect()) {
-            return this.fetchList(client.getDatabase(DB_NAME), events, cache);
-        } catch(Exception e) {
-            return logger.warning("[MongoDB] Failure: {}", e.getMessage());
-        }
-    }
-
-    public byte fetchReplaceables(final Collection<EventData> events) {
-        try (final MongoClient client = datasource.connect()) {
-            return this.fetchList(client.getDatabase(DB_NAME), events, "replaceable");
-        } catch(Exception e) {
-            return logger.warning("[MongoDB] Failure: {}", e.getMessage());
-        }
-    }
-
-    public byte fetchParameters(final Collection<EventData> events) {
-        try (final MongoClient client = datasource.connect()) {
-            return this.fetchList(client.getDatabase(DB_NAME), events, "parameter");
-        } catch(Exception e) {
-            return logger.warning("[MongoDB] Failure: {}", e.getMessage());
-        }
-    }
-
     private String validateRegistration(final MongoDatabase db, final EventData eventData) {
         final Set<String> registration = new LinkedHashSet<>();
 
@@ -129,7 +103,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         final Collection<EventData> list = new LinkedHashSet<>();
 
         try (final MongoClient client = datasource.connect()) {
-            fetchList(client.getDatabase(DB_NAME), list, "event");
+            fetchList(client.getDatabase(DB_NAME), list);
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
 
@@ -293,10 +267,10 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         return logger.info("[Event] events related by event {} has been deleted.", eventDeletion.getId());
     }
 
-    private byte fetchList(final MongoDatabase db, final Collection<EventData> events, final String cache) {
+    private byte fetchList(final MongoDatabase db, final Collection<EventData> events) {
         final Gson gson = gsonBuilder.create();
 
-        final MongoCollection<Document> cacheCurrent = db.getCollection(cache+"Current");
+        final MongoCollection<Document> cacheCurrent = db.getCollection("current");
 
         final Collection<EventData> eventList = new ArrayList<>();
 
