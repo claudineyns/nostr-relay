@@ -168,7 +168,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         final Document eventDoc = Document.parse(eventData.toString());
 
-        eventDoc.put("_id", UUID.randomUUID());
+        eventDoc.put("_id", UUID.randomUUID().toString());
 
         final UpdateOptions options = new UpdateOptions().upsert(true);        
         final MongoCollection<Document> cacheCurrent = db.getCollection("eventCurrent");
@@ -194,7 +194,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         final Document eventDoc = Document.parse(eventData.toString());
         logger.info("[MongoDB] document parsed");
 
-        eventDoc.put("_id", UUID.randomUUID());
+        eventDoc.put("_id", UUID.randomUUID().toString());
         eventDoc.put("_pk", data);
 
         logger.info("[MongoDB] acquire collection");
@@ -241,7 +241,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
             final UUID _id = UUID.randomUUID();
 
             final Document eventDoc = new Document(eventBase);
-            eventDoc.put("_id", _id);
+            eventDoc.put("_id", _id.toString());
             eventDoc.put("_pkd", data);
 
             final UpdateOptions options = new UpdateOptions().upsert(true);        
@@ -289,7 +289,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
             cacheCurrent.deleteOne(new Document("id", eventDoc.get("id")));
 
             final Document eventVersion = new Document(eventDoc);
-            eventVersion.put("_id", UUID.randomUUID());
+            eventVersion.put("_id", UUID.randomUUID().toString());
             eventVersion.put("updated_at", now);
 
             cacheVersion.insertOne(eventVersion);
