@@ -22,6 +22,7 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.result.InsertOneResult;
+import com.mongodb.client.result.UpdateResult;
 
 import io.github.social.nostr.relay.datasource.DocumentService;
 import io.github.social.nostr.relay.specs.EventData;
@@ -193,9 +194,9 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         logger.info("[MongoDB] replace data");
 
-        try {
-            cacheCurrent.replaceOne(Filters.eq("_id", data), eventDoc);
-        } catch(MongoException failure) {
+        final UpdateResult result = cacheCurrent.replaceOne(Filters.eq("_id", data), eventDoc);
+
+        if(result.getModifiedCount() == 0) {
             logger.warning("[MongoDB] new data");
             cacheCurrent.insertOne(eventDoc);
         }
