@@ -21,8 +21,6 @@ import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.result.UpdateResult;
-
 import io.github.social.nostr.relay.datasource.DocumentService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
@@ -94,7 +92,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         try (final MongoClient client = datasource.connect()) {
             saveEvent(client.getDatabase(DB_NAME), eventData);
-            logger.info("[Nostr] [Persistence] [MongoDB] #proceedToSaveEvent() DONE.");
+            logger.info("[MongoDB] #proceedToSaveEvent() DONE.");
         } catch(Throwable e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
@@ -102,13 +100,8 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     }
 
     protected byte proceedToSaveReplaceable(EventData eventData) {
-        logger.info("[MongoDB] #proceedToSaveReplaceable()\n{}", eventData.toString());
-
         try (final MongoClient client = datasource.connect()) {
-            logger.info("[MongoDB] acquiring database...");
-            final MongoDatabase db = client.getDatabase(DB_NAME);
-            logger.info("[MongoDB] database acquired");
-            saveReplaceable(db, eventData);
+            saveReplaceable(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
@@ -120,7 +113,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         try (final MongoClient client = datasource.connect()) {
             return saveParameterizedReplaceable(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
-            return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
+            return logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
     }
 
@@ -128,7 +121,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         try (final MongoClient client = datasource.connect()) {
             return removeEvents(client.getDatabase(DB_NAME), eventDeletion);
         } catch(Exception e) {
-            return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
+            return logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
     }
 
@@ -142,7 +135,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
             fetchList(db, list, "replaceable");
             fetchList(db, list, "parameter");
         } catch(Exception e) {
-            logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
+            logger.warning("[MongoDB] Failure: {}", e.getMessage());
 
             return Collections.emptyList();
         }
@@ -190,35 +183,28 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         final int now = (int) (System.currentTimeMillis()/1000L);
 
-        logger.info("[MongoDB] parsing document...");
         final Document eventDoc = Document.parse(eventData.toString());
-        logger.info("[MongoDB] document parsed");
 
         eventDoc.put("_id", UUID.randomUUID().toString());
-        eventDoc.put("_pk", data);
+        eventDoc.put("kid", data);
 
-        logger.info("[MongoDB] acquire collection");
         final MongoCollection<Document> cacheCurrent = db.getCollection("replaceableCurrent");
-        logger.info("[MongoDB] collection acquired");
-
-        final UpdateOptions options = new UpdateOptions().upsert(true);        
 
         logger.info("[MongoDB] replace data");
-        // cacheCurrent.updateOne(new Document("_pk", data), eventDoc, options);
-        cacheCurrent.insertOne(eventDoc);
+        try {
+            cacheCurrent.updateOne(new Document("kid", data), eventDoc);
+        } catch(MongoException failure) {
+            cacheCurrent.insertOne(eventDoc);
+        }
         logger.info("[MongoDB] data replaced");
 
-        logger.info("[MongoDB] prepare version");
         final Document eventVersion = new Document(eventDoc);
         eventVersion.put("updated_at", now);
 
-        logger.info("[MongoDB] insert version");
         final MongoCollection<Document> cacheVersion = db.getCollection("replaceableVersion");
         cacheVersion.insertOne(eventVersion);
 
-        logger.info("[MongoDB] version inserted");
-
-        logger.info("[Nostr] [Persistence] [Replaceable]  {} consumed.", eventData.getId());
+        logger.info("[MongoDB] [Replaceable] event {} consumed.", eventData.getId());
 
         return null;
     }
@@ -237,11 +223,11 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
             final Document eventDoc = new Document(eventBase);
             eventDoc.put("_id", _id.toString());
-            eventDoc.put("_pkd", data);
+            eventDoc.put("kid", data);
 
             final UpdateOptions options = new UpdateOptions().upsert(true);        
             final MongoCollection<Document> cacheCurrent = db.getCollection("parameterCurrent");
-            cacheCurrent.updateOne(new Document("_pkd", data), eventDoc, options);
+            cacheCurrent.updateOne(new Document("kid", data), eventDoc, options);
 
             final Document eventVersion = new Document(eventDoc);
             eventVersion.put("updated_at", now);
@@ -250,7 +236,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
             cacheVersion.insertOne(eventVersion);
         }
 
-        logger.info("[Nostr] [Persistence] [Parameter]  {} consumed.", eventData.getId());
+        logger.info("[MongoDB] [Parameter] event {} consumed.", eventData.getId());
 
         return 0;
     }
@@ -290,7 +276,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
             cacheVersion.insertOne(eventVersion);
         });
 
-        return logger.info("[Nostr] [Persistence] [Event] events related by  {} has been deleted.", eventDeletion.getId());
+        return logger.info("[Event] events related by event {} has been deleted.", eventDeletion.getId());
     }
 
     private byte fetchList(final MongoDatabase db, final Collection<EventData> events, final String cache) {
@@ -303,8 +289,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         try(final MongoCursor<Document> cursor = cacheCurrent.find().cursor()) {
             cursor.forEachRemaining(doc -> {
                 doc.remove("_id");
-                doc.remove("_pk");
-                doc.remove("_pkd");
+                doc.remove("kid");
                 doc.remove("updated_at");
 
                 final EventData eventData = EventData.gsonEngine(gson, gson.toJson(doc));
