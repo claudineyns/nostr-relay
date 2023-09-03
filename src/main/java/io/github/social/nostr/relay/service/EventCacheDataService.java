@@ -40,7 +40,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try (final Jedis jedis = cache.connect()) {
             return validateRegistration(jedis, eventData);
         } catch(JedisException e) {
-            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            logger.warning("[Redis] Failure: {}", e.getMessage());
             return DB_ERROR;
         }
     }
@@ -49,7 +49,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "event");
         } catch(JedisException e) {
-            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
     }
 
@@ -57,7 +57,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "replaceable");
         } catch(JedisException e) {
-            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
     }
 
@@ -65,7 +65,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try (final Jedis jedis = cache.connect()) {
             return this.fetchList(jedis, events, "parameter");
         } catch(JedisException e) {
-            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
     }
 
@@ -108,7 +108,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try (final Jedis jedis = cache.connect()) {
             saveEvent(jedis, eventData);
         } catch(JedisException e) {
-            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            logger.warning("[Redis] Failure: {}", e.getMessage());
         }
         return 0;
     }
@@ -117,7 +117,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try (final Jedis jedis = cache.connect()) {
             saveReplaceable(jedis, eventData);
         } catch(JedisException e) {
-            logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            logger.warning("[Redis] Failure: {}", e.getMessage());
         }
 
         return 0;
@@ -127,7 +127,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try (final Jedis jedis = cache.connect()) {
             return saveParameterizedReplaceable(jedis, eventData);
         } catch(JedisException e) {
-            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
     }
 
@@ -135,7 +135,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try (final Jedis jedis = cache.connect()) {
             return removeEvents(jedis, eventDeletion);
         } catch(JedisException e) {
-            return logger.warning("[Nostr] [Persistence] [Redis] Failure: {}", e.getMessage());
+            return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
     }
 
@@ -148,7 +148,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         try {
             jsonEvents = this.fetchRemoteEvents();
         } catch (IOException e) {
-            logger.warning("[Nostr] [Persistence] [Remote] Could not fetch remote data: {}", e.getMessage());
+            logger.warning("[Remote] Could not fetch remote data: {}", e.getMessage());
             return Collections.emptyList();
         }
 
@@ -173,7 +173,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         pipeline.zadd(versionKey, score, eventData.toString());
         pipeline.sync();
 
-        logger.info("[Nostr] [Persistence] [Event] event {} updated.", eventData.getId());
+        logger.info("[Event] event {} updated.", eventData.getId());
         return null;
     }
 
@@ -195,7 +195,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         pipeline.set(currentDataKey, eventData.toString());
         pipeline.zadd(versionKey, score, eventData.toString());
 
-        logger.info("[Nostr] [Persistence] [Replaceable] event {} consumed.", eventData.getId());
+        logger.info("[Replaceable] event {} consumed.", eventData.getId());
 
         pipeline.sync();
 
@@ -222,7 +222,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
             pipeline.zadd(versionKey, score, eventData.toString());
         }
 
-        logger.info("[Nostr] [Persistence] [Parameter] event {} consumed.", eventData.getId());
+        logger.info("[Parameter] event {} consumed.", eventData.getId());
 
         pipeline.sync();
 
@@ -272,7 +272,7 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
 
         pipeline.sync();
 
-        return logger.info("[Nostr] [Persistence] [Event] events related by event {} has been deleted.", eventDeletion.getId());
+        return logger.info("[Event] events related by event {} has been deleted.", eventDeletion.getId());
     }
 
     private byte fetchList(final Jedis jedis, final Collection<EventData> events, final String cache) {

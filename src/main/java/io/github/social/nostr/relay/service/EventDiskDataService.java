@@ -63,7 +63,7 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
                         eventsMarkedForDeletion.add(eventData);
                     }
                 } catch(IOException failure) {
-                    logger.warning("[Nostr] [Persistence] [Event] Could not load event: {}", failure.getMessage());
+                    logger.warning("[Disk] [Event] Could not load event: {}", failure.getMessage());
                 }
 
                 return false;
@@ -80,7 +80,7 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
                 try {
                      eventVersionFile.createNewFile();
                 } catch(IOException failure) {
-                    logger.warning("[Nostr] [Persistence] [Event] Could not delete event {}: {}", deletionEventId, failure.getMessage());
+                    logger.warning("[Disk] [Event] Could not delete event {}: {}", deletionEventId, failure.getMessage());
                     return;
                 }
             }
@@ -88,7 +88,7 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
             final File eventFile = new File(directory, "/events/" + deletionEventId + "/current/data.json");
             if(eventFile.exists()) eventFile.delete();
 
-            logger.info("[Nostr] [Persistence] [Event] event {} deleted.", deletionEventId);
+            logger.info("[Disk] [Event] event {} deleted.", deletionEventId);
         });
 
         return 0;
@@ -126,9 +126,9 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
         final File eventVersion = new File(eventVersionDB, "data-" + System.currentTimeMillis() + ".json");
         try (final OutputStream eventRecord = new FileOutputStream(eventVersion)) {
             eventRecord.write(eventRaw);
-            logger.info("[Nostr] [Persistence] [Event] Version saved");
+            logger.info("[Disk] [Event] Version saved");
         } catch(IOException failure) {
-            return logger.warning("[Nostr] [Persistence] [Event] Could not save version: {}", failure.getMessage());
+            return logger.warning("[Disk] [Event] Could not save version: {}", failure.getMessage());
         }
 
         final File eventCurrentDB = new File(eventDB, "/current");
@@ -136,9 +136,9 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
         final File eventFile = new File(eventCurrentDB, "data.json");
         try (final OutputStream eventRecord = new FileOutputStream(eventFile)) {
             eventRecord.write(eventRaw);
-            logger.info("[Nostr] [Persistence] [Event] data updated");
+            logger.info("[Disk] [Event] data updated");
         } catch(IOException failure) {
-            logger.warning("[Nostr] [Persistence] [Event] Could not update data: {}", failure.getMessage());
+            logger.warning("[Disk] [Event] Could not update data: {}", failure.getMessage());
         }
 
         return 0;
@@ -160,9 +160,9 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
         final File paramVersion = new File(dataVersionDB, "data-" + System.currentTimeMillis() + ".json");
         try (final OutputStream paramRecord = new FileOutputStream(paramVersion)) {
             paramRecord.write(eventRaw);
-            logger.info("[Nostr] [Persistence] [Replaceable] Version saved");
+            logger.info("[Disk] [Replaceable] Version saved");
         } catch(IOException failure) {
-            return logger.warning("[Nostr] [Persistence] [Replaceable] Could not save version: {}", failure.getMessage());
+            return logger.warning("[Disk] [Replaceable] Could not save version: {}", failure.getMessage());
         }
 
         final File dataCurrentDB = new File(dataDB, "/current");
@@ -171,9 +171,9 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
         final File contentData = new File(dataCurrentDB, "data.json");
         try (final OutputStream paramRecord = new FileOutputStream(contentData)) {
             paramRecord.write(eventRaw);
-            logger.info("[Nostr] [Persistence] [Replaceable] data updated");
+            logger.info("[Disk] [Replaceable] data updated");
         } catch(IOException failure) {
-            return logger.warning("[Nostr] [Persistence] [Replaceable] Could not update data: {}", failure.getMessage());
+            return logger.warning("[Disk] [Replaceable] Could not update data: {}", failure.getMessage());
         }
 
         return 0;
@@ -196,9 +196,9 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
             final File paramVersion = new File(dataVersionDB, "data-" + System.currentTimeMillis() + ".json");
             try (final OutputStream paramRecord = new FileOutputStream(paramVersion)) {
                 paramRecord.write(eventRaw);
-                logger.info("[Nostr] [Persistence] [Parameter] Version saved");
+                logger.info("[Disk] [Parameter] Version saved");
             } catch(IOException failure) {
-                return logger.warning("[Nostr] [Persistence] [Parameter] Could not save version: {}", failure.getMessage());
+                return logger.warning("[Disk] [Parameter] Could not save version: {}", failure.getMessage());
             }
 
             final File dataCurrentDB = new File(dataDB, "/current");
@@ -207,9 +207,9 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
             final File contentData = new File(dataCurrentDB, "data.json");
             try (final OutputStream paramRecord = new FileOutputStream(contentData)) {
                 paramRecord.write(eventRaw);
-                logger.info("[Nostr] [Persistence] [Parameter] data updated");
+                logger.info("[Disk] [Parameter] data updated");
             } catch(IOException failure) {
-                return logger.warning("[Nostr] [Persistence] [Parameter] Could not update data: {}", failure.getMessage());
+                return logger.warning("[Disk] [Parameter] Could not update data: {}", failure.getMessage());
             }
 
         }

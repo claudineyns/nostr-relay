@@ -39,7 +39,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         try (final MongoClient client = datasource.connect()) {
             return validateRegistration(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
-            logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
+            logger.warning("[MongoDB] Failure: {}", e.getMessage());
             return DB_ERROR;
         }
     }
@@ -50,7 +50,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         try (final MongoClient client = datasource.connect()) {
             return this.fetchList(client.getDatabase(DB_NAME), events, cache);
         } catch(Exception e) {
-            return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
+            return logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
     }
 
@@ -58,7 +58,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         try (final MongoClient client = datasource.connect()) {
             return this.fetchList(client.getDatabase(DB_NAME), events, "replaceable");
         } catch(Exception e) {
-            return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
+            return logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
     }
 
@@ -66,7 +66,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         try (final MongoClient client = datasource.connect()) {
             return this.fetchList(client.getDatabase(DB_NAME), events, "parameter");
         } catch(Exception e) {
-            return logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
+            return logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
     }
 
@@ -88,24 +88,27 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     }
 
     protected byte proceedToSaveEvent(EventData eventData) {
-        logger.info("[Nostr] [Persistence] [MongoDB] #proceedToSaveEvent()\n{}", eventData.toString());
+        logger.info("[MongoDB] #proceedToSaveEvent()\n{}", eventData.toString());
 
         try (final MongoClient client = datasource.connect()) {
             saveEvent(client.getDatabase(DB_NAME), eventData);
             logger.info("[Nostr] [Persistence] [MongoDB] #proceedToSaveEvent() DONE.");
         } catch(Exception e) {
-            logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
+            logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
         return 0;
     }
 
     protected byte proceedToSaveReplaceable(EventData eventData) {
-        logger.info("[Nostr] [Persistence] [MongoDB] #proceedToSaveReplaceable()\n{}", eventData.toString());
+        logger.info("[MongoDB] #proceedToSaveReplaceable()\n{}", eventData.toString());
 
         try (final MongoClient client = datasource.connect()) {
-            saveReplaceable(client.getDatabase(DB_NAME), eventData);
+            logger.info("[MongoDB] acquiring database...");
+            final MongoDatabase db = client.getDatabase(DB_NAME);
+            logger.info("[MongoDB] database acquired");
+            saveReplaceable(db, eventData);
         } catch(Exception e) {
-            logger.warning("[Nostr] [Persistence] [MongoDB] Failure: {}", e.getMessage());
+            logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
 
         return 0;
