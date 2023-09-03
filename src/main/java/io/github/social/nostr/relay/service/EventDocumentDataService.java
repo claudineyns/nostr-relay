@@ -89,6 +89,8 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     }
 
     protected byte proceedToSaveEvent(EventData eventData) {
+        logger.info("[Nostr] [Persistence] [MongoDB] #proceedToSaveEvent()\n{}", eventData.toString());
+
         try (final MongoClient client = datasource.connect()) {
             saveEvent(client.getDatabase(DB_NAME), eventData);
         } catch(MongoException e) {
@@ -155,6 +157,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     }
 
     private String saveEvent(final MongoDatabase db, EventData eventData) {
+
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         final Document eventDoc = Document.parse(eventData.toString());
