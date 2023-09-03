@@ -195,7 +195,9 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         try {
             cacheCurrent.insertOne(eventDoc);
-        } catch(MongoException failure) { /***/ }
+        } catch(MongoException failure) {
+            logger.warning("[MongoDB] data already exists");
+        }
 
         cacheCurrent.replaceOne(Filters.eq("_id", data), eventDoc);
 
