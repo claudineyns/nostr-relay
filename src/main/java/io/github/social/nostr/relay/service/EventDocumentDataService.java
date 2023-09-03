@@ -195,9 +195,13 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         eventDoc.put("_id", UUID.randomUUID());
         eventDoc.put("_pk", data);
 
-        logger.info("[MongoDB] replace data");
-        final UpdateOptions options = new UpdateOptions().upsert(true);        
+        logger.info("[MongoDB] acquire collection");
         final MongoCollection<Document> cacheCurrent = db.getCollection("replaceableCurrent");
+        logger.info("[MongoDB] collection acquired");
+
+        final UpdateOptions options = new UpdateOptions().upsert(true);        
+
+        logger.info("[MongoDB] replace data");
         cacheCurrent.updateOne(new Document("_pk", data), eventDoc, options);
         logger.info("[MongoDB] data replaced");
 
