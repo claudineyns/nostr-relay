@@ -466,6 +466,8 @@ public class NostrService {
         logger.info("[Nostr] [Subscription] [{}] fetching events.", subscriptionId);
         this.fetchEventsFromDB(context, events);
 
+        events.forEach(event -> logger.info("[Nostr] [Subscription] [{}] event fetched\n{}", subscriptionId, event.toString()));
+
         return this.filterAndBroadcastEvents(context, subscriptionId, events, filters);
     }
 
