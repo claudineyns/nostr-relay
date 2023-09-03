@@ -25,7 +25,7 @@ public class DocumentService {
         final int port = AppProperties.getMongoDbPort();
 
         // Replace the placeholder with your Atlas connection string
-        final String uri = "mongodb://"+host+":"+port+"/"+DB_NAME+"?maxPoolSize=20&w=majority";
+        final String uri = "mongodb://"+host+":"+port+"/"+DB_NAME+"?maxPoolSize=10";
         logger.info("[MongoDB] Connecting to {}", uri);
 
         // Construct a ServerApi instance using the ServerApi.builder() method
