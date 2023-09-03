@@ -31,11 +31,15 @@ public abstract class AbstractCachedEventDataService implements IEventService {
             .schedule(()->this.refreshCacheList(), 1500, TimeUnit.MILLISECONDS);
     }
 
+    private Object lock() {
+        return this.eventCache;
+    }
+
     public final String persistEvent(EventData eventData) {
-        synchronized(eventCache) {
+        synchronized(lock()) {
             if (EventState.REGULAR.equals(eventData.getState())) {
-                if (eventCache.containsKey(eventData.getId())) {
-                    return "duplicate: event has already been registered.";
+                if (this.checkStoredEvent(eventData)) {
+                    return "duplicate: event has already been stored.";
                 }
                 if(this.checkRemovalHistory(eventData)) {
                     return "invalid: this event has been asked to be removed from this relay.";
@@ -79,19 +83,25 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     }
 
     public byte fetchActiveEvents(Collection<EventData> events) {
-        synchronized(this.eventCache) {
-            if( this.eventCache.isEmpty() ) {
+        synchronized(lock()) {
+            if( this.checkCacheEmpty() ) {
                 this.fetchAndParseEventList();
             }
 
             events.addAll(
-                this.eventCache.values().stream()
+                this.getCacheList().stream()
                 .filter( q -> q.getKind() != EventKind.DELETION )
                 .collect(Collectors.toList())
             );
         }
 
+        events.stream().forEach(event -> logger.info("[Nostr] [Debugging] event\n{}", event.toString()));
+
         return 0;
+    }
+
+    public EventData findEvent(final String eventId) {
+        return this.proceedToFindEvent(eventId);
     }
 
     private Collection<EventData> fetchAndParseEventList() {
@@ -108,9 +118,9 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     private byte refreshCacheList() {
         final Collection<EventData> eventList = this.fetchAndParseEventList();
 
-        synchronized(this.eventCache) {
-            if( ! eventList.isEmpty() ) {
-                this.eventCache.clear();
+        synchronized(lock()) {
+            if( ! this.checkCacheEmpty() ) {
+                this.clearCache();
                 eventList.stream().forEach(this::updateCacheEntry);
             }
         }
@@ -136,6 +146,16 @@ public abstract class AbstractCachedEventDataService implements IEventService {
         return this.syncEventCache(eventData);
     }
 
+    private byte removeLinkedEventsAndUpdateCache(final EventData eventDeletion) {
+        this.proceedToRemoveLinkedEvents(eventDeletion);
+
+        return this.refreshCacheList();
+    }
+
+    private boolean checkStoredEvent(final EventData eventData) {
+        return eventCache.containsKey(eventData.getId());
+    }
+
     private boolean checkRemovalHistory(final EventData eventData) {
         return this.eventCache.values().stream()
             .filter( event -> event.getKind() == EventKind.DELETION )
@@ -144,16 +164,22 @@ public abstract class AbstractCachedEventDataService implements IEventService {
             .count() > 0;
     }
 
-    private byte removeLinkedEventsAndUpdateCache(final EventData eventDeletion) {
-        this.proceedToRemoveLinkedEvents(eventDeletion);
+    private boolean checkCacheEmpty() {
+        return this.eventCache.isEmpty();
+    }
 
-        return this.refreshCacheList();
+    private void clearCache() {
+        this.eventCache.clear();
     }
 
     private byte syncEventCache(final EventData eventData) {
-        synchronized(this.eventCache) {
+        synchronized(lock()) {
             return this.updateCacheEntry(eventData);
         }
+    }
+
+    private Collection<EventData> getCacheList() {
+        return this.eventCache.values();
     }
 
     private byte updateCacheEntry(final EventData eventData ) {
@@ -189,6 +215,8 @@ public abstract class AbstractCachedEventDataService implements IEventService {
     protected abstract byte proceedToSaveParameterizedReplaceable(final EventData eventData);
 
     protected abstract byte proceedToRemoveLinkedEvents(final EventData eventDeletion);
+
+    protected abstract EventData proceedToFindEvent(final String eventId);
 
     protected abstract Collection<EventData> proceedToFetchEventList();
     

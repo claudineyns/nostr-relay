@@ -22,13 +22,9 @@ public interface IEventService {
 
     byte deletionRequestEvent(final EventData eventData);
 
+    EventData findEvent(final String eventId);
+
     byte fetchActiveEvents(final Collection<EventData> events);
-
-    byte fetchEvents(final Collection<EventData> events);
-
-    byte fetchReplaceables(final Collection<EventData> events);
-
-    byte fetchParameters(final Collection<EventData> events);
 
     byte close();
 }

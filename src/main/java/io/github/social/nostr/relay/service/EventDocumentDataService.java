@@ -36,6 +36,8 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
     static final String DB_NAME = DocumentService.DB_NAME;
 
+    private final GsonBuilder gsonBuilder = new GsonBuilder();
+
     public String checkRegistration(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
             return validateRegistration(client.getDatabase(DB_NAME), eventData);
@@ -148,6 +150,15 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         Collections.sort(events);
 
         return events;
+    }
+
+    protected EventData proceedToFindEvent(String eventId) {
+        try (final MongoClient client = datasource.connect()) {
+            return searchEvent(client.getDatabase(DB_NAME), eventId);
+        } catch(Exception e) {
+            logger.warning("[MongoDB] Failure: {}", e.getMessage());
+            return null;
+        }
     }
 
     private String saveEvent(final MongoDatabase db, EventData eventData) {
@@ -283,7 +294,7 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     }
 
     private byte fetchList(final MongoDatabase db, final Collection<EventData> events, final String cache) {
-        final Gson gson = new GsonBuilder().create();
+        final Gson gson = gsonBuilder.create();
 
         final MongoCollection<Document> cacheCurrent = db.getCollection(cache+"Current");
 
@@ -304,6 +315,21 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         events.addAll(eventList);
 
         return 0;
+    }
+
+    private EventData searchEvent(final MongoDatabase db, final String eventId) {
+        final Gson gson = gsonBuilder.create();
+
+        final MongoCollection<Document> current = db.getCollection("current");
+
+        final Document eventDoc = current.find(Filters.eq("id", eventId)).first();
+
+        if(eventDoc != null) {
+            eventDoc.remove("_id");
+            return EventData.gsonEngine(gson, gson.toJson(eventDoc));
+        }
+
+        return null;
     }
 
     public byte close() {

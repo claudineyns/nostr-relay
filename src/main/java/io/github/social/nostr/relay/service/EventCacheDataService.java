@@ -28,7 +28,6 @@ import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Response;
 import redis.clients.jedis.exceptions.JedisException;
 
 public class EventCacheDataService extends AbstractCachedEventDataService {
@@ -42,30 +41,6 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         } catch(JedisException e) {
             logger.warning("[Redis] Failure: {}", e.getMessage());
             return DB_ERROR;
-        }
-    }
-
-    public byte fetchEvents(final Collection<EventData> events) {
-        try (final Jedis jedis = cache.connect()) {
-            return this.fetchList(jedis, events, "event");
-        } catch(JedisException e) {
-            return logger.warning("[Redis] Failure: {}", e.getMessage());
-        }
-    }
-
-    public byte fetchReplaceables(final Collection<EventData> events) {
-        try (final Jedis jedis = cache.connect()) {
-            return this.fetchList(jedis, events, "replaceable");
-        } catch(JedisException e) {
-            return logger.warning("[Redis] Failure: {}", e.getMessage());
-        }
-    }
-
-    public byte fetchParameters(final Collection<EventData> events) {
-        try (final Jedis jedis = cache.connect()) {
-            return this.fetchList(jedis, events, "parameter");
-        } catch(JedisException e) {
-            return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
     }
 
@@ -156,6 +131,10 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
             .forEach(el -> cacheEvents.add(EventData.of(el.getAsJsonObject())) );
 
         return cacheEvents;
+    }
+
+    protected EventData proceedToFindEvent(String eventId) {
+        throw new IllegalCallerException();
     }
 
     private String saveEvent(final Jedis jedis, EventData eventData) {
@@ -273,26 +252,6 @@ public class EventCacheDataService extends AbstractCachedEventDataService {
         pipeline.sync();
 
         return logger.info("[Event] events related by event {} has been deleted.", eventDeletion.getId());
-    }
-
-    private byte fetchList(final Jedis jedis, final Collection<EventData> events, final String cache) {
-        final Gson gson = new GsonBuilder().create();
-
-        final Set<String> ids = jedis.smembers(cache+"List");
-
-        final List<Response<String>> responses = new ArrayList<>();
-
-        final Pipeline pipeline = jedis.pipelined();
-        ids.stream().forEach(id -> responses.add(pipeline.get(cache+"#"+id)));
-        pipeline.sync();
-
-        responses.forEach(rsp -> 
-            Optional.ofNullable(rsp.get()).ifPresent(event -> 
-                events.add(EventData.gsonEngine(gson, event))
-            )
-        );
-
-        return 0;
     }
 
     private final String validationHost = AppProperties.getEventValidationHost();

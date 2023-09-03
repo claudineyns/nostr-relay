@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import io.github.social.nostr.relay.specs.EventData;
@@ -104,15 +105,15 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
         return cacheEvents;
     }
 
-    public byte fetchEvents(final Collection<EventData> events) {
+    private byte fetchEvents(final Collection<EventData> events) {
         return this.fetchCurrent(events, new File(directory, "/event"));
     }
 
-    public byte fetchReplaceables(final Collection<EventData> events) {
+    private byte fetchReplaceables(final Collection<EventData> events) {
         return this.fetchCurrent(events, new File(directory, "/replaceable"));
     }
 
-    public byte fetchParameters(final Collection<EventData> events) {
+    private byte fetchParameters(final Collection<EventData> events) {
         return fetchCurrent(events, new File(directory, "/parameter"));
     }
 
@@ -215,6 +216,10 @@ public class EventDiskDataService extends AbstractCachedEventDataService {
         }
 
         return 0;
+    }
+
+    protected EventData proceedToFindEvent(String eventId) {
+        throw new IllegalCallerException();
     }
 
     private byte fetchCurrent(final Collection<EventData> events, final File dataDB) {
