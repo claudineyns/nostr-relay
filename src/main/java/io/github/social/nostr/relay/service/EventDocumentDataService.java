@@ -162,13 +162,9 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
     }
 
     private String saveEvent(final MongoDatabase db, EventData eventData) {
-        logger.info("[Nostr] [Persistence] [MongoDB] #saveEvent()\n{}", eventData.toString());
-
         final int now = (int) (System.currentTimeMillis()/1000L);
 
-        logger.info("[Nostr] [Persistence] [MongoDB] parsing event...");
         final Document eventDoc = Document.parse(eventData.toString());
-        logger.info("[Nostr] [Persistence] [MongoDB] event parsed");
 
         eventDoc.put("_id", UUID.randomUUID());
 
@@ -182,7 +178,6 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
         final MongoCollection<Document> cacheVersion = db.getCollection("eventVersion");
         cacheVersion.insertOne(eventVersion);
 
-        logger.info("[Nostr] [Persistence] [Event]  {} updated.", eventData.getId());
         return null;
     }
 
@@ -193,19 +188,28 @@ public class EventDocumentDataService extends AbstractCachedEventDataService {
 
         final int now = (int) (System.currentTimeMillis()/1000L);
 
+        logger.info("[MongoDB] parsing document...");
         final Document eventDoc = Document.parse(eventData.toString());
+        logger.info("[MongoDB] document parsed");
+
         eventDoc.put("_id", UUID.randomUUID());
         eventDoc.put("_pk", data);
 
+        logger.info("[MongoDB] replace data");
         final UpdateOptions options = new UpdateOptions().upsert(true);        
         final MongoCollection<Document> cacheCurrent = db.getCollection("replaceableCurrent");
         cacheCurrent.updateOne(new Document("_pk", data), eventDoc, options);
+        logger.info("[MongoDB] data replaced");
 
+        logger.info("[MongoDB] prepare version");
         final Document eventVersion = new Document(eventDoc);
         eventVersion.put("updated_at", now);
 
+        logger.info("[MongoDB] insert version");
         final MongoCollection<Document> cacheVersion = db.getCollection("replaceableVersion");
         cacheVersion.insertOne(eventVersion);
+
+        logger.info("[MongoDB] version inserted");
 
         logger.info("[Nostr] [Persistence] [Replaceable]  {} consumed.", eventData.getId());
 
