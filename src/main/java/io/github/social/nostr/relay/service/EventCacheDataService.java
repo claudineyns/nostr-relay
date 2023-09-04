@@ -33,15 +33,6 @@ public final class EventCacheDataService extends AbstractEventDataService {
         }
     }
 
-    public EventData getRegular(final String eventId) {
-        try (final Jedis jedis = cache.connect()) {
-            return acquireEventFromStorage(jedis, eventId);
-        } catch(JedisException e) {
-            logger.warning("[Redis] Failure: {}", e.getMessage());
-            return null;
-        }
-    }
-
     private String validateRegistration(final Jedis jedis, final EventData eventData) {
         final Set<String> registration = jedis.smembers("registration");
         if(registration.contains(eventData.getPubkey())) return null;
@@ -94,6 +85,15 @@ public final class EventCacheDataService extends AbstractEventDataService {
         } catch(JedisException e) {
              logger.warning("[Redis] Failure: {}", e.getMessage());
              return Collections.emptyList();
+        }
+    }
+
+    EventData acquireEventFromStorageById(final String id) { 
+        try (final Jedis jedis = cache.connect()) {
+            return this.acquireEventFromStorageById(null, id);
+        } catch(JedisException e) {
+             logger.warning("[Redis] Failure: {}", e.getMessage());
+             return null;
         }
     }
 
@@ -210,8 +210,8 @@ public final class EventCacheDataService extends AbstractEventDataService {
         return 0;
     }
 
-    private EventData acquireEventFromStorage(final Jedis jedis, final String eventId) {
-        final Map<String, String> eventMap = jedis.hgetAll("current#"+eventId);
+    private EventData acquireEventFromStorageById(final Jedis jedis, final String id) {
+        final Map<String, String> eventMap = jedis.hgetAll("current#"+id);
 
         return eventMap != null && "inserted".equals(eventMap.get("status")) 
             ? EventData.gsonEngine(gsonBuilder.create(), eventMap.get("payload"))

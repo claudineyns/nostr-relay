@@ -1,5 +1,6 @@
 package io.github.social.nostr.relay.service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -13,10 +14,10 @@ import java.util.stream.Collectors;
 import com.google.gson.GsonBuilder;
 
 import io.github.social.nostr.relay.def.IEventService;
-import io.github.social.nostr.relay.exceptions.OperationNotImplementedException;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
+import io.github.social.nostr.relay.utilities.Utils;
 
 public abstract class AbstractEventDataService implements IEventService {
     
@@ -81,12 +82,20 @@ public abstract class AbstractEventDataService implements IEventService {
         return 0;
     }
 
+    public EventData getRegular(final String eventId) {
+        return this.acquireEventFromStorageById(eventId);
+    }
+
     public EventData getReplaceable(String pubkey, int kind) {
-        throw new OperationNotImplementedException();
+        final String replaceable = Utils.sha256((pubkey+"#"+kind).getBytes(StandardCharsets.UTF_8));
+
+        return this.acquireEventFromStorageById(replaceable);
     }
 
     public EventData getParameterizedReplaceable(String pubkey, int kind, String param) {
-        throw new OperationNotImplementedException();
+        final String replaceable = Utils.sha256((pubkey+"#"+kind+"#"+param).getBytes(StandardCharsets.UTF_8));
+
+        return this.acquireEventFromStorageById(replaceable);
     }
 
     private Collection<EventData> fetchEventsFromDatasource() {
@@ -139,5 +148,7 @@ public abstract class AbstractEventDataService implements IEventService {
     abstract byte removeLinkedEvents(EventData eventDeletion);
 
     abstract Collection<EventData> acquireListFromStorage();
+
+    abstract EventData acquireEventFromStorageById(final String id);
 
 }

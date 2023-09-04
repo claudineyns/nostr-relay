@@ -43,10 +43,6 @@ public class EventDocumentDataService extends AbstractEventDataService {
         }
     }
 
-    public EventData getRegular(String eventId) {
-        return this.acquireEventFromStorage(eventId);
-    }
-
     private String validateRegistration(final MongoDatabase db, final EventData eventData) {
         final Set<String> registration = new LinkedHashSet<>();
 
@@ -96,15 +92,6 @@ public class EventDocumentDataService extends AbstractEventDataService {
             return removeEventsFromStorage(client.getDatabase(DB_NAME), eventDeletion);
         } catch(Exception e) {
             return logger.warning("[MongoDB] Failure: {}", e.getMessage());
-        }
-    }
-
-    EventData acquireEventFromStorage(final String eventId) {
-        try (final MongoClient client = datasource.connect()) {
-            return acquireEventFromStorage(client.getDatabase(DB_NAME), eventId);
-        } catch(Exception e) {
-            logger.warning("[MongoDB] Failure: {}", e.getMessage());
-            return null;
         }
     }
 
@@ -249,6 +236,15 @@ public class EventDocumentDataService extends AbstractEventDataService {
         return logger.info("[Event] events related by event {} has been deleted.", eventDeletion.getId());
     }
 
+    EventData acquireEventFromStorageById(final String id) {
+        try (final MongoClient client = datasource.connect()) {
+            return acquireEventFromStorageById(client.getDatabase(DB_NAME), id);
+        } catch(Exception e) {
+            logger.warning("[MongoDB] Failure: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private Collection<EventData> acquireListFromStorage(final MongoDatabase db) {
         final Gson gson = gsonBuilder.create();
 
@@ -268,7 +264,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
         return eventList;
     }
 
-    private EventData acquireEventFromStorage(final MongoDatabase db, final String eventId) {
+    private EventData acquireEventFromStorageById(final MongoDatabase db, final String eventId) {
         final Gson gson = gsonBuilder.create();
 
         final MongoCollection<Document> current = db.getCollection("current");

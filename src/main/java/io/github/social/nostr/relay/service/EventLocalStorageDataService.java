@@ -30,10 +30,6 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         return DB_ERROR;
     }
 
-    public EventData getRegular(final String eventId) {
-        return this.acquireEventFromStorage(eventId);
-    }
-
     byte storeEvent(final EventData eventData) {
         final long now = System.currentTimeMillis();
 
@@ -207,11 +203,11 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         return events;
     }
 
-    EventData acquireEventFromStorage(final String eventId) {
+    EventData acquireEventFromStorageById(final String id) {
         final File currentDB = new File(BASE_DIR, "/current");
         if(!currentDB.exists()) return null;
 
-        final File eventData = new File(currentDB, eventId);
+        final File eventData = new File(currentDB, id);
         if(!eventData.exists()) return null;
 
         final Gson gson = gsonBuilder.create();
