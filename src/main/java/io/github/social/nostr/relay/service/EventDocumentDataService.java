@@ -43,6 +43,10 @@ public class EventDocumentDataService extends AbstractEventDataService {
         }
     }
 
+    public EventData getRegular(String eventId) {
+        return this.acquireEventFromStorage(eventId);
+    }
+
     private String validateRegistration(final MongoDatabase db, final EventData eventData) {
         final Set<String> registration = new LinkedHashSet<>();
 

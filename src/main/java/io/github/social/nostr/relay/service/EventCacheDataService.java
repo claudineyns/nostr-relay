@@ -33,6 +33,15 @@ public final class EventCacheDataService extends AbstractEventDataService {
         }
     }
 
+    public EventData getRegular(final String eventId) {
+        try (final Jedis jedis = cache.connect()) {
+            return acquireEventFromStorage(jedis, eventId);
+        } catch(JedisException e) {
+            logger.warning("[Redis] Failure: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private String validateRegistration(final Jedis jedis, final EventData eventData) {
         final Set<String> registration = jedis.smembers("registration");
         if(registration.contains(eventData.getPubkey())) return null;
@@ -85,15 +94,6 @@ public final class EventCacheDataService extends AbstractEventDataService {
         } catch(JedisException e) {
              logger.warning("[Redis] Failure: {}", e.getMessage());
              return Collections.emptyList();
-        }
-    }
-
-    EventData acquireEventFromStorage(final String eventId) {
-        try (final Jedis jedis = cache.connect()) {
-            return acquireEventFromStorage(jedis, eventId);
-        } catch(JedisException e) {
-            logger.warning("[Redis] Failure: {}", e.getMessage());
-            return null;
         }
     }
 

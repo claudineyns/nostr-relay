@@ -81,10 +81,6 @@ public abstract class AbstractEventDataService implements IEventService {
         return 0;
     }
 
-    public EventData getRegular(String eventId) {
-        throw new OperationNotImplementedException();
-    }
-
     public EventData getReplaceable(String pubkey, int kind) {
         throw new OperationNotImplementedException();
     }
@@ -116,11 +112,7 @@ public abstract class AbstractEventDataService implements IEventService {
     }
 
     private boolean hasEvent(final EventData eventData) {
-        return this.findEvent(eventData.getId()) != null;
-    }
-
-    private EventData findEvent(final String eventId) {
-        return this.acquireEventFromStorage(eventId);
+        return this.getRegular(eventData.getId()) != null;
     }
 
     private boolean checkRequestForRemoval(final EventData eventData) {
@@ -147,7 +139,5 @@ public abstract class AbstractEventDataService implements IEventService {
     abstract byte removeLinkedEvents(EventData eventDeletion);
 
     abstract Collection<EventData> acquireListFromStorage();
-
-    abstract EventData acquireEventFromStorage(final String eventId);
 
 }

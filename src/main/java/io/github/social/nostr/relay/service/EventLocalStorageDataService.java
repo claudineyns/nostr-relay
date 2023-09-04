@@ -30,6 +30,10 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         return DB_ERROR;
     }
 
+    public EventData getRegular(final String eventId) {
+        return this.acquireEventFromStorage(eventId);
+    }
+
     byte storeEvent(final EventData eventData) {
         final long now = System.currentTimeMillis();
 
