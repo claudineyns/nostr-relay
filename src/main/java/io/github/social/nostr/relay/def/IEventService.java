@@ -22,5 +22,11 @@ public interface IEventService {
 
     byte fetchActiveEvents(final Collection<EventData> events);
 
+    EventData getRegular(final String eventId);
+
+    EventData getReplaceable(final String pubkey, final int kind);
+
+    EventData getParameterizedReplaceable(final String pubkey, final int kind, final String param);
+
     byte close();
 }

@@ -2,7 +2,6 @@ package io.github.social.nostr.relay.service;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,6 +13,7 @@ import java.util.stream.Collectors;
 import com.google.gson.GsonBuilder;
 
 import io.github.social.nostr.relay.def.IEventService;
+import io.github.social.nostr.relay.exceptions.OperationNotImplementedException;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
@@ -81,6 +81,18 @@ public abstract class AbstractEventDataService implements IEventService {
         return 0;
     }
 
+    public EventData getRegular(String eventId) {
+        throw new OperationNotImplementedException();
+    }
+
+    public EventData getReplaceable(String pubkey, int kind) {
+        throw new OperationNotImplementedException();
+    }
+
+    public EventData getParameterizedReplaceable(String pubkey, int kind, String param) {
+        throw new OperationNotImplementedException();
+    }
+
     private Collection<EventData> fetchEventsFromDatasource() {
         final Collection<EventData> list = new LinkedHashSet<>();
 
@@ -99,8 +111,6 @@ public abstract class AbstractEventDataService implements IEventService {
                     events.add(eventData);
                 }
             });
-
-        Collections.sort(events);
 
         return events;
     }
