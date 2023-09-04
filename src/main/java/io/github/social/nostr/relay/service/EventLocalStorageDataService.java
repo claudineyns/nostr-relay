@@ -11,120 +11,26 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
-
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import io.github.social.nostr.relay.datasource.DocumentService;
-import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
 
-public class EventLocalStorageDataService implements IEventService {
+public class EventLocalStorageDataService extends AbstractEventDataService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     private final File BASE_DIR = new File("/var/nostr/data/");
 
     static final String DB_NAME = DocumentService.DB_NAME;
 
-    private final GsonBuilder gsonBuilder = new GsonBuilder();
-
-    private final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
-
     public String checkRegistration(final EventData eventData) {
         return DB_ERROR;
     }
 
-    public final String persistEvent(EventData eventData) {
-        if (EventState.REGULAR.equals(eventData.getState())) {
-            if ( this.hasEvent(eventData)) {
-                return "duplicate: event has already been stored.";
-            }
-            if( this.checkRequestForRemoval(eventData) ) {
-                return "invalid: this event has already been requested to be removed from this relay.";
-            }
-        }
-
-        final Thread task = new Thread(() -> storeEvent(eventData));
-        task.setDaemon(true);
-        this.cacheTask.submit(task);
-
-        return null;
-    }
-
-    public byte persistReplaceable(EventData eventData) {
-        final Thread task = new Thread(() -> storeReplaceable(eventData));
-        task.setDaemon(true);
-        this.cacheTask.submit(task);
-
-        return 0;
-    }
-
-    public String persistParameterizedReplaceable(EventData eventData) {
-        if(eventData.getInfoNameList().isEmpty()) {
-            return "invalid: event must contain tag 'd'";
-        }
-
-        final Thread task = new Thread(() -> storeParameterizedReplaceable(eventData));
-        task.setDaemon(true);
-        this.cacheTask.submit(task);
-
-        return null;
-    }
-
-    public byte deletionRequestEvent(EventData eventData) {
-        final Thread task = new Thread(() -> removeLinkedEvents(eventData));
-        task.setDaemon(true);
-        this.cacheTask.submit(task);
-
-        return 0;
-    }
-
-    public byte fetchActiveEvents(final Collection<EventData> events) {
-        events.addAll(
-            fetchEventsFromDatasource()
-                .stream()
-                .filter(event -> EventKind.DELETION != event.getKind())
-                .sorted()
-                .collect(Collectors.toList())
-        );
-
-        return 0;
-    }
-
-    private boolean hasEvent(final EventData eventData) {
-        return this.findEvent(eventData.getId()) != null;
-    }
-
-    private EventData findEvent(final String eventId) {
-        return this.acquireEventFromStorage(eventId);
-    }
-
-    private boolean checkRequestForRemoval(final EventData eventData) {
-        return this.fetchDeletionEvents()
-            .stream()
-            .filter(event -> EventKind.DELETION == event.getKind())
-            .filter(event -> event.getReferencedEventList().contains(eventData.getId()))
-            .count() > 0;
-    }
-
-    private Collection<EventData> fetchDeletionEvents() {
-        return this.acquireListFromStorage()
-            .stream()
-            .filter(eventData -> EventKind.DELETION == eventData.getKind())
-            .collect(Collectors.toList());
-    }
-
-    private byte storeEvent(EventData eventData) {
+    byte storeEvent(final EventData eventData) {
         final long now = System.currentTimeMillis();
 
         final byte[] raw = eventData.toString().getBytes(StandardCharsets.UTF_8);
@@ -154,7 +60,7 @@ public class EventLocalStorageDataService implements IEventService {
         return 0;
     }
 
-    private byte storeReplaceable(EventData eventData) {
+    byte storeReplaceable(EventData eventData) {
         final long now = System.currentTimeMillis();
 
         final String info = Utils.sha256(
@@ -188,7 +94,7 @@ public class EventLocalStorageDataService implements IEventService {
         return 0;
     }
 
-    private byte storeParameterizedReplaceable(final EventData eventData) {
+    byte storeParameterizedReplaceable(final EventData eventData) {
         final long now = System.currentTimeMillis();
 
         final byte[] raw = eventData.toString().getBytes(StandardCharsets.UTF_8);
@@ -222,7 +128,7 @@ public class EventLocalStorageDataService implements IEventService {
         return 0;
     }
 
-    private byte removeLinkedEvents(EventData eventDeletion) {
+    byte removeLinkedEvents(EventData eventDeletion) {
         final Gson gson = gsonBuilder.create();
 
         final long now = System.currentTimeMillis();
@@ -273,31 +179,7 @@ public class EventLocalStorageDataService implements IEventService {
         return 0;
     }
 
-    protected Collection<EventData> fetchEventsFromDatasource() {
-        final Collection<EventData> list = new LinkedHashSet<>();
-
-        list.addAll(acquireListFromStorage());
-
-        final int now = (int) (System.currentTimeMillis()/1000L);
-
-        final Set<String> unique = new HashSet<>();
-        final List<EventData> events = new ArrayList<>();
-        list
-            .stream()
-            .filter(eventData -> eventData.getExpiration() == 0 || eventData.getExpiration() > now)
-            .forEach(eventData -> {
-                if( ! unique.contains(eventData.getId()) ) {
-                    unique.add(eventData.getId());
-                    events.add(eventData);
-                }
-            });
-
-        Collections.sort(events);
-
-        return events;
-    }
-
-    private Collection<EventData> acquireListFromStorage() {
+    Collection<EventData> acquireListFromStorage() {
         final File currentDB = new File(BASE_DIR, "/current");
         if(!currentDB.exists()) return Collections.emptyList();
 
@@ -321,7 +203,7 @@ public class EventLocalStorageDataService implements IEventService {
         return events;
     }
 
-    private EventData acquireEventFromStorage(final String eventId) {
+    EventData acquireEventFromStorage(final String eventId) {
         final File currentDB = new File(BASE_DIR, "/current");
         if(!currentDB.exists()) return null;
 

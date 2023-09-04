@@ -30,7 +30,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.exceptions.JedisException;
 
-public final class EventCacheDataService extends AbstractEventDataService {
+public final class EventNCacheDataService extends AbstractCachedEventDataService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     private final CacheService cache = CacheService.INSTANCE;
@@ -79,7 +79,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
         return REG_REQUIRED;
     }
 
-    byte storeEvent(final EventData eventData) {
+    protected byte proceedToSaveEvent(EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
             storeEvent(jedis, eventData);
         } catch(JedisException e) {
@@ -88,7 +88,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
         return 0;
     }
 
-    byte storeReplaceable(EventData eventData) {
+    protected byte proceedToSaveReplaceable(EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
             storeReplaceable(jedis, eventData);
         } catch(JedisException e) {
@@ -98,7 +98,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
         return 0;
     }
 
-    byte storeParameterizedReplaceable(final EventData eventData) {
+    protected byte proceedToSaveParameterizedReplaceable(final EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
             return storeParameterizedReplaceable(jedis, eventData);
         } catch(JedisException e) {
@@ -106,7 +106,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
         }
     }
 
-    byte removeLinkedEvents(EventData eventDeletion) {
+    protected byte proceedToRemoveLinkedEvents(EventData eventDeletion) {
         try (final Jedis jedis = cache.connect()) {
             return removeEvents(jedis, eventDeletion);
         } catch(JedisException e) {
@@ -114,14 +114,23 @@ public final class EventCacheDataService extends AbstractEventDataService {
         }
     }
 
-    Collection<EventData> acquireListFromStorage() {
-        // TODO:
-        return Collections.emptyList();
-    }
+    protected Collection<EventData> proceedToFetchEventList() {
+        final Gson gson = new GsonBuilder().create();
 
-    EventData acquireEventFromStorage(final String eventId) {
-        // TODO:
-        return null;
+        final Collection<EventData> cacheEvents = new ArrayList<>();
+
+        final String jsonEvents;
+        try {
+            jsonEvents = this.fetchRemoteEvents();
+        } catch (IOException e) {
+            logger.warning("[Remote] Could not fetch remote data: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+
+        gson.fromJson(jsonEvents, JsonArray.class)
+            .forEach(el -> cacheEvents.add(EventData.of(el.getAsJsonObject())) );
+
+        return cacheEvents;
     }
 
     protected EventData proceedToFindEvent(String eventId) {
