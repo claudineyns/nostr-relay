@@ -1,29 +1,18 @@
 package io.github.social.nostr.relay.service;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
-
-import org.apache.commons.io.IOUtils;
+import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-
 import io.github.social.nostr.relay.datasource.CacheService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
-import io.github.social.nostr.relay.utilities.AppProperties;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
 import redis.clients.jedis.Jedis;
@@ -42,30 +31,6 @@ public final class EventCacheDataService extends AbstractEventDataService {
             logger.warning("[Redis] Failure: {}", e.getMessage());
             return DB_ERROR;
         }
-    }
-
-    public final Collection<EventData> fetchEventListFromRemote() {
-        final Gson gson = new GsonBuilder().create();
-
-        final List<EventData> cacheEvents = new ArrayList<>();
-        try {
-            final String jsonEvents = fetchRemoteEvents();
-            gson.fromJson(jsonEvents, JsonArray.class)
-                .forEach(el -> cacheEvents.add(EventData.of(el.getAsJsonObject())) );
-        } catch(IOException e) {
-            logger.info("[Nostr] [Persistence] Could not fetch remote events: {}", e.getMessage());
-        }
-
-        final int currentTime = (int) (System.currentTimeMillis()/1000L);
-
-        for(int i = cacheEvents.size() - 1; i >= 0; --i) {
-            final EventData event = cacheEvents.get(i);
-            if( event.getExpiration() > 0 && event.getExpiration() < currentTime ) {
-                cacheEvents.remove(i);
-            }
-        }
-
-        return cacheEvents;
     }
 
     private String validateRegistration(final Jedis jedis, final EventData eventData) {
@@ -115,60 +80,68 @@ public final class EventCacheDataService extends AbstractEventDataService {
     }
 
     Collection<EventData> acquireListFromStorage() {
-        // TODO:
-        return Collections.emptyList();
+        try (final Jedis jedis = cache.connect()) {
+            return acquireListFromStorage(jedis);
+        } catch(JedisException e) {
+             logger.warning("[Redis] Failure: {}", e.getMessage());
+             return Collections.emptyList();
+        }
     }
 
     EventData acquireEventFromStorage(final String eventId) {
-        // TODO:
-        return null;
-    }
-
-    protected EventData proceedToFindEvent(String eventId) {
-        throw new IllegalCallerException();
+        try (final Jedis jedis = cache.connect()) {
+            return acquireEventFromStorage(jedis, eventId);
+        } catch(JedisException e) {
+            logger.warning("[Redis] Failure: {}", e.getMessage());
+            return null;
+        }
     }
 
     private String storeEvent(final Jedis jedis, EventData eventData) {
-        final String cache = "event";
-
-        final String currentDataKey = cache+"#"+eventData.getId();
-
         final long score = System.currentTimeMillis();
 
-        final String versionKey = cache+"#"+eventData.getId() + ":version";
-
         final Pipeline pipeline = jedis.pipelined();
-        pipeline.sadd(cache+"List", eventData.getId());
-        pipeline.set(currentDataKey, eventData.toString());
+
+        final String currentKey = "current#"+eventData.getId();
+
+        final Map<String, String> currentData = new HashMap<>();
+        currentData.put("status", "inserted");
+        currentData.put("payload", eventData.toString());
+
+        final String versionKey = "version#"+eventData.getId();
+
+        pipeline.sadd("regular", eventData.getId());
+        pipeline.sadd("idList", eventData.getId());
+        pipeline.hset(currentKey, currentData);
         pipeline.zadd(versionKey, score, eventData.toString());
         pipeline.sync();
 
-        logger.info("[Event] event {} updated.", eventData.getId());
+        logger.info("[Redis] event {} updated.", eventData.getId());
         return null;
     }
 
     private String storeReplaceable(final Jedis jedis, final EventData eventData) {
-        final Pipeline pipeline = jedis.pipelined();
-
-        final long score = System.currentTimeMillis();
-
         final String data = Utils.sha256(
             (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
         );
 
-        final String cache = "replaceable";
+        final Pipeline pipeline = jedis.pipelined();
 
-        final String currentDataKey = cache+"#" + data;
-        final String versionKey = currentDataKey + ":version";
+        final String currentKey = "current#"+data;
 
-        pipeline.sadd(cache+"List", data);
-        pipeline.set(currentDataKey, eventData.toString());
+        final Map<String, String> currentData = new HashMap<>();
+        currentData.put("status", "inserted");
+        currentData.put("payload", eventData.toString());
+
+        final String versionKey = "version#"+data;
+        final long score = System.currentTimeMillis();
+
+        pipeline.sadd("idList", data);
+        pipeline.hset(currentKey, currentData);
         pipeline.zadd(versionKey, score, eventData.toString());
-
-        logger.info("[Replaceable] event {} consumed.", eventData.getId());
-
         pipeline.sync();
 
+        logger.info("[Redis] replaceable event {} updated.", eventData.getId());
         return null;
     }
 
@@ -177,95 +150,85 @@ public final class EventCacheDataService extends AbstractEventDataService {
 
         final long score = System.currentTimeMillis();
 
-        final String cache = "parameter";
-
         for (final String param : eventData.getInfoNameList()) {
             final String data = Utils.sha256(
                 (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
             );
 
-            final String currentDataKey = cache+"#" + data;
-            final String versionKey = currentDataKey + ":version";
+            final String currentKey = "current#"+data;
 
-            pipeline.sadd(cache+"List", data);
-            pipeline.set(currentDataKey, eventData.toString());
+            final Map<String, String> currentData = new HashMap<>();
+            currentData.put("status", "inserted");
+            currentData.put("payload", eventData.toString());
+
+            final String versionKey = "version#"+data;
+
+            pipeline.sadd("idList", data);
+            pipeline.hset(currentKey, currentData);
             pipeline.zadd(versionKey, score, eventData.toString());
         }
 
-        logger.info("[Parameter] event {} consumed.", eventData.getId());
-
         pipeline.sync();
+
+        logger.info("[Redis] parameterized replaceabe event {} updated.", eventData.getId());
 
         return 0;
     }
     
     private byte removeEvents(final Jedis jedis, final EventData eventDeletion) {
-        final Gson gson = new GsonBuilder().create();
+        final Gson gson = gsonBuilder.create();
 
-        final List<EventData> eventsMarkedForDeletion = new ArrayList<>();
-
-        final Set<String> eventIds = jedis.smembers("eventList");
-
-        for(final String eventId: eventIds) {
-            Optional.ofNullable(jedis.get("event#"+eventId)).ifPresent(event -> {
-                final EventData eventData = EventData.gsonEngine(gson, event);
-
-                final String qAuthorId = eventData.getPubkey();
-                final String qEventId  = eventData.getId();
-                final int qEventKind   = eventData.getKind();
-
-                if( EventState.REGULAR.equals(eventData.getState()) 
-                        && qEventKind != EventKind.DELETION
-                        && qAuthorId.equals(eventDeletion.getPubkey())
-                        && eventDeletion.getReferencedEventList().contains(qEventId)
-                ) {
-                    eventsMarkedForDeletion.add(eventData);
-                }
-            });
-        }
+        final Collection<EventData> events = jedis.smembers("regular")
+            .stream()
+            .map(eventId -> jedis.hgetAll("current#"+eventId))
+            .filter(eventMap -> eventMap != null)
+            .filter(eventMap -> "inserted".equals(eventMap.get("status")))
+            .map(eventMap -> EventData.gsonEngine(gson, eventMap.get("payload")))
+            .filter(eventData -> EventState.REGULAR.equals(eventData.getState()))
+            .filter(eventData -> eventDeletion.getPubkey().equals(eventData.getPubkey()))
+            .filter(eventData -> EventKind.DELETION != eventData.getKind() )
+            .collect(Collectors.toList());
 
         final Pipeline pipeline = jedis.pipelined();
 
-        final long score = System.currentTimeMillis();
+        events.forEach(eventData -> {
+            final String currentKey = "current#"+eventData.getId();
 
-        eventsMarkedForDeletion.stream().forEach(eventData -> {
-            final String eventId = eventData.getId();
+            final Map<String, String> currentData = new HashMap<>();
+            currentData.put("status", "removed");
+            currentData.put("payload", eventData.toString());
 
-            final String dataKey = "event#" + eventId;
-            final String versionKey = "event#" + eventId + ":version";
+            pipeline.srem("regular", eventData.getId());
+            pipeline.srem("idList", eventData.getId());
+            pipeline.hset(currentKey, currentData);
 
-            pipeline.sadd("eventRemovedList", eventId);
-            pipeline.zadd(versionKey, score, String.format("{\"id\":\"%s\"}", eventId));
-            pipeline.srem("eventList", eventId);
-            pipeline.del(dataKey);
+            logger.info("[Redis] event {} has been removed by event deletion {}",  eventData.getId(), eventDeletion.getId());
         });
 
         pipeline.sync();
 
-        return logger.info("[Event] events related by event {} has been deleted.", eventDeletion.getId());
+        return 0;
     }
 
-    private final String validationHost = AppProperties.getEventValidationHost();
-    private final int validationPort = AppProperties.getEventValidationPort();
+    private EventData acquireEventFromStorage(final Jedis jedis, final String eventId) {
+        final Map<String, String> eventMap = jedis.hgetAll("current#"+eventId);
 
-    private String fetchRemoteEvents() throws IOException {
-        final URL url = new URL("http://"+validationHost+":"+validationPort+"/event/activeList");
-        final HttpURLConnection http = (HttpURLConnection) url.openConnection();
+        return eventMap != null && "inserted".equals(eventMap.get("status")) 
+            ? EventData.gsonEngine(gsonBuilder.create(), eventMap.get("payload"))
+            : null;
+    }
 
-        http.setRequestMethod("GET");
-        http.setDoOutput(true);
-        http.setInstanceFollowRedirects(false);
+    private Collection<EventData> acquireListFromStorage(final Jedis jedis) {
+        final Gson gson = gsonBuilder.create();
 
-        http.setRequestProperty("Accept", "application/json");
-        http.setRequestProperty("Connection", "close");
-
-        final InputStream in = http.getInputStream();
-        final ByteArrayOutputStream out = new ByteArrayOutputStream();
-        IOUtils.copy(in, out);
-
-        http.disconnect();
-
-        return new String(out.toByteArray(), StandardCharsets.UTF_8);
+        return jedis.smembers("idList")
+            .stream()
+            .map(eventId -> jedis.hgetAll("current#"+eventId))
+            .filter(eventMap -> eventMap != null)
+            .filter(eventMap -> "inserted".equals(eventMap.get("status")))
+            .map(eventMap -> EventData.gsonEngine(gson, eventMap.get("payload")))
+            .filter(eventData -> EventKind.DELETION != eventData.getKind() )
+            .collect(Collectors.toList());
     }
 
     public byte close() {
