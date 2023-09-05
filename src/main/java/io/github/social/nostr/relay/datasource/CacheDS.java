@@ -7,13 +7,13 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
-public class CacheService {
-    public static final CacheService INSTANCE = new CacheService();
+public class CacheDS {
+    public static final CacheDS INSTANCE = new CacheDS();
 
     private boolean closed = false;
 
     private final JedisPool jedisPool;
-    private CacheService() {
+    private CacheDS() {
         final int timeout = 0;
         jedisPool = new JedisPool(
             buildPoolConfig(),

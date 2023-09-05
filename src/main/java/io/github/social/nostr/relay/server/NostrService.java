@@ -117,14 +117,8 @@ public class NostrService {
 
         final String jsonData = message.getMessage();
 
-        final List<String> notice = new ArrayList<>();
-        notice.add("NOTICE");
-
-        final Gson gson = gsonBuilder.create();
-
         if( ! jsonData.startsWith("[") || ! jsonData.endsWith("]") ) {
-            notice.add("error: Not a json array payload.");
-            this.broadcastClient(context, gson.toJson(notice));
+            this.notifyClient(context, "error: Not a json array payload.");
 
             if( countFailure.get(context.getContextID().toString()).incrementAndGet() == 5 ) {
                 logger.error(
@@ -140,26 +134,24 @@ public class NostrService {
 
         final JsonArray nostrMessage;
         try {
-            nostrMessage = gson.fromJson(jsonData, JsonArray.class);
+            nostrMessage = gsonBuilder.create().fromJson(jsonData, JsonArray.class);
         } catch(JsonParseException failure) {
             logger.warning("[Nostr] could not parse message: {}", message.getMessage());
 
-            notice.add("error: could not parse data: " + failure.getMessage());
-            return this.broadcastClient(context, gson.toJson(notice));
+            return this.notifyClient(context, "error: could not parse data: " + failure.getMessage());
         }
 
         if( nostrMessage.isEmpty() ) {
             logger.warning("[Nostr] Empty message received.");
 
-            notice.add("warning: empty message.");
-            return this.broadcastClient(context, gson.toJson(notice));
+            return this.notifyClient(context, "warning: empty message.");
         }
 
         final String messageType = nostrMessage.get(0).getAsString();
 
         switch(messageType) {
             case "EVENT":
-                return this.handleEvent(context, nostrMessage, gson);
+                return this.handleEvent(context, nostrMessage);
             case "REQ":
                 return this.handleSubscriptionRegistration(context, nostrMessage);
             case "CLOSE":
@@ -167,8 +159,7 @@ public class NostrService {
             case "AUTH":
                 return this.handleAuthentication(context, nostrMessage);
             default:
-                notice.add("warning: message type '"+messageType+"' not supported yet");
-                return this.broadcastClient(context, gson.toJson(notice));
+                return this.notifyClient(context, "warning: message type '"+messageType+"' not supported yet");
         }
     }
 
@@ -176,11 +167,12 @@ public class NostrService {
         return context.broadcast(message);
     }
 
-    private byte handleEvent(
-            final WebsocketContext context,
-            final JsonArray nostrMessage,
-            final Gson gson
-        ) {
+    private byte notifyClient(final WebsocketContext context, final String message) {
+        return context.broadcast(gsonBuilder.create().toJson(Arrays.asList("NOTICE", message)));
+    }
+
+    private byte handleEvent(final WebsocketContext context, final JsonArray nostrMessage) {
+        final Gson gson = gsonBuilder.create();
 
         final EventData eventData;
         final EventValidation validation;
@@ -236,32 +228,28 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
-        boolean refresh = false;
-
-        String responseText = null;
+        boolean ok = true;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
-            responseText = eventService.persistEvent(eventData);
-            refresh = true;
+            this.persistEvent(eventData);
         } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
-            eventService.persistReplaceable(eventData);
-            refresh = true;
+            this.persistReplaceable(eventData);
         } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
-            responseText = eventService.persistParameterizedReplaceable(eventData);
-            refresh = true;
+            this.persistParameterizedReplaceable(eventData);
         } else if( EventState.EPHEMERAL.equals(eventData.getState()) ) {
-            responseText = consumeEphemeralEvent(eventData);
+            consumeEphemeralEvent(eventData);
         } else {
-            responseText = "error: Not supported yet";
+            ok = false;
         }
 
-        if( responseText == null ){
+        if( ok ){
             response.addAll(Arrays.asList(Boolean.TRUE, ""));
+            this.broadcastClient(context, gson.toJson(response));
+
             this.broadcastNewEvent(context, gson, eventData);
         } else {
-            response.addAll(Arrays.asList(Boolean.FALSE, responseText));
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: event kind unknown."));
+            this.broadcastClient(context, gson.toJson(response));
         }
-
-        this.broadcastClient(context, gson.toJson(response));
 
         if( eventData.getKind() == EventKind.DELETION ) {
             eventService.deletionRequestEvent(eventData);
@@ -415,6 +403,35 @@ public class NostrService {
 
         final String auth = gsonBuilder.create().toJson(Arrays.asList("AUTH", challenge));
         return this.broadcastClient(context, auth);
+    }
+
+    private String persistEvent(final EventData eventData) {
+        if (EventState.REGULAR.equals(eventData.getState())) {
+            if ( eventService.hasEvent(eventData)) {
+                return "duplicate: event has already been stored.";
+            }
+            if( eventService.checkRequestForRemoval(eventData) ) {
+                return "invalid: this event has already been requested to be removed from this relay.";
+            }
+        }
+
+        eventService.persistEvent(eventData);
+        return null;
+    }
+
+    private String persistReplaceable(final EventData eventData) {
+        final EventData currentEvent = eventService.getReplaceable(eventData.getPubkey(), eventData.getKind());
+
+        if( eventData.getCreatedAt() <= currentEvent.getCreatedAt() ) return null;
+
+        eventService.persistReplaceable(eventData);
+        return null;
+    }
+
+    private String persistParameterizedReplaceable(final EventData eventData) {
+
+        eventService.persistParameterizedReplaceable(eventData);
+        return null;
     }
 
     private EventValidation validate(final String eventJson) throws IOException {

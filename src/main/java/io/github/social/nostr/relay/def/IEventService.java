@@ -12,7 +12,7 @@ public interface IEventService {
 
     String checkRegistration(final EventData eventData);
 
-    String persistEvent(final EventData eventData);
+    byte persistEvent(final EventData eventData);
 
     byte persistReplaceable(final EventData eventData);
 
@@ -22,11 +22,15 @@ public interface IEventService {
 
     byte fetchActiveEvents(final Collection<EventData> events);
 
+    boolean hasEvent(final EventData eventData);
+
+    boolean checkRequestForRemoval(final EventData eventData);
+
     EventData getRegular(final String eventId);
 
     EventData getReplaceable(final String pubkey, final int kind);
 
-    EventData getParameterizedReplaceable(final String pubkey, final int kind, final String param);
+    Collection<EventData> getParameterizedReplaceable(final String pubkey, final int kind, final String... param);
 
     byte close();
 }

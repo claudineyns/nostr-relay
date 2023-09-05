@@ -7,8 +7,8 @@ import com.mongodb.client.MongoClients;
 
 import io.github.social.nostr.relay.utilities.AppProperties;
 
-public class DocumentService {
-    public static final DocumentService INSTANCE = new DocumentService();
+public class DocumentDS {
+    public static final DocumentDS INSTANCE = new DocumentDS();
 
     public static final String DB_NAME = "nostr";
 
@@ -16,11 +16,10 @@ public class DocumentService {
 
     final MongoClientSettings settings;
     final ConnectionString connection;
-    private DocumentService() {
+    private DocumentDS() {
         final String host = AppProperties.getMongoDbHost();
         final int port = AppProperties.getMongoDbPort();
 
-        // Replace the placeholder with your Atlas connection string
         final String uri = "mongodb://"+host+":"+port+"/"+DB_NAME+"?maxPoolSize=10";
         this.connection = new ConnectionString(uri);
 

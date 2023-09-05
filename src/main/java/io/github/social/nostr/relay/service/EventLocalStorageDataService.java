@@ -11,8 +11,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import com.google.gson.Gson;
-import io.github.social.nostr.relay.datasource.DocumentService;
+import io.github.social.nostr.relay.datasource.DocumentDS;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
@@ -24,7 +27,7 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
 
     private final File BASE_DIR = new File("/var/nostr/data/");
 
-    static final String DB_NAME = DocumentService.DB_NAME;
+    static final String DB_NAME = DocumentDS.DB_NAME;
 
     public String checkRegistration(final EventData eventData) {
         return DB_ERROR;
@@ -217,6 +220,10 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         } catch(IOException failure) {
             return null;
         }
+    }
+
+    Collection<EventData> acquireEventsFromStorageByIdSet(Set<String> set) {
+        return set.stream().map(id -> acquireEventFromStorageById(id)).collect(Collectors.toList());
     }
 
     public byte close() {

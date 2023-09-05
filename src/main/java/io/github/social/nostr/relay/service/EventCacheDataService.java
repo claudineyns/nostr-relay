@@ -9,12 +9,14 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
-import io.github.social.nostr.relay.datasource.CacheService;
+
+import io.github.social.nostr.relay.datasource.CacheDS;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
+
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.exceptions.JedisException;
@@ -22,7 +24,7 @@ import redis.clients.jedis.exceptions.JedisException;
 public final class EventCacheDataService extends AbstractEventDataService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
-    private final CacheService cache = CacheService.INSTANCE;
+    private final CacheDS cache = CacheDS.INSTANCE;
 
     public String checkRegistration(final EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
@@ -91,6 +93,18 @@ public final class EventCacheDataService extends AbstractEventDataService {
     EventData acquireEventFromStorageById(final String id) { 
         try (final Jedis jedis = cache.connect()) {
             return this.acquireEventFromStorageById(null, id);
+        } catch(JedisException e) {
+             logger.warning("[Redis] Failure: {}", e.getMessage());
+             return null;
+        }
+    }
+
+    Collection<EventData> acquireEventsFromStorageByIdSet(final Set<String> set) { 
+        try (final Jedis jedis = cache.connect()) {
+            return set
+                .stream()
+                .map(id -> acquireEventFromStorageById(jedis, id))
+                .collect(Collectors.toList());
         } catch(JedisException e) {
              logger.warning("[Redis] Failure: {}", e.getMessage());
              return null;

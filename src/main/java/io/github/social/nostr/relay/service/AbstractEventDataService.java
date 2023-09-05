@@ -2,6 +2,7 @@ package io.github.social.nostr.relay.service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -16,7 +17,6 @@ import com.google.gson.GsonBuilder;
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
-import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.Utils;
 
 public abstract class AbstractEventDataService implements IEventService {
@@ -25,21 +25,12 @@ public abstract class AbstractEventDataService implements IEventService {
 
     protected final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
 
-    public final String persistEvent(EventData eventData) {
-        if (EventState.REGULAR.equals(eventData.getState())) {
-            if ( this.hasEvent(eventData)) {
-                return "duplicate: event has already been stored.";
-            }
-            if( this.checkRequestForRemoval(eventData) ) {
-                return "invalid: this event has already been requested to be removed from this relay.";
-            }
-        }
-
+    public final byte persistEvent(EventData eventData) {
         final Thread task = new Thread(() -> storeEvent(eventData));
         task.setDaemon(true);
         this.cacheTask.submit(task);
 
-        return null;
+        return 0;
     }
 
     public byte persistReplaceable(EventData eventData) {
@@ -86,16 +77,34 @@ public abstract class AbstractEventDataService implements IEventService {
         return this.acquireEventFromStorageById(eventId);
     }
 
-    public EventData getReplaceable(String pubkey, int kind) {
+    public EventData getReplaceable(final String pubkey, final int kind) {
         final String replaceable = Utils.sha256((pubkey+"#"+kind).getBytes(StandardCharsets.UTF_8));
 
         return this.acquireEventFromStorageById(replaceable);
     }
 
-    public EventData getParameterizedReplaceable(String pubkey, int kind, String param) {
-        final String replaceable = Utils.sha256((pubkey+"#"+kind+"#"+param).getBytes(StandardCharsets.UTF_8));
+    public Collection<EventData> getParameterizedReplaceable(
+            final String pubkey, final int kind, final String... param
+        ) {
 
-        return this.acquireEventFromStorageById(replaceable);
+        final Set<String> set = Arrays.asList(param)
+            .stream()
+            .map(item -> Utils.sha256((pubkey+"#"+kind+"#"+item).getBytes(StandardCharsets.UTF_8)))
+            .collect(Collectors.toSet());
+
+        return this.acquireEventsFromStorageByIdSet(set);
+    }
+
+    public boolean hasEvent(final EventData eventData) {
+        return this.getRegular(eventData.getId()) != null;
+    }
+
+    public boolean checkRequestForRemoval(final EventData eventData) {
+        return this.fetchDeletionEvents()
+            .stream()
+            .filter(event -> EventKind.DELETION == event.getKind())
+            .filter(event -> event.getReferencedEventList().contains(eventData.getId()))
+            .count() > 0;
     }
 
     private Collection<EventData> fetchEventsFromDatasource() {
@@ -120,18 +129,6 @@ public abstract class AbstractEventDataService implements IEventService {
         return events;
     }
 
-    private boolean hasEvent(final EventData eventData) {
-        return this.getRegular(eventData.getId()) != null;
-    }
-
-    private boolean checkRequestForRemoval(final EventData eventData) {
-        return this.fetchDeletionEvents()
-            .stream()
-            .filter(event -> EventKind.DELETION == event.getKind())
-            .filter(event -> event.getReferencedEventList().contains(eventData.getId()))
-            .count() > 0;
-    }
-
     private Collection<EventData> fetchDeletionEvents() {
         return this.acquireListFromStorage()
             .stream()
@@ -150,5 +147,7 @@ public abstract class AbstractEventDataService implements IEventService {
     abstract Collection<EventData> acquireListFromStorage();
 
     abstract EventData acquireEventFromStorageById(final String id);
+
+    abstract Collection<EventData> acquireEventsFromStorageByIdSet(final Set<String> id);
 
 }

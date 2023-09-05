@@ -8,6 +8,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -20,7 +22,7 @@ import com.mongodb.client.model.Filters;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 
-import io.github.social.nostr.relay.datasource.DocumentService;
+import io.github.social.nostr.relay.datasource.DocumentDS;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
@@ -30,9 +32,9 @@ import io.github.social.nostr.relay.utilities.Utils;
 public class EventDocumentDataService extends AbstractEventDataService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
-    private final DocumentService datasource = DocumentService.INSTANCE;
+    private final DocumentDS datasource = DocumentDS.INSTANCE;
 
-    static final String DB_NAME = DocumentService.DB_NAME;
+    static final String DB_NAME = DocumentDS.DB_NAME;
 
     public String checkRegistration(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
@@ -239,6 +241,18 @@ public class EventDocumentDataService extends AbstractEventDataService {
     EventData acquireEventFromStorageById(final String id) {
         try (final MongoClient client = datasource.connect()) {
             return acquireEventFromStorageById(client.getDatabase(DB_NAME), id);
+        } catch(Exception e) {
+            logger.warning("[MongoDB] Failure: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    Collection<EventData> acquireEventsFromStorageByIdSet(Set<String> set) {
+        try (final MongoClient client = datasource.connect()) {
+            return set
+                .stream()
+                .map(id -> acquireEventFromStorageById(client.getDatabase(DB_NAME), id))
+                .collect(Collectors.toList());
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
             return null;
