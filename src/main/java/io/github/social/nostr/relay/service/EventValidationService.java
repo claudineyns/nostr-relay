@@ -39,13 +39,10 @@ public class EventValidationService {
     private EventValidation scriptValidation(final String eventJson) throws IOException {
         final Gson gson = gsonBuilder.create();
 
-        logger.info("[Nostr] validate event");
         try(final InputStream in = Runtime.getRuntime().exec(new String[] {scriptPath, eventJson}).getInputStream()) {
             return gson.fromJson(new InputStreamReader(in), EventValidation.class);
         } catch(JsonParseException failure) {
             throw new IOException(failure.getMessage());
-        } finally {
-            logger.info("[Nostr] Event validated");
         }
     }
 
