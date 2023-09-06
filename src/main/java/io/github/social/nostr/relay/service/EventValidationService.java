@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonSyntaxException;
 
 import io.github.social.nostr.relay.dto.EventValidation;
 import io.github.social.nostr.relay.utilities.AppProperties;
@@ -37,6 +39,8 @@ public class EventValidationService {
 
         try(final InputStream in = Runtime.getRuntime().exec(new String[] {scriptPath, eventJson}).getInputStream()) {
             return gson.fromJson(new InputStreamReader(in), EventValidation.class);
+        } catch(JsonParseException failure) {
+            throw new IOException(failure.getMessage());
         }
     }
 
