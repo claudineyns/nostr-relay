@@ -223,6 +223,7 @@ public class NostrService {
 
         logger.info("[Nostr] check event signature");
         if( ! Boolean.TRUE.equals(validation.getStatus()) ) {
+            logger.info("[Nostr] event failed");
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
 
             return broadcastClient(context, gson.toJson(response));
