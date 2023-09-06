@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -39,8 +40,15 @@ public class EventValidationService {
 
     private EventValidation scriptValidation(final String eventJson) throws IOException {
         final Gson gson = gsonBuilder.create();
+        final String base64 = Base64
+            .getEncoder()
+            .encodeToString(eventJson.getBytes(StandardCharsets.UTF_8))
+            .replace("\n","")
+            .replace("+","-")
+            .replace("/","_")
+            .replace("=","");
 
-        try(final InputStream in = Runtime.getRuntime().exec(new String[] {scriptPath, eventJson}).getInputStream()) {
+        try(final InputStream in = Runtime.getRuntime().exec(new String[] {scriptPath, base64}).getInputStream()) {
             return gson.fromJson(new InputStreamReader(in), EventValidation.class);
         } catch(JsonParseException failure) {
             throw new IOException(failure.getMessage());
