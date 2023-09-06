@@ -57,7 +57,9 @@ import io.github.social.nostr.relay.websocket.TextMessage;
 @SuppressWarnings("unused")
 public class NostrService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
+
     private final IEventService eventService = IEventService.INSTANCE;
+
     private final EventValidationService eventValidationService = new EventValidationService();
 
     private final File directory = new File("/var/nostr/data/");
@@ -77,6 +79,11 @@ public class NostrService {
     private final String host = AppProperties.getHost();
     private final int tlsPort = AppProperties.getTlsPort();
     private final int port = AppProperties.getPort();
+
+    NostrService() {
+        eventService.fetchActiveEvents(new ArrayList<>());
+        logger.info("[Nostr] cache loaded");
+    }
 
     byte close() {
         return eventService.close();
@@ -421,7 +428,7 @@ public class NostrService {
 
     private String persistEvent(final EventData eventData) {
         if (EventState.REGULAR.equals(eventData.getState())) {
-            if ( eventService.hasEvent(eventData)) {
+            if ( eventService.getEvent(eventData.getId()) != null ) {
                 return "duplicate: event has already been stored.";
             }
             if( eventService.checkRequestForRemoval(eventData) ) {

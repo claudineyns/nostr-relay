@@ -56,13 +56,16 @@ public abstract class AbstractEventDataService implements IEventService {
         return 0;
     }
 
+    private boolean preloaded = false;
     public byte fetchActiveEvents(final Collection<EventData> events) {
         synchronized(cached) {
-            if(cached.isEmpty()) {
+            if( !preloaded ) {
                 fetchEventsFromDatasource()
                     .stream()
                     .filter(event -> EventKind.DELETION != event.getKind())
                     .forEach(event -> event.storableIds().forEach(id -> cached.put(id, event)));
+
+                preloaded = true;
             }
         }
 
