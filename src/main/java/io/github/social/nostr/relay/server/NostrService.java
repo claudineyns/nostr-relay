@@ -214,12 +214,12 @@ public class NostrService {
             }
         }
 
-        // final String checkRegistration = eventService.checkRegistration(eventData);
-        // if( checkRegistration != null ) {
-        //     response.addAll(Arrays.asList(Boolean.FALSE, checkRegistration));
-// 
-        //     return broadcastClient(context, gson.toJson(response));
-        // }
+        final String checkRegistration = eventService.checkRegistration(eventData);
+        if( checkRegistration != null ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, checkRegistration));
+
+            return broadcastClient(context, gson.toJson(response));
+        }
 
         if( Boolean.FALSE.equals(validation.getStatus()) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
