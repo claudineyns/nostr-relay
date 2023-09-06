@@ -194,20 +194,17 @@ public class NostrService {
 
         if( eventData.getExpiration() > 0 && eventData.getExpiration() < currentTime ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "invalid: event is expired"));
-
             return broadcastClient(context, gson.toJson(response));
         }
 
         if( eventData.getCreatedAt() > (currentTime + 600) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event 'created_at' field is out of the acceptable range (, +10min) for this relay"));
-
             return broadcastClient(context, gson.toJson(response));
         }
 
         if( eventData.getKind() == EventKind.ENCRYPTED_DIRECT) {
             if( !this.checkAuthentication(context, eventData) ) {
                 response.addAll(Arrays.asList(Boolean.FALSE, "restricted: we do not accept such kind of event from unauthenticated users, does your client implement NIP-42?"));
-
                 broadcastClient(context, gson.toJson(response));
 
                 return this.requestAuthentication(context);
@@ -217,23 +214,18 @@ public class NostrService {
         final boolean isRegistered = eventService.isRegistered(eventData);
         if( !isRegistered ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "blocked: Please register yourself at https://register.notes.social"));
-
             return broadcastClient(context, gson.toJson(response));
         }
 
-        logger.info("[Nostr] check event signature");
         if(validation == null) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: could not validate event signature"));
-
             return broadcastClient(context, gson.toJson(response));
         }
 
         if( ! Boolean.TRUE.equals(validation.getStatus()) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
-
             return broadcastClient(context, gson.toJson(response));
         }
-        logger.info("[Nostr] Event signature is OK");
 
         boolean ok = true;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
