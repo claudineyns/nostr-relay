@@ -425,9 +425,10 @@ public class NostrService {
 
     private String persistReplaceable(final EventData eventData) {
         final EventData currentEvent = eventService.getReplaceable(eventData.getPubkey(), eventData.getKind());
+        final int currentCreatedAt = Optional.ofNullable(currentEvent.getCreatedAt()).orElseGet(()->0);
 
         logger.info("[Nostr] check created_at");
-        if( eventData.getCreatedAt() <= currentEvent.getCreatedAt() ) {
+        if( eventData.getCreatedAt() <= currentCreatedAt ) {
             return "invalid: event is outdated";
         }
 
