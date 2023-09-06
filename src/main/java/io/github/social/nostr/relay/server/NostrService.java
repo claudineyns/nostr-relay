@@ -221,15 +221,11 @@ public class NostrService {
         //     return broadcastClient(context, gson.toJson(response));
         // }
 
-        logger.info("[Nostr] event validation result: {}", validation.getMessage());
-
         if( Boolean.FALSE.equals(validation.getStatus()) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
 
             return broadcastClient(context, gson.toJson(response));
         }
-
-        logger.info("[Nostr] event in progress");
 
         boolean ok = true;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
@@ -243,8 +239,6 @@ public class NostrService {
         } else {
             ok = false;
         }
-
-        logger.info("[Nostr] event done");
 
         if( ok ){
             response.addAll(Arrays.asList(Boolean.TRUE, ""));
