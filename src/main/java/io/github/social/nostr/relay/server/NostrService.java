@@ -228,6 +228,8 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
+        logger.info("[Nostr] event in progress");
+
         boolean ok = true;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
             this.persistEvent(eventData);
@@ -240,6 +242,8 @@ public class NostrService {
         } else {
             ok = false;
         }
+
+        logger.info("[Nostr] event done");
 
         if( ok ){
             response.addAll(Arrays.asList(Boolean.TRUE, ""));
@@ -422,7 +426,9 @@ public class NostrService {
     private String persistReplaceable(final EventData eventData) {
         final EventData currentEvent = eventService.getReplaceable(eventData.getPubkey(), eventData.getKind());
 
-        if( eventData.getCreatedAt() <= currentEvent.getCreatedAt() ) return null;
+        if( eventData.getCreatedAt() <= currentEvent.getCreatedAt() ) {
+            return "invalid: event is outdated";
+        }
 
         eventService.persistReplaceable(eventData);
         return null;
