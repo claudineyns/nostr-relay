@@ -26,6 +26,7 @@ public class EventValidationService {
 
     public EventValidation validate(final String eventJson) {
         try {
+            System.out.printf("[Nostr] [Special] validate event: %n%s", eventJson);
             return scriptValidation(eventJson);
         } catch(IOException f) {
             final EventValidation v = new EventValidation();
