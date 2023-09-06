@@ -221,11 +221,13 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
+        logger.info("[Nostr] check event signature");
         if( Boolean.FALSE.equals(validation.getStatus()) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
 
             return broadcastClient(context, gson.toJson(response));
         }
+        logger.info("[Nostr] Event signature is OK");
 
         boolean ok = true;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
