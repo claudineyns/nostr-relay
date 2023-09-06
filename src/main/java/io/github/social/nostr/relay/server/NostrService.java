@@ -451,7 +451,7 @@ public class NostrService {
                     })
             );
 
-        eventService.persistParameterizedReplaceable(eventData);
+        eventService.persistParameterizedReplaceable(eventData, lastUpdated.keySet());
         return null;
     }
 

@@ -54,7 +54,7 @@ public abstract class AbstractEventDataService implements IEventService {
 
     public String persistParameterizedReplaceable(final EventData eventData, final Set<String> paramIdList) {
         if(paramIdList.isEmpty()) {
-            return "invalid: event must contain tag 'd'";
+            return "invalid: event is outdated";
         }
 
         final Thread task = new Thread(() -> storeParameterizedReplaceable(eventData, paramIdList));
