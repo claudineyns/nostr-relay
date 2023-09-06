@@ -238,6 +238,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
 
     EventData acquireEventFromStorageById(final String id) {
         try (final MongoClient client = datasource.connect()) {
+            logger.info("[MongoDB] fetching event from datasource");
             return acquireEventFromStorageById(client.getDatabase(DB_NAME), id);
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
