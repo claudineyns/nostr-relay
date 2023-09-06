@@ -430,7 +430,10 @@ public class NostrService {
             return "invalid: event is outdated";
         }
 
+        logger.info("[MongoDB] storing replaceable event in datasource");
         eventService.persistReplaceable(eventData);
+        logger.info("[MongoDB] replaceable event stored successfully");
+
         return null;
     }
 
