@@ -42,82 +42,22 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         try(final OutputStream out = new FileOutputStream(versionData)) {
             out.write(raw);
         } catch(IOException failure) {
-            return logger.warning("[Storage] Could not store event: {}", failure.getMessage());
+            return logger.warning(
+                "[Storage] Could not store event {}: {}",
+                eventData.getId(), failure.getMessage());
         }
 
         final File currentDB = new File(BASE_DIR, "/current");
         if(!currentDB.exists()) currentDB.mkdirs();
 
-        final File data = new File(currentDB, eventData.getId());
-        try(final OutputStream out = new FileOutputStream(data)) {
-            out.write(raw);
-        } catch(IOException failure) {
-            return logger.warning("[Storage] Could not store event: {}", failure.getMessage());
-        }
-
-        logger.info("[Storage] event {} saved.", eventData.getId());
-
-        return 0;
-    }
-
-    byte storeReplaceable(EventData eventData) {
-        final String data = idOf(eventData.getPubkey(), eventData.getKind());
-
-        final long now = System.currentTimeMillis();
-
-        final byte[] raw = eventData.toString().getBytes(StandardCharsets.UTF_8);
-
-        final File versionDB = new File(BASE_DIR, "/version");
-        if(!versionDB.exists()) versionDB.mkdirs();
-
-        final File versionData = new File(versionDB, "data-"+now+"-inserted");
-        try(final OutputStream out = new FileOutputStream(versionData)) {
-            out.write(raw);
-        } catch(IOException failure) {
-            return logger.warning("[Storage] Could not store replaceable event: {}", failure.getMessage());
-        }
-
-        final File currentDB = new File(BASE_DIR, "/current");
-        if(!currentDB.exists()) currentDB.mkdirs();
-
-        final File content = new File(currentDB, data);
-        try(final OutputStream out = new FileOutputStream(content)) {
-            out.write(raw);
-        } catch(IOException failure) {
-            return logger.warning("[Storage] Could not store replaceable event: {}", failure.getMessage());
-        }
-
-        logger.info("[Storage] replaceable event {} saved.", eventData.getId());
-
-        return 0;
-    }
-
-    byte storeParameterizedReplaceable(final EventData eventData, final Set<String> idList) {
-        final long now = System.currentTimeMillis();
-
-        final byte[] raw = eventData.toString().getBytes(StandardCharsets.UTF_8);
-
-        final File versionDB = new File(BASE_DIR, "/version");
-        if(!versionDB.exists()) versionDB.mkdirs();
-
-        final File versionData = new File(versionDB, "data-"+now+"-inserted");
-        try(final OutputStream out = new FileOutputStream(versionData)) {
-            out.write(raw);
-        } catch(IOException failure) {
-            return logger.warning("[Storage] Could not store parameterized replaceable event: {}", failure.getMessage());
-        }
-
-        final File currentDB = new File(BASE_DIR, "/current");
-        if(!currentDB.exists()) currentDB.mkdirs();
-
-        idList.forEach(paramId -> {
-            final File data = new File(currentDB, paramId);
+        eventData.storableIds().forEach(storageId -> {
+            final File data = new File(currentDB, storageId);
             try(final OutputStream out = new FileOutputStream(data)) {
                 out.write(raw);
             } catch(IOException failure) { /***/ }
         });
 
-        logger.info("[Storage] parameterized replaceable event {} saved.", eventData.getId());
+        logger.info("[Storage] event {} saved.", eventData.getId());
 
         return 0;
     }
@@ -189,7 +129,7 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         }
     }
 
-    Collection<EventData> acquireEventsFromStorageByIdSet(Set<String> set) {
+    Collection<EventData> acquireEventsFromStorageByIds(Set<String> set) {
         return set
             .stream()
             .map(id -> acquireEventFromStorageById(id))

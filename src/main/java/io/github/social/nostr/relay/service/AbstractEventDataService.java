@@ -75,8 +75,8 @@ public abstract class AbstractEventDataService implements IEventService {
         return this.acquireEventFromStorageById(storedId);
     }
 
-    public Collection<EventData> getParameterizedReplaceable(final Set<String> storedIds) {
-        return this.acquireEventsFromStorageByIdSet(storedIds);
+    public Collection<EventData> getEvents(final Set<String> storedIds) {
+        return this.acquireEventsFromStorageByIds(storedIds);
     }
 
     public boolean checkRequestForRemoval(final EventData eventData) {
@@ -118,16 +118,12 @@ public abstract class AbstractEventDataService implements IEventService {
 
     abstract byte storeEvent(EventData eventData);
 
-    abstract byte storeReplaceable(EventData eventData, String storageId);
-
-    abstract byte storeParameterizedReplaceable(EventData eventData, Set<String> idList);
-
     abstract byte removeStoredEvents(Collection<EventData> events);
 
     abstract Collection<EventData> acquireListFromStorage();
 
     abstract EventData acquireEventFromStorageById(String id);
 
-    abstract Collection<EventData> acquireEventsFromStorageByIdSet(Set<String> id);
+    abstract Collection<EventData> acquireEventsFromStorageByIds(Set<String> id);
 
 }

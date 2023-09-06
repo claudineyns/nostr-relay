@@ -44,26 +44,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
 
     byte storeEvent(final EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
-            storeEvent(jedis, eventData);
-        } catch(JedisException e) {
-            logger.warning("[Redis] Failure: {}", e.getMessage());
-        }
-        return 0;
-    }
-
-    byte storeReplaceable(EventData eventData) {
-        try (final Jedis jedis = cache.connect()) {
-            storeReplaceable(jedis, eventData);
-        } catch(JedisException e) {
-            logger.warning("[Redis] Failure: {}", e.getMessage());
-        }
-
-        return 0;
-    }
-
-    byte storeParameterizedReplaceable(final EventData eventData, final Set<String> idList) {
-        try (final Jedis jedis = cache.connect()) {
-            return storeParameterizedReplaceable(jedis, eventData, idList);
+            return storeEvent(jedis, eventData);
         } catch(JedisException e) {
             return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
@@ -95,7 +76,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
         }
     }
 
-    Collection<EventData> acquireEventsFromStorageByIdSet(final Set<String> set) { 
+    Collection<EventData> acquireEventsFromStorageByIds(final Set<String> set) { 
         try (final Jedis jedis = cache.connect()) {
             return set
                 .stream()
@@ -108,62 +89,12 @@ public final class EventCacheDataService extends AbstractEventDataService {
         }
     }
 
-    private String storeEvent(final Jedis jedis, EventData eventData) {
-        final long score = System.currentTimeMillis();
-
-        final Pipeline pipeline = jedis.pipelined();
-
-        final String currentKey = "current#"+eventData.getId();
-
-        final Map<String, String> currentData = new HashMap<>();
-        currentData.put("status", "inserted");
-        currentData.put("payload", eventData.toString());
-
-        final String versionKey = "version#"+eventData.getId();
-
-        pipeline.sadd("regular", eventData.getId());
-        pipeline.sadd("idList", eventData.getId());
-        pipeline.hset(currentKey, currentData);
-        pipeline.zadd(versionKey, score, eventData.toString());
-        pipeline.sync();
-
-        logger.info("[Redis] event {} updated.", eventData.getId());
-        return null;
-    }
-
-    private String storeReplaceable(final Jedis jedis, final EventData eventData) {
-        final String data = idOf(eventData.getPubkey(), eventData.getKind());
-
-        final Pipeline pipeline = jedis.pipelined();
-
-        final String currentKey = "current#"+data;
-
-        final Map<String, String> currentData = new HashMap<>();
-        currentData.put("status", "inserted");
-        currentData.put("payload", eventData.toString());
-
-        final String versionKey = "version#"+data;
-        final long score = System.currentTimeMillis();
-
-        pipeline.sadd("idList", data);
-        pipeline.hset(currentKey, currentData);
-        pipeline.zadd(versionKey, score, eventData.toString());
-        pipeline.sync();
-
-        logger.info("[Redis] replaceable event {} updated.", eventData.getId());
-        return null;
-    }
-
-    private byte storeParameterizedReplaceable(
-            final Jedis jedis,
-            final EventData eventData,
-            final Set<String> idList
-    ) {
+    private byte storeEvent(final Jedis jedis, final EventData eventData) {
         final Pipeline pipeline = jedis.pipelined();
 
         final long score = System.currentTimeMillis();
 
-        idList.forEach(paramId -> {
+        eventData.storableIds().forEach(paramId -> {
             final String currentKey = "current#"+paramId;
 
             final Map<String, String> currentData = new HashMap<>();
