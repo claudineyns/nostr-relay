@@ -284,7 +284,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
 
         final MongoCollection<Document> current = db.getCollection("current");
 
-        final Document eventDoc = current.find(Filters.eq("id", eventId)).first();
+        final Document eventDoc = current.find(Filters.eq("_kid", eventId)).first();
 
         if(eventDoc != null) {
             eventDoc.remove("_id");
