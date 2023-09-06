@@ -214,12 +214,15 @@ public class NostrService {
             }
         }
 
+        logger.warning("[Nostr] Check registration");
         final boolean isRegistered = eventService.isRegistered(eventData);
+        logger.warning("[Nostr] Registration check completed");
         if( !isRegistered ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "blocked: Please register yourself at https://registration.notes.social"));
 
             return broadcastClient(context, gson.toJson(response));
         }
+        logger.warning("[Nostr] User successfully registered.");
 
         if( Boolean.FALSE.equals(validation.getStatus()) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
