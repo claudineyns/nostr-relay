@@ -45,6 +45,7 @@ import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.dto.EventValidation;
 import io.github.social.nostr.relay.service.EventCacheDataService;
 import io.github.social.nostr.relay.service.EventValidationService;
+import io.github.social.nostr.relay.specs.ReplaceableMetadata;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
@@ -432,43 +433,52 @@ public class NostrService {
         return null;
     }
 
+    static String idOf(Object... data) {
+        final StringBuilder id = new StringBuilder("");
+        for(Object q: data) {
+            if(id.length()>0) id.append("#");
+            id.append(q);
+        }
+
+        return Utils.sha256(id.toString().getBytes(StandardCharsets.US_ASCII));
+    }
+
     private String persistReplaceable(final EventData eventData) {
-        final EventData currentEvent = eventService.getReplaceable(eventData.getPubkey(), eventData.getKind());
+        final String storedId = idOf(eventData.getPubkey(), eventData.getKind());
+        final EventData currentEvent = eventService.getEvent(storedId);
         final int currentCreatedAt = currentEvent != null ? currentEvent.getCreatedAt() : 0;
 
         if( eventData.getCreatedAt() <= currentCreatedAt ) {
             return "invalid: event is outdated";
         }
 
-        eventService.persistReplaceable(eventData);
+        eventService.persistEvent(eventData);
 
         return null;
     }
 
     private String persistParameterizedReplaceable(final EventData eventData) {
-        final Set<String> params = eventData
-            .getCoordinatedParameterList()
-            .stream()
-            .map(param -> param.getData())
-            .collect(Collectors.toSet());
+        if(eventData.getReferencedDataList().isEmpty()) {
+            return "invalid: event must contain tag 'd'";
+        }
 
         final Map<String, Integer> lastUpdated = new HashMap<>();
 
-        eventService
-            .getParameterizedReplaceable(eventData.getPubkey(), eventData.getKind(), params)
-            .forEach(event -> 
-                event
-                    .getCoordinatedParameterList()
-                    .forEach(param -> {
-                        final String key = event.getPubkey()+"#"+event.getKind()+"#"+param;
-                        final String data = Utils.sha256(key.getBytes(StandardCharsets.US_ASCII));
-                        if( eventData.getCreatedAt() > lastUpdated.getOrDefault(data, 0)) {
-                            lastUpdated.put(data, event.getCreatedAt());
-                        }
-                    })
+        eventService.getEvents(eventData.storableIds())
+            .forEach(event -> event
+                .storableIds()
+                .forEach(id -> {
+                    if( eventData.getCreatedAt() > lastUpdated.getOrDefault(id, 0)) {
+                        lastUpdated.put(id, event.getCreatedAt());
+                    }
+                })
             );
 
-        eventService.persistParameterizedReplaceable(eventData, lastUpdated.keySet());
+        if(lastUpdated.isEmpty()) {
+            return "invalid: event is outdated";
+        }
+
+        eventService.persistEvent(eventData);
         return null;
     }
 
@@ -592,27 +602,22 @@ public class NostrService {
 
                 boolean include = true;
 
-                include = include && (filterEventList.isEmpty()     || filterEventList.contains(eventData.getId()));
-                include = include && (filterKindList.isEmpty()      || filterKindList.contains(eventData.getKind()));
-                include = include && (filterPubkeyList.isEmpty()    || filterPubkeyList.contains(eventData.getPubkey()));
-                include = include && (filterRefPubkeyList.isEmpty() || any(evRefPubKeyList, filterRefPubkeyList) );
-                include = include && (filterRefParamList.isEmpty()  || any(evRefParamList, filterRefParamList) );
+                include = include && ( filterEventList.isEmpty()     || filterEventList.contains(eventData.getId())      );
+                include = include && ( filterKindList.isEmpty()      || filterKindList.contains(eventData.getKind())     );
+                include = include && ( filterPubkeyList.isEmpty()    || filterPubkeyList.contains(eventData.getPubkey()) );
+                include = include && ( filterRefPubkeyList.isEmpty() || any(evRefPubKeyList, filterRefPubkeyList)        );
+                include = include && ( filterRefParamList.isEmpty()  || any(evRefParamList, filterRefParamList)          );
 
-                boolean coordMatch = filterRefCoordinatedEvent.isEmpty();
-                for(final String coordEvent : filterRefCoordinatedEvent) {
-                    final String[] cEvent = coordEvent.split(":");
-                    final int cKind = Integer.parseInt(cEvent[0]);
-                    final String cPubkey = cEvent[1];
-                    final String cData = cEvent[2];
-                    if( eventData.getKind() == cKind
-                            && eventData.getPubkey().equals(cPubkey)
-                            && evRefParamList.contains(cData) ) {
-                        coordMatch = true;
-                        break;
-                    }
-                }
+                final boolean coordMatch = 
+                    filterRefCoordinatedEvent.isEmpty() || filterRefCoordinatedEvent
+                        .stream()
+                        .map(a -> ReplaceableMetadata.of(a))
+                        .filter(coord -> eventData.getPubkey() == coord.getPubkey())
+                        .filter(coord -> eventData.getKind() == coord.getKind())
+                        .filter(coord -> coord.getData() == null || eventData.getReferencedDataAsSet().contains(coord.getData()))
+                        .count() > 0;
+
                 include = include && coordMatch;
-
                 include = include && (since[0] == 0 || eventData.getCreatedAt() >= since[0] );
                 include = include && (until[0] == 0 || eventData.getCreatedAt() <= until[0] );
 

@@ -2,16 +2,21 @@ package io.github.social.nostr.relay.specs;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+
+import io.github.social.nostr.relay.utilities.Utils;
 
 public class EventData implements Comparable<EventData> {
     private final String id;
@@ -26,8 +31,8 @@ public class EventData implements Comparable<EventData> {
     private final List<List<String>> tags = new ArrayList<>();
     private final List<String> referencedPubkeyList = new ArrayList<>();
     private final List<String> referencedEventList = new ArrayList<>();
-    private final List<String> infoNameList = new ArrayList<>();
-    private final List<ParameterMetadata> coordinatedParameterList = new ArrayList<>();
+    private final List<String> referencedDataList = new ArrayList<>();
+    private final List<ReplaceableMetadata> replaceableMetadataList = new ArrayList<>();
 
     private final EventState state;
 
@@ -111,12 +116,50 @@ public class EventData implements Comparable<EventData> {
         return Collections.unmodifiableCollection(referencedEventList);
     }
 
-    public Collection<ParameterMetadata> getCoordinatedParameterList() {
-        return Collections.unmodifiableCollection(coordinatedParameterList);
+    public Collection<ReplaceableMetadata> getReplaceableMetadataList() {
+        return Collections.unmodifiableCollection(replaceableMetadataList);
     }
 
-    public Collection<String> getInfoNameList() {
-        return Collections.unmodifiableCollection(infoNameList);
+    public Collection<String> getReferencedDataList() {
+        return Collections.unmodifiableCollection(referencedDataList);
+    }
+
+    public Set<String> getReferencedDataAsSet() {
+        return this.getReferencedDataList().stream().collect(Collectors.toSet());
+    }
+
+    public Set<String> storableIds() {
+        final Set<String> ids = new HashSet<>();
+
+        switch(this.getState()) {
+
+            case REGULAR:
+                ids.add(this.getId());
+                break;
+
+            case REPLACEABLE:
+
+                final String rId = Utils.sha256(
+                    (this.getPubkey()+"#"+this.getKind()).getBytes(StandardCharsets.US_ASCII)
+                );
+                ids.add(rId);
+                break;
+
+            case PARAMETERIZED_REPLACEABLE:
+
+                this.getReferencedDataList().forEach(data -> {
+                    final String pId = Utils.sha256(
+                        (this.getPubkey()+"#"+this.getKind()+"#"+data).getBytes(StandardCharsets.US_ASCII)
+                    );
+                    ids.add(pId);
+                });
+                break;
+
+            default:
+                break;
+        }
+
+        return ids;
     }
 
     public String getSig() {
@@ -161,8 +204,8 @@ public class EventData implements Comparable<EventData> {
             switch(n) {
                 case "e": this.referencedEventList.add(v); break;
                 case "p": this.referencedPubkeyList.add(v); break;
-                case "d": this.infoNameList.add(v); break;
-                case "a": this.coordinatedParameterList.add(ParameterMetadata.of(v)); break;
+                case "d": this.referencedDataList.add(v); break;
+                case "a": this.replaceableMetadataList.add(ReplaceableMetadata.of(v)); break;
                 case "expiration": this.expiration = Integer.parseInt(v); break;
                 default: break;
             }

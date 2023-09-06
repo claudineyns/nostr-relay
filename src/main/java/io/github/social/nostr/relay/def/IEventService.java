@@ -16,12 +16,6 @@ public interface IEventService {
 
     byte persistEvent(final EventData eventData);
 
-    byte persistReplaceable(final EventData eventData);
-
-    String persistParameterizedReplaceable(final EventData eventData);
-
-    String persistParameterizedReplaceable(final EventData eventData, final Set<String> paramIdList);
-
     byte removeEvents(final Collection<EventData> events);
 
     byte fetchActiveEvents(final Collection<EventData> events);
@@ -30,11 +24,9 @@ public interface IEventService {
 
     boolean checkRequestForRemoval(final EventData eventData);
 
-    EventData getRegular(final String eventId);
+    EventData getEvent(final String storedId);
 
-    EventData getReplaceable(final String pubkey, final int kind);
-
-    Collection<EventData> getParameterizedReplaceable(final String pubkey, final int kind, final Set<String> param);
+    Collection<EventData> getEvents(Set<String> storedIds);
 
     byte close();
 }
