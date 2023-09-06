@@ -426,13 +426,14 @@ public class NostrService {
     private String persistReplaceable(final EventData eventData) {
         final EventData currentEvent = eventService.getReplaceable(eventData.getPubkey(), eventData.getKind());
 
+        logger.info("[Nostr] check created_at");
         if( eventData.getCreatedAt() <= currentEvent.getCreatedAt() ) {
             return "invalid: event is outdated";
         }
 
-        logger.info("[MongoDB] storing replaceable event in datasource");
+        logger.info("[Nostr] storing replaceable event in datasource");
         eventService.persistReplaceable(eventData);
-        logger.info("[MongoDB] replaceable event stored successfully");
+        logger.info("[Nostr] replaceable event stored successfully");
 
         return null;
     }
