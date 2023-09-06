@@ -36,16 +36,16 @@ public class EventDocumentDataService extends AbstractEventDataService {
 
     static final String DB_NAME = DocumentDS.DB_NAME;
 
-    public String checkRegistration(final EventData eventData) {
+    public boolean isRegistered(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
             return validateRegistration(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
-            return DB_ERROR;
+            return false;
         }
     }
 
-    private String validateRegistration(final MongoDatabase db, final EventData eventData) {
+    private boolean validateRegistration(final MongoDatabase db, final EventData eventData) {
         final Set<String> registration = new LinkedHashSet<>();
 
         final MongoCollection<Document> registrationDB = db.getCollection("registration");
@@ -53,13 +53,13 @@ public class EventDocumentDataService extends AbstractEventDataService {
             cursor.forEachRemaining(document -> registration.add(document.get("pubkey").toString()));
         }
 
-        if(registration.contains(eventData.getPubkey())) return null;
+        if(registration.contains(eventData.getPubkey())) return true;
 
         for(final String refPubkey: eventData.getReferencedPubkeyList()) {
-            if(registration.contains(refPubkey)) return null;
+            if(registration.contains(refPubkey)) return true;
         }
 
-        return REG_REQUIRED;
+        return false;
     }
 
     byte storeEvent(EventData eventData) {

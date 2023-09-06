@@ -12,7 +12,7 @@ public interface IEventService {
 
     public static final IEventService INSTANCE = new EventDocumentDataService();
 
-    String checkRegistration(final EventData eventData);
+    boolean isRegistered(final EventData eventData);
 
     byte persistEvent(final EventData eventData);
 

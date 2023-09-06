@@ -29,8 +29,8 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
 
     static final String DB_NAME = DocumentDS.DB_NAME;
 
-    public String checkRegistration(final EventData eventData) {
-        return DB_ERROR;
+    public boolean isRegistered(final EventData eventData) {
+        return false;
     }
 
     byte storeEvent(final EventData eventData) {

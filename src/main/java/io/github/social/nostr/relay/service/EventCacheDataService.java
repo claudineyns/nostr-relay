@@ -26,24 +26,24 @@ public final class EventCacheDataService extends AbstractEventDataService {
 
     private final CacheDS cache = CacheDS.INSTANCE;
 
-    public String checkRegistration(final EventData eventData) {
+    public boolean isRegistered(final EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
             return validateRegistration(jedis, eventData);
         } catch(JedisException e) {
             logger.warning("[Redis] Failure: {}", e.getMessage());
-            return DB_ERROR;
+            return false;
         }
     }
 
-    private String validateRegistration(final Jedis jedis, final EventData eventData) {
+    private boolean validateRegistration(final Jedis jedis, final EventData eventData) {
         final Set<String> registration = jedis.smembers("registration");
-        if(registration.contains(eventData.getPubkey())) return null;
+        if(registration.contains(eventData.getPubkey())) return true;
 
         for(final String refPubkey: eventData.getReferencedPubkeyList()) {
-            if(registration.contains(refPubkey)) return null;
+            if(registration.contains(refPubkey)) return true;
         }
 
-        return REG_REQUIRED;
+        return false;
     }
 
     byte storeEvent(final EventData eventData) {
