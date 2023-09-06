@@ -180,12 +180,10 @@ public class NostrService {
             validation = this.validate(eventData.toString());
         } catch(final Exception failure) {
             return logger.info(
-                "[Nostr] [Message] could not parse event\n{}: {}",
+                "[Nostr] [Message] could not parse event: {}: {}",
                 failure.getClass().getCanonicalName(),
                 failure.getMessage());
         }
-
-        logger.info("[Nostr] [Message] event received\n{}", eventData.toString());
 
         final List<Object> response = new ArrayList<>();
         response.addAll(Arrays.asList("OK", eventData.getId()));
