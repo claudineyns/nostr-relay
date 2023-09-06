@@ -27,7 +27,7 @@ public class EventData implements Comparable<EventData> {
     private final List<String> referencedPubkeyList = new ArrayList<>();
     private final List<String> referencedEventList = new ArrayList<>();
     private final List<String> infoNameList = new ArrayList<>();
-    private final List<CoordinatedParameterEvent> coordinatedParameterEventList = new ArrayList<>();
+    private final List<ParameterMetadata> coordinatedParameterList = new ArrayList<>();
 
     private final EventState state;
 
@@ -111,8 +111,8 @@ public class EventData implements Comparable<EventData> {
         return Collections.unmodifiableCollection(referencedEventList);
     }
 
-    public Collection<CoordinatedParameterEvent> getCoordinatedParameterEventList() {
-        return Collections.unmodifiableCollection(coordinatedParameterEventList);
+    public Collection<ParameterMetadata> getCoordinatedParameterList() {
+        return Collections.unmodifiableCollection(coordinatedParameterList);
     }
 
     public Collection<String> getInfoNameList() {
@@ -162,7 +162,7 @@ public class EventData implements Comparable<EventData> {
                 case "e": this.referencedEventList.add(v); break;
                 case "p": this.referencedPubkeyList.add(v); break;
                 case "d": this.infoNameList.add(v); break;
-                case "a": this.coordinatedParameterEventList.add(CoordinatedParameterEvent.of(v)); break;
+                case "a": this.coordinatedParameterList.add(ParameterMetadata.of(v)); break;
                 case "expiration": this.expiration = Integer.parseInt(v); break;
                 default: break;
             }

@@ -97,7 +97,7 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         return 0;
     }
 
-    byte storeParameterizedReplaceable(final EventData eventData) {
+    byte storeParameterizedReplaceable(final EventData eventData, final Set<String> idList) {
         final long now = System.currentTimeMillis();
 
         final byte[] raw = eventData.toString().getBytes(StandardCharsets.UTF_8);
@@ -115,12 +115,8 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         final File currentDB = new File(BASE_DIR, "/current");
         if(!currentDB.exists()) currentDB.mkdirs();
 
-        eventData.getInfoNameList().forEach(param -> {
-            final String info = Utils.sha256(
-                (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
-            );
-
-            final File data = new File(currentDB, info);
+        idList.forEach(paramId -> {
+            final File data = new File(currentDB, paramId);
             try(final OutputStream out = new FileOutputStream(data)) {
                 out.write(raw);
             } catch(IOException failure) { /***/ }

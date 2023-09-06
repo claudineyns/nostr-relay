@@ -429,6 +429,27 @@ public class NostrService {
     }
 
     private String persistParameterizedReplaceable(final EventData eventData) {
+        final Set<String> params = eventData
+            .getCoordinatedParameterList()
+            .stream()
+            .map(param -> param.getData())
+            .collect(Collectors.toSet());
+
+        final Map<String, Integer> lastUpdated = new HashMap<>();
+
+        eventService
+            .getParameterizedReplaceable(eventData.getPubkey(), eventData.getKind(), params)
+            .forEach(event -> 
+                event
+                    .getCoordinatedParameterList()
+                    .forEach(param -> {
+                        final String key = event.getPubkey()+"#"+event.getKind()+"#"+param;
+                        final String data = Utils.sha256(key.getBytes(StandardCharsets.US_ASCII));
+                        if( eventData.getCreatedAt() > lastUpdated.getOrDefault(data, 0)) {
+                            lastUpdated.put(data, event.getCreatedAt());
+                        }
+                    })
+            );
 
         eventService.persistParameterizedReplaceable(eventData);
         return null;

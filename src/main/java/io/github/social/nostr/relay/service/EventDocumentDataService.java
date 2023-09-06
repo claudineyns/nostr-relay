@@ -81,9 +81,9 @@ public class EventDocumentDataService extends AbstractEventDataService {
         return 0;
     }
 
-    byte storeParameterizedReplaceable(final EventData eventData) {
+    byte storeParameterizedReplaceable(final EventData eventData, final Set<String> idList) {
         try (final MongoClient client = datasource.connect()) {
-            return storeParameterizedReplaceable(client.getDatabase(DB_NAME), eventData);
+            return storeParameterizedReplaceable(client.getDatabase(DB_NAME), eventData, idList);
         } catch(Exception e) {
             return logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
@@ -162,38 +162,36 @@ public class EventDocumentDataService extends AbstractEventDataService {
         return null;
     }
 
-    private byte storeParameterizedReplaceable(final MongoDatabase db, EventData eventData) {
+    private byte storeParameterizedReplaceable(
+            final MongoDatabase db,
+            final EventData eventData,
+            final Set<String> idList
+    ) {
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         final Document eventBase = Document.parse(eventData.toString());
 
-        for (final String param : eventData.getInfoNameList()) {
-            final String data = Utils.sha256(
-                (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
-            );
-
+        idList.forEach(paramId -> {
             final Document eventDoc = new Document(eventBase);
-            eventDoc.put("_id", data);
+            eventDoc.put("_id", paramId);
 
             final MongoCollection<Document> cacheCurrent = db.getCollection("current");
-            final UpdateResult result = cacheCurrent.replaceOne(Filters.eq("_id", data), eventDoc);
+            final UpdateResult result = cacheCurrent.replaceOne(Filters.eq("_id", paramId), eventDoc);
             if(result.getModifiedCount() == 0) {
                 cacheCurrent.insertOne(eventDoc);
             }
 
             final Document eventVersion = new Document(eventDoc);
             eventVersion.put("_id", UUID.randomUUID().toString());
-            eventVersion.put("_kid", data);
+            eventVersion.put("_kid", paramId);
             eventVersion.put("_updated_at", now);
             eventVersion.put("_status", "inserted");
 
             final MongoCollection<Document> cacheVersion = db.getCollection("version");
             cacheVersion.insertOne(eventVersion);
-        }
+        });
 
-        logger.info("[MongoDB] [Parameter] event {} consumed.", eventData.getId());
-
-        return 0;
+        return logger.info("[MongoDB] [Parameter] event {} consumed.", eventData.getId());
     }
     
     private byte removeEventsFromStorage(final MongoDatabase db, EventData eventDeletion) {

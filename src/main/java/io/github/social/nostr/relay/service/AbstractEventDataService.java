@@ -2,7 +2,6 @@ package io.github.social.nostr.relay.service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -41,12 +40,24 @@ public abstract class AbstractEventDataService implements IEventService {
         return 0;
     }
 
-    public String persistParameterizedReplaceable(EventData eventData) {
+    public String persistParameterizedReplaceable(final EventData eventData) {
         if(eventData.getInfoNameList().isEmpty()) {
             return "invalid: event must contain tag 'd'";
         }
 
         final Thread task = new Thread(() -> storeParameterizedReplaceable(eventData));
+        task.setDaemon(true);
+        this.cacheTask.submit(task);
+
+        return null;
+    }
+
+    public String persistParameterizedReplaceable(final EventData eventData, final Set<String> paramIdList) {
+        if(paramIdList.isEmpty()) {
+            return "invalid: event must contain tag 'd'";
+        }
+
+        final Thread task = new Thread(() -> storeParameterizedReplaceable(eventData, paramIdList));
         task.setDaemon(true);
         this.cacheTask.submit(task);
 
@@ -84,10 +95,10 @@ public abstract class AbstractEventDataService implements IEventService {
     }
 
     public Collection<EventData> getParameterizedReplaceable(
-            final String pubkey, final int kind, final String... param
+            final String pubkey, final int kind, final Set<String> param
         ) {
 
-        final Set<String> set = Arrays.asList(param)
+        final Set<String> set = param
             .stream()
             .map(item -> Utils.sha256((pubkey+"#"+kind+"#"+item).getBytes(StandardCharsets.UTF_8)))
             .collect(Collectors.toSet());
@@ -105,6 +116,19 @@ public abstract class AbstractEventDataService implements IEventService {
             .filter(event -> EventKind.DELETION == event.getKind())
             .filter(event -> event.getReferencedEventList().contains(eventData.getId()))
             .count() > 0;
+    }
+
+    public byte storeParameterizedReplaceable(final EventData eventData) {
+        final Set<String> idList = eventData.getCoordinatedParameterList()
+            .stream()
+            .map(param -> paramToId(eventData.getPubkey(), eventData.getKind(), param.getData()))
+            .collect(Collectors.toSet());
+
+        return storeParameterizedReplaceable(eventData, idList);
+    }
+
+    static final String paramToId(final String pubkey, final int kind, final String param) {
+        return Utils.sha256((pubkey+"#"+kind+"#"+param).getBytes(StandardCharsets.US_ASCII));
     }
 
     private Collection<EventData> fetchEventsFromDatasource() {
@@ -140,7 +164,7 @@ public abstract class AbstractEventDataService implements IEventService {
 
     abstract byte storeReplaceable(EventData eventData);
 
-    abstract byte storeParameterizedReplaceable(final EventData eventData);
+    abstract byte storeParameterizedReplaceable(final EventData eventData, final Set<String> idList);
 
     abstract byte removeLinkedEvents(EventData eventDeletion);
 

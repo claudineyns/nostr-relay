@@ -65,9 +65,9 @@ public final class EventCacheDataService extends AbstractEventDataService {
         return 0;
     }
 
-    byte storeParameterizedReplaceable(final EventData eventData) {
+    byte storeParameterizedReplaceable(final EventData eventData, final Set<String> idList) {
         try (final Jedis jedis = cache.connect()) {
-            return storeParameterizedReplaceable(jedis, eventData);
+            return storeParameterizedReplaceable(jedis, eventData, idList);
         } catch(JedisException e) {
             return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
@@ -159,28 +159,28 @@ public final class EventCacheDataService extends AbstractEventDataService {
         return null;
     }
 
-    private byte storeParameterizedReplaceable(final Jedis jedis, final EventData eventData) {
+    private byte storeParameterizedReplaceable(
+            final Jedis jedis,
+            final EventData eventData,
+            final Set<String> idList
+    ) {
         final Pipeline pipeline = jedis.pipelined();
 
         final long score = System.currentTimeMillis();
 
-        for (final String param : eventData.getInfoNameList()) {
-            final String data = Utils.sha256(
-                (eventData.getPubkey()+"#"+eventData.getKind()+"#"+param).getBytes(StandardCharsets.UTF_8)
-            );
-
-            final String currentKey = "current#"+data;
+        idList.forEach(paramId -> {
+            final String currentKey = "current#"+paramId;
 
             final Map<String, String> currentData = new HashMap<>();
             currentData.put("status", "inserted");
             currentData.put("payload", eventData.toString());
 
-            final String versionKey = "version#"+data;
+            final String versionKey = "version#"+paramId;
 
-            pipeline.sadd("idList", data);
+            pipeline.sadd("idList", paramId);
             pipeline.hset(currentKey, currentData);
             pipeline.zadd(versionKey, score, eventData.toString());
-        }
+        });
 
         pipeline.sync();
 

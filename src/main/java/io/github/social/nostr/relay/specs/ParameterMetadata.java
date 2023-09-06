@@ -1,23 +1,24 @@
 package io.github.social.nostr.relay.specs;
 
-public final class CoordinatedParameterEvent {
+public final class ParameterMetadata {
     private final int kind;
     private final String pubkey;
     private final String data;
 
-    public CoordinatedParameterEvent(final int kind, final String pubkey, final String data) {
+    public ParameterMetadata(final int kind, final String pubkey, final String data) {
         this.kind = kind;
         this.pubkey = pubkey;
         this.data = data;
     }
 
-    public static CoordinatedParameterEvent of(final String aTag) {
+    public static ParameterMetadata of(final String aTag) {
         final String[] parameters = aTag.split(":");
+
         final int kind = Integer.parseInt(parameters[0]);
         final String pubkey = parameters[1];
         final String data = parameters[2];
 
-        return new CoordinatedParameterEvent(kind, pubkey, data);
+        return new ParameterMetadata(kind, pubkey, data);
     }
 
     public int getKind() {

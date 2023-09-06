@@ -1,6 +1,8 @@
 package io.github.social.nostr.relay.def;
 
 import java.util.Collection;
+import java.util.Set;
+
 import io.github.social.nostr.relay.service.EventDocumentDataService;
 import io.github.social.nostr.relay.specs.EventData;
 
@@ -18,6 +20,8 @@ public interface IEventService {
 
     String persistParameterizedReplaceable(final EventData eventData);
 
+    String persistParameterizedReplaceable(final EventData eventData, final Set<String> paramIdList);
+
     byte deletionRequestEvent(final EventData eventData);
 
     byte fetchActiveEvents(final Collection<EventData> events);
@@ -30,7 +34,7 @@ public interface IEventService {
 
     EventData getReplaceable(final String pubkey, final int kind);
 
-    Collection<EventData> getParameterizedReplaceable(final String pubkey, final int kind, final String... param);
+    Collection<EventData> getParameterizedReplaceable(final String pubkey, final int kind, final Set<String> param);
 
     byte close();
 }
