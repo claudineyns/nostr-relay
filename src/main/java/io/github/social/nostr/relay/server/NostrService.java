@@ -214,15 +214,12 @@ public class NostrService {
             }
         }
 
-        logger.warning("[Nostr] Check registration");
         final boolean isRegistered = eventService.isRegistered(eventData);
-        logger.warning("[Nostr] Registration check completed");
         if( !isRegistered ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "blocked: Please register yourself at https://registration.notes.social"));
 
             return broadcastClient(context, gson.toJson(response));
         }
-        logger.warning("[Nostr] User successfully registered.");
 
         if( Boolean.FALSE.equals(validation.getStatus()) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
@@ -422,13 +419,16 @@ public class NostrService {
     }
 
     private String persistReplaceable(final EventData eventData) {
+        logger.info("[Nostr] check replaceable");
         final EventData currentEvent = eventService.getReplaceable(eventData.getPubkey(), eventData.getKind());
+        logger.info("[Nostr] Replaceable check completed");
         final int currentCreatedAt = currentEvent != null ? currentEvent.getCreatedAt() : 0;
 
         if( eventData.getCreatedAt() <= currentCreatedAt ) {
             return "invalid: event is outdated";
         }
 
+        logger.info("[Nostr] Save replaceable");
         eventService.persistReplaceable(eventData);
 
         return null;
