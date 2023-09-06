@@ -577,10 +577,11 @@ public class NostrService {
                 .ifPresent(time -> until[0] = time.getAsInt());
             emptyFilter = emptyFilter && until[0] == 0;
 
-            final int[] limit = new int[]{0};
+            final int[] limit = new int[]{ -1 };
             Optional
                 .ofNullable(entry.get("limit"))
                 .ifPresent(q -> limit[0] = q.getAsInt());
+            emptyFilter = emptyFilter && limit[0] >= 0;
 
             if(emptyFilter) {
                 logger.info("[Nostr] [Subscription] [{}] filter has been considered empty:\n{}", subscriptionId, entry);
