@@ -20,7 +20,6 @@ import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
-import io.github.social.nostr.relay.utilities.Utils;
 
 public class EventLocalStorageDataService extends AbstractEventDataService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
@@ -64,11 +63,9 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
     }
 
     byte storeReplaceable(EventData eventData) {
-        final long now = System.currentTimeMillis();
+        final String data = idOf(eventData.getPubkey(), eventData.getKind());
 
-        final String info = Utils.sha256(
-            (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
-        );
+        final long now = System.currentTimeMillis();
 
         final byte[] raw = eventData.toString().getBytes(StandardCharsets.UTF_8);
 
@@ -85,8 +82,8 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         final File currentDB = new File(BASE_DIR, "/current");
         if(!currentDB.exists()) currentDB.mkdirs();
 
-        final File data = new File(currentDB, info);
-        try(final OutputStream out = new FileOutputStream(data)) {
+        final File content = new File(currentDB, data);
+        try(final OutputStream out = new FileOutputStream(content)) {
             out.write(raw);
         } catch(IOException failure) {
             return logger.warning("[Storage] Could not store replaceable event: {}", failure.getMessage());
@@ -171,7 +168,9 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
             try(final OutputStream out = new FileOutputStream(versionData)) {
                 out.write(eventData.toString().getBytes(StandardCharsets.UTF_8));
             } catch(IOException failure) {
-                logger.warning("[Storage] Could not save deleted event: {}", failure.getMessage());
+                logger.warning(
+                    "[Storage] Could not save version for deleted event {}: {}",
+                    eventData.getId(), failure.getMessage());
             }
         });
 

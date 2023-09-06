@@ -6,7 +6,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -24,7 +26,11 @@ public abstract class AbstractEventDataService implements IEventService {
 
     protected final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
 
+    private final Map<String, EventData> cached = new ConcurrentHashMap<>();
+
     public final byte persistEvent(EventData eventData) {
+        cached.put(eventData.getId(), eventData);
+
         final Thread task = new Thread(() -> storeEvent(eventData));
         task.setDaemon(true);
         this.cacheTask.submit(task);
@@ -33,6 +39,9 @@ public abstract class AbstractEventDataService implements IEventService {
     }
 
     public byte persistReplaceable(EventData eventData) {
+        final String id = idOf(eventData.getPubkey(), eventData.getKind());
+        cached.put(id, eventData);
+
         final Thread task = new Thread(() -> storeReplaceable(eventData));
         task.setDaemon(true);
         this.cacheTask.submit(task);
@@ -44,6 +53,11 @@ public abstract class AbstractEventDataService implements IEventService {
         if(eventData.getInfoNameList().isEmpty()) {
             return "invalid: event must contain tag 'd'";
         }
+
+        eventData.getCoordinatedParameterList().stream().forEach(param -> {
+            final String id = idOf(param.getPubkey(), param.getKind(), param.getData());
+            cached.put(id, eventData);
+        });
 
         final Thread task = new Thread(() -> storeParameterizedReplaceable(eventData));
         task.setDaemon(true);
@@ -57,6 +71,8 @@ public abstract class AbstractEventDataService implements IEventService {
             return "invalid: event is outdated";
         }
 
+        paramIdList.stream().forEach(id -> cached.put(id, eventData));
+
         final Thread task = new Thread(() -> storeParameterizedReplaceable(eventData, paramIdList));
         task.setDaemon(true);
         this.cacheTask.submit(task);
@@ -64,7 +80,7 @@ public abstract class AbstractEventDataService implements IEventService {
         return null;
     }
 
-    public byte deletionRequestEvent(EventData eventData) {
+    public byte deletionRequestEvent(final EventData eventData) {
         final Thread task = new Thread(() -> removeLinkedEvents(eventData));
         task.setDaemon(true);
         this.cacheTask.submit(task);
@@ -95,12 +111,14 @@ public abstract class AbstractEventDataService implements IEventService {
     }
 
     public Collection<EventData> getParameterizedReplaceable(
-            final String pubkey, final int kind, final Set<String> param
+            final String pubkey,
+            final int kind,
+            final Set<String> param
         ) {
 
         final Set<String> set = param
             .stream()
-            .map(item -> Utils.sha256((pubkey+"#"+kind+"#"+item).getBytes(StandardCharsets.UTF_8)))
+            .map(item -> idOf(pubkey, kind, item))
             .collect(Collectors.toSet());
 
         return this.acquireEventsFromStorageByIdSet(set);
@@ -121,14 +139,10 @@ public abstract class AbstractEventDataService implements IEventService {
     public byte storeParameterizedReplaceable(final EventData eventData) {
         final Set<String> idList = eventData.getCoordinatedParameterList()
             .stream()
-            .map(param -> paramToId(eventData.getPubkey(), eventData.getKind(), param.getData()))
+            .map(param -> idOf(eventData.getPubkey(), eventData.getKind(), param.getData()))
             .collect(Collectors.toSet());
 
         return storeParameterizedReplaceable(eventData, idList);
-    }
-
-    static final String paramToId(final String pubkey, final int kind, final String param) {
-        return Utils.sha256((pubkey+"#"+kind+"#"+param).getBytes(StandardCharsets.US_ASCII));
     }
 
     private Collection<EventData> fetchEventsFromDatasource() {
@@ -158,6 +172,16 @@ public abstract class AbstractEventDataService implements IEventService {
             .stream()
             .filter(eventData -> EventKind.DELETION == eventData.getKind())
             .collect(Collectors.toList());
+    }
+
+    static String idOf(Object... data) {
+        final StringBuilder id = new StringBuilder("");
+        for(Object q: data) {
+            if(id.length()>0) id.append("#");
+            id.append(q);
+        }
+
+        return Utils.sha256(id.toString().getBytes(StandardCharsets.US_ASCII));
     }
 
     abstract byte storeEvent(final EventData eventData);

@@ -1,6 +1,5 @@
 package io.github.social.nostr.relay.service;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -27,7 +26,6 @@ import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
-import io.github.social.nostr.relay.utilities.Utils;
 
 public class EventDocumentDataService extends AbstractEventDataService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
@@ -133,9 +131,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
     }
 
     private String storeReplaceable(final MongoDatabase db, EventData eventData) {
-        final String data = Utils.sha256(
-            (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
-        );
+        final String data = idOf(eventData.getPubkey(), eventData.getKind());
 
         final int now = (int) (System.currentTimeMillis()/1000L);
 
@@ -220,7 +216,8 @@ public class EventDocumentDataService extends AbstractEventDataService {
         final MongoCollection<Document> cacheVersion = db.getCollection("version");
 
         eventsMarkedForDeletion.forEach(eventDoc -> {
-            final Bson removedItemFilter = Filters.eq("id", eventDoc.get("id"));
+            final String eventId = eventDoc.get("id").toString();
+            final Bson removedItemFilter = Filters.eq("id", eventId);
             final DeleteResult result = cacheCurrent.deleteOne(removedItemFilter);
 
             final Document eventVersion = new Document(eventDoc);
@@ -230,10 +227,11 @@ public class EventDocumentDataService extends AbstractEventDataService {
 
             if(result.getDeletedCount() > 0) {
                 cacheVersion.insertOne(eventVersion);
+                logger.info("[MongoDB] event {} has been removed by event deletion {}", eventId, eventDeletion.getId());
             }
         });
 
-        return logger.info("[Event] events related by event {} has been deleted.", eventDeletion.getId());
+        return 0;
     }
 
     EventData acquireEventFromStorageById(final String id) {

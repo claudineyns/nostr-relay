@@ -1,6 +1,5 @@
 package io.github.social.nostr.relay.service;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -15,8 +14,6 @@ import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
-import io.github.social.nostr.relay.utilities.Utils;
-
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.exceptions.JedisException;
@@ -136,9 +133,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
     }
 
     private String storeReplaceable(final Jedis jedis, final EventData eventData) {
-        final String data = Utils.sha256(
-            (eventData.getPubkey()+"#"+eventData.getKind()).getBytes(StandardCharsets.UTF_8)
-        );
+        final String data = idOf(eventData.getPubkey(), eventData.getKind());
 
         final Pipeline pipeline = jedis.pipelined();
 
