@@ -61,7 +61,6 @@ public class NostrService {
 
     private final File directory = new File("/var/nostr/data/");
 
-
     private ExecutorService eventProcessor = Executors.newCachedThreadPool();
 
     private final Map<String, Boolean> subscriptions = new ConcurrentHashMap<>();
@@ -221,6 +220,8 @@ public class NostrService {
 // 
         //     return broadcastClient(context, gson.toJson(response));
         // }
+
+        logger.info("[Nostr] event validation result: {}", validation.getMessage());
 
         if( Boolean.FALSE.equals(validation.getStatus()) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
