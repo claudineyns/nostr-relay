@@ -27,7 +27,6 @@ public class EventValidationService {
 
     public EventValidation validate(final String eventJson) {
         try {
-            System.out.printf("[Nostr] [Special] validate event: %n%s%n", eventJson);
             return scriptValidation(eventJson);
         } catch(IOException f) {
             final EventValidation v = new EventValidation();
@@ -47,6 +46,8 @@ public class EventValidationService {
             .replace("+","-")
             .replace("/","_")
             .replace("=","");
+
+        System.out.printf("[Nostr] [Special] validate event: %n%s%n", base64);
 
         try(final InputStream in = Runtime.getRuntime().exec(new String[] {scriptPath, base64}).getInputStream()) {
             return gson.fromJson(new InputStreamReader(in), EventValidation.class);
