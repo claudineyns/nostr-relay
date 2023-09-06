@@ -66,24 +66,6 @@ public class EventDocumentDataService extends AbstractEventDataService {
         return 0;
     }
 
-    byte storeReplaceable(EventData eventData) {
-        try (final MongoClient client = datasource.connect()) {
-            storeReplaceable(client.getDatabase(DB_NAME), eventData);
-        } catch(Exception e) {
-            logger.warning("[MongoDB] Failure: {}", e.getMessage());
-        }
-
-        return 0;
-    }
-
-    byte storeParameterizedReplaceable(final EventData eventData, final Set<String> idList) {
-        try (final MongoClient client = datasource.connect()) {
-            return storeParameterizedReplaceable(client.getDatabase(DB_NAME), eventData, idList);
-        } catch(Exception e) {
-            return logger.warning("[MongoDB] Failure: {}", e.getMessage());
-        }
-    }
-
     byte removeStoredEvents(final Collection<EventData> events) {
         try (final MongoClient client = datasource.connect()) {
             return removeStoredEvents(client.getDatabase(DB_NAME), events);
@@ -101,70 +83,12 @@ public class EventDocumentDataService extends AbstractEventDataService {
         }
     }
 
-    private String storeEvent(final MongoDatabase db, EventData eventData) {
-        final int now = (int) (System.currentTimeMillis()/1000L);
-
-        final Document eventDoc = Document.parse(eventData.toString());
-        eventDoc.put("_id", eventData.getId());
-
-        final MongoCollection<Document> current = db.getCollection("current");
-        final UpdateResult result = current.replaceOne(Filters.eq("_id", eventData.getId()), eventDoc);
-        if(result.getModifiedCount() == 0) {
-            current.insertOne(eventDoc);
-        }
-
-        final Document eventVersion = new Document(eventDoc);
-        eventVersion.put("_id", UUID.randomUUID().toString());
-        eventVersion.put("_kid", eventData.getId());
-        eventVersion.put("_updated_at", now);
-        eventVersion.put("_status", "inserted");
-
-        final MongoCollection<Document> cacheVersion = db.getCollection("version");
-        cacheVersion.insertOne(eventVersion);
-
-        logger.info("[MongoDB] [Event] event {} saved.", eventData.getId());
-
-        return null;
-    }
-
-    private String storeReplaceable(final MongoDatabase db, EventData eventData) {
-        final String data = idOf(eventData.getPubkey(), eventData.getKind());
-
-        final int now = (int) (System.currentTimeMillis()/1000L);
-
-        final Document eventDoc = Document.parse(eventData.toString());
-        eventDoc.put("_id", data);
-
-        final MongoCollection<Document> cacheCurrent = db.getCollection("current");
-        final UpdateResult result = cacheCurrent.replaceOne(Filters.eq("_id", data), eventDoc);
-        if(result.getModifiedCount() == 0) {
-            cacheCurrent.insertOne(eventDoc);
-        }
-
-        final Document eventVersion = new Document(eventDoc);
-        eventVersion.put("_id", UUID.randomUUID().toString());
-        eventVersion.put("_kid", data);
-        eventVersion.put("_updated_at", now);
-        eventVersion.put("_status", "inserted");
-
-        final MongoCollection<Document> cacheVersion = db.getCollection("version");
-        cacheVersion.insertOne(eventVersion);
-
-        logger.info("[MongoDB] [Replaceable] event {} consumed.", eventData.getId());
-
-        return null;
-    }
-
-    private byte storeParameterizedReplaceable(
-            final MongoDatabase db,
-            final EventData eventData,
-            final Set<String> idList
-    ) {
+    private byte storeEvent(final MongoDatabase db, final EventData eventData) {
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         final Document eventBase = Document.parse(eventData.toString());
 
-        idList.forEach(paramId -> {
+        eventData.storableIds().forEach(paramId -> {
             final Document eventDoc = new Document(eventBase);
             eventDoc.put("_id", paramId);
 
@@ -226,7 +150,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
         }
     }
 
-    Collection<EventData> acquireEventsFromStorageByIdSet(Set<String> set) {
+    Collection<EventData> acquireEventsFromStorageByIds(Set<String> set) {
         try (final MongoClient client = datasource.connect()) {
             return set
                 .stream()
