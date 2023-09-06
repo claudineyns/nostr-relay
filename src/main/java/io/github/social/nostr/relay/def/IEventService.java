@@ -16,17 +16,15 @@ public interface IEventService {
 
     byte persistEvent(final EventData eventData);
 
+    EventData getEvent(final String storedId);
+
+    Collection<EventData> getEvents(Set<String> storedIds);
+
     byte removeEvents(final Collection<EventData> events);
 
     byte fetchActiveEvents(final Collection<EventData> events);
 
-    boolean hasEvent(final EventData eventData);
-
     boolean checkRequestForRemoval(final EventData eventData);
-
-    EventData getEvent(final String storedId);
-
-    Collection<EventData> getEvents(Set<String> storedIds);
 
     byte close();
 }

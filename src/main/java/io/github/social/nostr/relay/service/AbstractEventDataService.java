@@ -1,6 +1,5 @@
 package io.github.social.nostr.relay.service;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -18,7 +17,6 @@ import com.google.gson.GsonBuilder;
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
-import io.github.social.nostr.relay.utilities.Utils;
 
 public abstract class AbstractEventDataService implements IEventService {
     
@@ -46,39 +44,12 @@ public abstract class AbstractEventDataService implements IEventService {
         return 0;
     }
 
-    public String persistParameterizedReplaceable(final EventData eventData) {
-
-        this.putCache(eventData);
-
-        final Thread task = new Thread(() -> storeParameterizedReplaceable(eventData, eventData.storableIds()));
-        task.setDaemon(true);
-        this.cacheTask.submit(task);
-
-        return null;
-    }
-
-    public String persistParameterizedReplaceable(final EventData eventData, final Set<String> paramIdList) {
-        if(paramIdList.isEmpty()) {
-            return "invalid: event is outdated";
-        }
-
-        synchronized(cached) {
-            paramIdList.stream().forEach(id -> cached.put(id, eventData));
-        }
-
-        final Thread task = new Thread(() -> storeParameterizedReplaceable(eventData, paramIdList));
-        task.setDaemon(true);
-        this.cacheTask.submit(task);
-
-        return null;
-    }
-
     public byte removeEvents(final Collection<EventData> events) {
         synchronized(cached) {
             events.stream().map(event -> event.getId()).forEach(cached::remove);
         }
 
-        final Thread task = new Thread(() -> removeStoredEvents(events, events));
+        final Thread task = new Thread(() -> removeStoredEvents(events));
         task.setDaemon(true);
         this.cacheTask.submit(task);
 
@@ -100,32 +71,12 @@ public abstract class AbstractEventDataService implements IEventService {
         return 0;
     }
 
-    public EventData getRegular(final String eventId) {
-        return this.acquireEventFromStorageById(eventId);
+    public EventData getEvent(final String storedId) {
+        return this.acquireEventFromStorageById(storedId);
     }
 
-    public EventData getReplaceable(final String pubkey, final int kind) {
-        final String replaceable = Utils.sha256((pubkey+"#"+kind).getBytes(StandardCharsets.UTF_8));
-
-        return this.acquireEventFromStorageById(replaceable);
-    }
-
-    public Collection<EventData> getParameterizedReplaceable(
-            final String pubkey,
-            final int kind,
-            final Set<String> param
-        ) {
-
-        final Set<String> set = param
-            .stream()
-            .map(item -> idOf(pubkey, kind, item))
-            .collect(Collectors.toSet());
-
-        return this.acquireEventsFromStorageByIdSet(set);
-    }
-
-    public boolean hasEvent(final EventData eventData) {
-        return this.getRegular(eventData.getId()) != null;
+    public Collection<EventData> getParameterizedReplaceable(final Set<String> storedIds) {
+        return this.acquireEventsFromStorageByIdSet(storedIds);
     }
 
     public boolean checkRequestForRemoval(final EventData eventData) {
