@@ -249,7 +249,7 @@ public class NostrService {
         }
 
         if( eventData.getKind() == EventKind.DELETION ) {
-            eventService.deletionRequestEvent(eventData);
+            this.eventProcessor.submit(()->this.removeRelatedEvents(eventData));
         }
 
         return 0;
@@ -370,6 +370,22 @@ public class NostrService {
 
     private String consumeEphemeralEvent(final EventData eventJson) {
         return null;
+    }
+    
+    private byte removeRelatedEvents(final EventData eventData) {
+        final Collection<EventData> events = new ArrayList<>();
+        eventService.fetchActiveEvents(events);
+
+        final Collection<EventData> eventsForRemoval = events
+            .stream()
+            .filter(event -> eventData.getReferencedEventList().contains(event.getId()))
+            .filter(event -> EventState.REGULAR.equals(event.getState()))
+            .filter(event -> event.getKind() != EventKind.DELETION)
+            .collect(Collectors.toList());
+
+        eventService.removeEvents(eventsForRemoval);
+
+        return 0;
     }
 
     private boolean checkAuthentication(final WebsocketContext context, final EventData eventData) {

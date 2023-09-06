@@ -22,7 +22,7 @@ public interface IEventService {
 
     String persistParameterizedReplaceable(final EventData eventData, final Set<String> paramIdList);
 
-    byte deletionRequestEvent(final EventData eventData);
+    byte removeEvents(final Collection<EventData> events);
 
     byte fetchActiveEvents(final Collection<EventData> events);
 

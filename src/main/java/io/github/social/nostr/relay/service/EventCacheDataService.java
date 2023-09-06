@@ -12,7 +12,6 @@ import com.google.gson.Gson;
 import io.github.social.nostr.relay.datasource.CacheDS;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
-import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
@@ -70,9 +69,9 @@ public final class EventCacheDataService extends AbstractEventDataService {
         }
     }
 
-    byte removeLinkedEvents(EventData eventDeletion) {
+    byte removeStoredEvents(Collection<EventData> events) {
         try (final Jedis jedis = cache.connect()) {
-            return removeEvents(jedis, eventDeletion);
+            return removeStoredEvents(jedis, events);
         } catch(JedisException e) {
             return logger.warning("[Redis] Failure: {}", e.getMessage());
         }
@@ -184,21 +183,8 @@ public final class EventCacheDataService extends AbstractEventDataService {
 
         return 0;
     }
-    
-    private byte removeEvents(final Jedis jedis, final EventData eventDeletion) {
-        final Gson gson = gsonBuilder.create();
 
-        final Collection<EventData> events = jedis.smembers("regular")
-            .stream()
-            .map(eventId -> jedis.hgetAll("current#"+eventId))
-            .filter(eventMap -> eventMap != null)
-            .filter(eventMap -> "inserted".equals(eventMap.get("status")))
-            .map(eventMap -> EventData.gsonEngine(gson, eventMap.get("payload")))
-            .filter(eventData -> EventState.REGULAR.equals(eventData.getState()))
-            .filter(eventData -> eventDeletion.getPubkey().equals(eventData.getPubkey()))
-            .filter(eventData -> EventKind.DELETION != eventData.getKind() )
-            .collect(Collectors.toList());
-
+    private byte removeStoredEvents(final Jedis jedis, final Collection<EventData> events) {
         final Pipeline pipeline = jedis.pipelined();
 
         events.forEach(eventData -> {
@@ -212,7 +198,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
             pipeline.srem("idList", eventData.getId());
             pipeline.hset(currentKey, currentData);
 
-            logger.info("[Redis] event {} has been removed by event deletion {}",  eventData.getId(), eventDeletion.getId());
+            logger.info("[Redis] event {} has been removed",  eventData.getId());
         });
 
         pipeline.sync();

@@ -17,8 +17,6 @@ import java.util.stream.Collectors;
 import com.google.gson.Gson;
 import io.github.social.nostr.relay.datasource.DocumentDS;
 import io.github.social.nostr.relay.specs.EventData;
-import io.github.social.nostr.relay.specs.EventKind;
-import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
 
 public class EventLocalStorageDataService extends AbstractEventDataService {
@@ -124,45 +122,19 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         return 0;
     }
 
-    byte removeLinkedEvents(EventData eventDeletion) {
-        final Gson gson = gsonBuilder.create();
-
+    byte removeStoredEvents(final Collection<EventData> events) {
         final long now = System.currentTimeMillis();
 
         final File currentDB = new File(BASE_DIR, "/current");
-        if(!currentDB.exists()) currentDB.mkdirs();
-
-        final Collection<EventData> eventsMarkedForDeletion = new ArrayList<>();
-
-        currentDB.listFiles(new FileFilter() {
-            public boolean accept(File pathname) {
-                if(!pathname.isFile()) return false;
-
-                try(final InputStream in = new FileInputStream(pathname)) {
-                    final EventData eventData = EventData.gsonEngine(gson, in);
-
-                    final String qAuthorId = eventData.getPubkey();
-                    final int qEventKind   = eventData.getKind();
-                    final EventState state = EventState.byKind(qEventKind);
-
-                    if( EventState.REGULAR.equals(state) 
-                            && qEventKind != EventKind.DELETION
-                            && qAuthorId.equals(eventDeletion.getPubkey())
-                    ) {
-                        eventsMarkedForDeletion.add(eventData);
-                    }
-
-                } catch(IOException failure) { /***/ }
-
-                return false;
-            }
-        });
+        if(!currentDB.exists()) return 0;
 
         final File versionDB = new File(BASE_DIR, "/version");
         if(!versionDB.exists()) versionDB.mkdirs();
 
         final int[] counter = new int[] {0};
-        eventsMarkedForDeletion.forEach(eventData -> {
+        events.forEach(eventData -> {
+            if( !new File(currentDB, eventData.getId()).delete() ) return;
+
             counter[0]++;
             final File versionData = new File(versionDB, "data-"+now+"-"+counter[0]+"-deleted");
             try(final OutputStream out = new FileOutputStream(versionData)) {

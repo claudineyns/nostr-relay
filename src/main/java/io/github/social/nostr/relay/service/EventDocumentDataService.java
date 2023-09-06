@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -23,8 +22,6 @@ import com.mongodb.client.result.UpdateResult;
 
 import io.github.social.nostr.relay.datasource.DocumentDS;
 import io.github.social.nostr.relay.specs.EventData;
-import io.github.social.nostr.relay.specs.EventKind;
-import io.github.social.nostr.relay.specs.EventState;
 import io.github.social.nostr.relay.utilities.LogService;
 
 public class EventDocumentDataService extends AbstractEventDataService {
@@ -87,9 +84,9 @@ public class EventDocumentDataService extends AbstractEventDataService {
         }
     }
 
-    byte removeLinkedEvents(EventData eventDeletion) {
+    byte removeStoredEvents(final Collection<EventData> events) {
         try (final MongoClient client = datasource.connect()) {
-            return removeEventsFromStorage(client.getDatabase(DB_NAME), eventDeletion);
+            return removeStoredEvents(client.getDatabase(DB_NAME), events);
         } catch(Exception e) {
             return logger.warning("[MongoDB] Failure: {}", e.getMessage());
         }
@@ -190,46 +187,32 @@ public class EventDocumentDataService extends AbstractEventDataService {
         return logger.info("[MongoDB] [Parameter] event {} consumed.", eventData.getId());
     }
     
-    private byte removeEventsFromStorage(final MongoDatabase db, EventData eventDeletion) {
+    private byte removeStoredEvents(final MongoDatabase db, final Collection<EventData> events) {
         final int now = (int) (System.currentTimeMillis()/1000L);
-
-        final List<Document> eventsMarkedForDeletion = new ArrayList<>();
 
         final MongoCollection<Document> cacheCurrent = db.getCollection("current");
 
-        final Bson removalListFilter = Filters.in("id", eventDeletion.getReferencedEventList());
-        try(final MongoCursor<Document> cursor = cacheCurrent.find(removalListFilter).cursor()) {
-            cursor.forEachRemaining(eventDoc -> {
-                final String qAuthorId = eventDoc.get("pubkey").toString();
-                final int qEventKind   = Integer.parseInt(eventDoc.get("kind").toString());
-                final EventState state = EventState.byKind(qEventKind);
-
-                if( EventState.REGULAR.equals(state) 
-                        && qEventKind != EventKind.DELETION
-                        && qAuthorId.equals(eventDeletion.getPubkey())
-                ) {
-                    eventsMarkedForDeletion.add(eventDoc);
-                }
-            });
-        }
-
         final MongoCollection<Document> cacheVersion = db.getCollection("version");
 
-        eventsMarkedForDeletion.forEach(eventDoc -> {
-            final String eventId = eventDoc.get("id").toString();
-            final Bson removedItemFilter = Filters.eq("id", eventId);
-            final DeleteResult result = cacheCurrent.deleteOne(removedItemFilter);
+        events
+            .stream()
+            .map(event -> cacheCurrent.find(Filters.eq("id", event.getId())).first() )
+            .filter(eventDoc -> eventDoc != null)
+            .forEach(eventDoc -> {
+                final String eventId = eventDoc.get("id").toString();
+                final Bson removedItemFilter = Filters.eq("id", eventId);
+                final DeleteResult result = cacheCurrent.deleteOne(removedItemFilter);
 
-            final Document eventVersion = new Document(eventDoc);
-            eventVersion.put("_id", UUID.randomUUID().toString());
-            eventVersion.put("_status", "deleted");
-            eventVersion.put("_updated_at", now);
+                final Document eventVersion = new Document(eventDoc);
+                eventVersion.put("_id", UUID.randomUUID().toString());
+                eventVersion.put("_status", "deleted");
+                eventVersion.put("_updated_at", now);
 
-            if(result.getDeletedCount() > 0) {
-                cacheVersion.insertOne(eventVersion);
-                logger.info("[MongoDB] event {} has been removed by event deletion {}", eventId, eventDeletion.getId());
-            }
-        });
+                if(result.getDeletedCount() > 0) {
+                    cacheVersion.insertOne(eventVersion);
+                    logger.info("[MongoDB] event {} has been removed", eventId);
+                }
+            });
 
         return 0;
     }

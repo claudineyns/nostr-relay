@@ -80,8 +80,8 @@ public abstract class AbstractEventDataService implements IEventService {
         return null;
     }
 
-    public byte deletionRequestEvent(final EventData eventData) {
-        final Thread task = new Thread(() -> removeLinkedEvents(eventData));
+    public byte removeEvents(final Collection<EventData> events) {
+        final Thread task = new Thread(() -> removeStoredEvents(events));
         task.setDaemon(true);
         this.cacheTask.submit(task);
 
@@ -190,7 +190,7 @@ public abstract class AbstractEventDataService implements IEventService {
 
     abstract byte storeParameterizedReplaceable(final EventData eventData, final Set<String> idList);
 
-    abstract byte removeLinkedEvents(EventData eventDeletion);
+    abstract byte removeStoredEvents(Collection<EventData> events);
 
     abstract Collection<EventData> acquireListFromStorage();
 
