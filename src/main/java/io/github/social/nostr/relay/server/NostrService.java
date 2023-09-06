@@ -222,8 +222,13 @@ public class NostrService {
         }
 
         logger.info("[Nostr] check event signature");
+        if(validation == null) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "error: could not validate event signature"));
+
+            return broadcastClient(context, gson.toJson(response));
+        }
+
         if( ! Boolean.TRUE.equals(validation.getStatus()) ) {
-            logger.info("[Nostr] event failed");
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
 
             return broadcastClient(context, gson.toJson(response));
