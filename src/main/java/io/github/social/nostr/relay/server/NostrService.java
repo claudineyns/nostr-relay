@@ -216,7 +216,7 @@ public class NostrService {
 
         final boolean isRegistered = eventService.isRegistered(eventData);
         if( !isRegistered ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "blocked: Please register yourself at https://registration.notes.social"));
+            response.addAll(Arrays.asList(Boolean.FALSE, "blocked: Please register yourself at https://register.notes.social"));
 
             return broadcastClient(context, gson.toJson(response));
         }

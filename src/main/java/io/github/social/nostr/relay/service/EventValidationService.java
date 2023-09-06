@@ -31,7 +31,7 @@ public class EventValidationService {
         } catch(IOException f) {
             final EventValidation v = new EventValidation();
             v.setStatus(Boolean.FALSE);
-            v.setMessage("Could not validate event");
+            v.setMessage("Unable to validate event signature");
             return v;
         }
 
@@ -46,8 +46,6 @@ public class EventValidationService {
             .replace("+","-")
             .replace("/","_")
             .replace("=","");
-
-        System.out.printf("[Nostr] [Special] validate event: %n%s%n", base64);
 
         try(final InputStream in = Runtime.getRuntime().exec(new String[] {scriptPath, base64}).getInputStream()) {
             return gson.fromJson(new InputStreamReader(in), EventValidation.class);
