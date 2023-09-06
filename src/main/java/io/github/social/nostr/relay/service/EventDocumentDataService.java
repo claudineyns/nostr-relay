@@ -250,6 +250,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
             return set
                 .stream()
                 .map(id -> acquireEventFromStorageById(client.getDatabase(DB_NAME), id))
+                .filter(event -> event != null)
                 .collect(Collectors.toList());
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());

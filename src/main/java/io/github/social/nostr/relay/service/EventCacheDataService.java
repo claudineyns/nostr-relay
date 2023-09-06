@@ -104,6 +104,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
             return set
                 .stream()
                 .map(id -> acquireEventFromStorageById(jedis, id))
+                .filter(event -> event != null)
                 .collect(Collectors.toList());
         } catch(JedisException e) {
              logger.warning("[Redis] Failure: {}", e.getMessage());

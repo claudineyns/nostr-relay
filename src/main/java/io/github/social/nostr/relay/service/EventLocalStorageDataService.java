@@ -219,7 +219,11 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
     }
 
     Collection<EventData> acquireEventsFromStorageByIdSet(Set<String> set) {
-        return set.stream().map(id -> acquireEventFromStorageById(id)).collect(Collectors.toList());
+        return set
+            .stream()
+            .map(id -> acquireEventFromStorageById(id))
+            .filter(event -> event != null)
+            .collect(Collectors.toList());
     }
 
     public byte close() {
