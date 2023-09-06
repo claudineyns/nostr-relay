@@ -425,16 +425,13 @@ public class NostrService {
 
     private String persistReplaceable(final EventData eventData) {
         final EventData currentEvent = eventService.getReplaceable(eventData.getPubkey(), eventData.getKind());
-        final int currentCreatedAt = Optional.ofNullable(currentEvent.getCreatedAt()).orElseGet(()->0);
+        final int currentCreatedAt = currentEvent != null ? currentEvent.getCreatedAt() : 0;
 
-        logger.info("[Nostr] check created_at");
         if( eventData.getCreatedAt() <= currentCreatedAt ) {
             return "invalid: event is outdated";
         }
 
-        logger.info("[Nostr] storing replaceable event in datasource");
         eventService.persistReplaceable(eventData);
-        logger.info("[Nostr] replaceable event stored successfully");
 
         return null;
     }
