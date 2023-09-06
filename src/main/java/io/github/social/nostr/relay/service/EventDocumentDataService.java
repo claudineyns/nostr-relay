@@ -38,10 +38,13 @@ public class EventDocumentDataService extends AbstractEventDataService {
 
     public boolean isRegistered(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
+            logger.warning("[MongoDB] Check registration");
             return validateRegistration(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
             return false;
+        } finally {
+            logger.warning("[MongoDB] Registration check completed");
         }
     }
 
