@@ -15,9 +15,11 @@ import com.google.gson.JsonSyntaxException;
 
 import io.github.social.nostr.relay.dto.EventValidation;
 import io.github.social.nostr.relay.utilities.AppProperties;
+import io.github.social.nostr.relay.utilities.LogService;
 
 @SuppressWarnings("unused")
 public class EventValidationService {
+    private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     final String scriptPath = AppProperties.getNostrEventScriptpath();
     final GsonBuilder gsonBuilder = new GsonBuilder();
@@ -37,10 +39,13 @@ public class EventValidationService {
     private EventValidation scriptValidation(final String eventJson) throws IOException {
         final Gson gson = gsonBuilder.create();
 
+        logger.info("[Nostr] validate event");
         try(final InputStream in = Runtime.getRuntime().exec(new String[] {scriptPath, eventJson}).getInputStream()) {
             return gson.fromJson(new InputStreamReader(in), EventValidation.class);
         } catch(JsonParseException failure) {
             throw new IOException(failure.getMessage());
+        } finally {
+            logger.info("[Nostr] Event validated");
         }
     }
 
