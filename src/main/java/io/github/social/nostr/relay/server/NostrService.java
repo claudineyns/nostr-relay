@@ -44,6 +44,7 @@ import com.google.gson.JsonParseException;
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.dto.EventValidation;
 import io.github.social.nostr.relay.service.EventCacheDataService;
+import io.github.social.nostr.relay.service.EventValidationService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.specs.EventState;
@@ -56,11 +57,10 @@ import io.github.social.nostr.relay.websocket.TextMessage;
 public class NostrService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
     private final IEventService eventService = IEventService.INSTANCE;
+    private final EventValidationService eventValidationService = new EventValidationService();
 
     private final File directory = new File("/var/nostr/data/");
 
-    private final String validationHost = AppProperties.getEventValidationHost();
-    private final int validationPort = AppProperties.getEventValidationPort();
 
     private ExecutorService eventProcessor = Executors.newCachedThreadPool();
 
@@ -464,34 +464,7 @@ public class NostrService {
     }
 
     private EventValidation validate(final String eventJson) throws IOException {
-        final Gson gson = gsonBuilder.create();
-
-        final URL url = new URL("http://"+validationHost+":"+validationPort+"/event");
-        final HttpURLConnection http = (HttpURLConnection) url.openConnection();
-
-        http.setRequestMethod("POST");
-        http.setDoInput(true);
-        http.setDoOutput(true);
-        http.setInstanceFollowRedirects(false);
-
-        final byte[] raw = eventJson.getBytes(StandardCharsets.UTF_8);
-
-        http.setRequestProperty("Content-Type", "application/json");
-        http.setRequestProperty("Content-Length", String.valueOf(raw.length));
-        http.setRequestProperty("Connection", "close");
-
-        final OutputStream out = http.getOutputStream();
-        out.write(raw);
-        out.flush();
-
-        final InputStream in = http.getInputStream();
-        final EventValidation validation = gson.fromJson(
-            new InputStreamReader(in),
-            EventValidation.class);
-      
-        http.disconnect();
-
-        return validation;
+        return this.eventValidationService.validate(eventJson);
     }
 
     private byte fetchEventsFromDB(final WebsocketContext context, final List<EventData> events) {

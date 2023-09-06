@@ -148,6 +148,13 @@ public final class AppProperties {
 			);
 	}
 
+	public static String getNostrEventScriptpath() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_EVENT_SCRIPT_PATH),
+				System.getenv(Constants.ENV_EVENT_SCRIPT_PATH)
+			);
+	}
+
 	private static final String DEFAULT_HOST_NAME;
 	
 	static {
