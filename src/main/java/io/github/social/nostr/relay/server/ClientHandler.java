@@ -47,6 +47,7 @@ import io.github.social.nostr.relay.websocket.WebsocketException;
 
 import static io.github.social.nostr.relay.utilities.Utils.secWebsocketAccept;
 
+@SuppressWarnings("unused")
 public class ClientHandler implements Runnable {
 	private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 

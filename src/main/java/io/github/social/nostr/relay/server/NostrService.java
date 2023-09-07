@@ -161,6 +161,8 @@ public class NostrService {
     private byte handleEvent(final WebsocketContext context, final JsonArray nostrMessage) {
         final Gson gson = gsonBuilder.create();
 
+        logger.info("[Nostr] start to validate event");
+
         final EventData eventData;
         final EventValidation validation;
         try {
@@ -212,6 +214,8 @@ public class NostrService {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
             return broadcastClient(context, gson.toJson(response));
         }
+
+        logger.info("[Nostr] event validation completed");
 
         boolean ok = true;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
