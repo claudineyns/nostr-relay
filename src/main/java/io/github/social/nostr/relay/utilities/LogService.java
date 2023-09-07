@@ -1,9 +1,9 @@
 package io.github.social.nostr.relay.utilities;
 
-import java.io.BufferedOutputStream;
+import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -101,8 +101,9 @@ public final class LogService {
 		}
 	}
 
-	final BufferedOutputStream bufferedOut = new BufferedOutputStream(System.out);
-	final BufferedOutputStream bufferedErr = new BufferedOutputStream(System.err);
+
+	final BufferedWriter bufferedOut = new BufferedWriter(new OutputStreamWriter(System.out));
+	final BufferedWriter bufferedErr = new BufferedWriter(new OutputStreamWriter(System.err));
 	
 	private byte printOut(final String message) {
 		return print(bufferedOut, message);
@@ -112,11 +113,11 @@ public final class LogService {
 		return print(bufferedErr, message);
 	}
 
-	// private byte print(final PrintStream writer, final String message) {
-	private byte print(final OutputStream writer, final String message) {
+	//private byte print(final PrintStream writer, final String message) {
+	private byte print(final Writer writer, final String message) {
 		//writer.print(message);
 		try {
-			writer.write(message.getBytes(StandardCharsets.UTF_8));
+			writer.write(message);
 		} catch (IOException e) { /***/ }
 
 		return 0;
