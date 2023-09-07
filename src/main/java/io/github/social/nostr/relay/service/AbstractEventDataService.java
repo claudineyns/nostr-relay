@@ -122,7 +122,7 @@ public abstract class AbstractEventDataService implements IEventService {
                 });
         }
 
-        return logger.info("[DataSource] Cache refreshed.");
+        return 0;
     }
 
     private byte refreshRegistration() {
@@ -131,7 +131,7 @@ public abstract class AbstractEventDataService implements IEventService {
             registration.addAll(this.acquireRegistrationFromStorage());
         }
 
-        return logger.info("[DataSource] Registration refreshed.");
+        return 0;
     }
 
     private Collection<EventData> fetchEventsFromDatasource() {
