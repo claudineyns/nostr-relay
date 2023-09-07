@@ -1,6 +1,5 @@
 package io.github.social.nostr.relay.server;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -508,7 +507,6 @@ public class NostrService {
 
         final List<EventData> selectedEvents = new ArrayList<>();
 
-        fetchFilters:
         for(final JsonObject entry: filters) {
             boolean emptyFilter = true;
 
