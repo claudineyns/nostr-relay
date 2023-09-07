@@ -235,7 +235,7 @@ public class NostrService {
 
         boolean ok = true;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
-            this.persistEvent(eventData);
+            this.persistRegular(eventData);
         } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
             this.persistReplaceable(eventData);
         } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
@@ -426,14 +426,12 @@ public class NostrService {
         return this.broadcastClient(context, auth);
     }
 
-    private String persistEvent(final EventData eventData) {
-        if (EventState.REGULAR.equals(eventData.getState())) {
-            if ( eventService.getEvent(eventData.getId()) != null ) {
-                return "duplicate: event has already been stored.";
-            }
-            if( eventService.checkRequestForRemoval(eventData) ) {
-                return "invalid: this event has already been requested to be removed from this relay.";
-            }
+    private String persistRegular(final EventData eventData) {
+        if ( eventService.getEvent(eventData.getId()) != null ) {
+            return "duplicate: event has already been stored.";
+        }
+        if( eventService.checkRequestForRemoval(eventData) ) {
+            return "invalid: this event has already been requested to be removed from this relay.";
         }
 
         this.eventProcessor.submit(() -> eventService.persistEvent(eventData));
