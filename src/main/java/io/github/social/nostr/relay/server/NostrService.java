@@ -81,7 +81,7 @@ public class NostrService {
     private final int port = AppProperties.getPort();
 
     NostrService() {
-        eventService.fetchActiveEvents(new ArrayList<>());
+        eventService.start();
         logger.info("[Nostr] cache loaded");
     }
 
@@ -436,7 +436,7 @@ public class NostrService {
             }
         }
 
-        eventService.persistEvent(eventData);
+        this.eventProcessor.submit(() -> eventService.persistEvent(eventData));
         return null;
     }
 
@@ -459,8 +459,7 @@ public class NostrService {
             return "invalid: event is outdated";
         }
 
-        eventService.persistEvent(eventData);
-
+        this.eventProcessor.submit(() -> eventService.persistEvent(eventData));
         return null;
     }
 
@@ -485,7 +484,7 @@ public class NostrService {
             return "invalid: event is outdated";
         }
 
-        eventService.persistEvent(eventData);
+        this.eventProcessor.submit(() -> eventService.persistEvent(eventData));
         return null;
     }
 

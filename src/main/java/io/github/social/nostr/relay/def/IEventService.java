@@ -12,6 +12,8 @@ public interface IEventService {
 
     public static final IEventService INSTANCE = new EventDocumentDataService();
 
+    byte start();
+
     boolean isRegistered(final EventData eventData);
 
     byte persistEvent(final EventData eventData);

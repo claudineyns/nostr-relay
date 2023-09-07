@@ -18,6 +18,7 @@ import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
 
+@SuppressWarnings("unused")
 public abstract class AbstractEventDataService implements IEventService {
     
     protected final GsonBuilder gsonBuilder = new GsonBuilder();
@@ -25,10 +26,31 @@ public abstract class AbstractEventDataService implements IEventService {
     protected final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
 
     private final Map<String, EventData> cached = new HashMap<>();
+    private final Map<String, EventData> deletion = new HashMap<>();
+
+    public byte start() {
+        synchronized(cached) {
+            fetchEventsFromDatasource()
+                .stream()
+                .forEach(event ->  {
+                    if( EventKind.DELETION == event.getKind() )  {
+                        deletion.put(event.getId(), event);
+                    } else {
+                        event.storableIds().forEach(id -> cached.put(id, event));
+                    }
+                });
+        }
+
+        return 0;
+    }
 
     private byte putCache(final EventData eventData) {
         synchronized(cached) {
-            eventData.storableIds().forEach(id -> cached.put(id, eventData));
+            if(eventData.getKind() == EventKind.DELETION) {
+                deletion.putIfAbsent(eventData.getId(), eventData);
+            } else {
+                eventData.storableIds().forEach(id -> cached.put(id, eventData));
+            }
         }
 
         return 0;
@@ -56,26 +78,18 @@ public abstract class AbstractEventDataService implements IEventService {
         return 0;
     }
 
-    private boolean preloaded = false;
     public byte fetchActiveEvents(final Collection<EventData> events) {
-        synchronized(cached) {
-            if( !preloaded ) {
-                fetchEventsFromDatasource()
-                    .stream()
-                    .filter(event -> EventKind.DELETION != event.getKind())
-                    .forEach(event -> event.storableIds().forEach(id -> cached.put(id, event)));
-
-                preloaded = true;
-            }
-        }
-
         events.addAll( cached.values().stream().sorted().collect(Collectors.toList()) );
 
         return 0;
     }
 
     public EventData getEvent(final String storedId) {
-        return this.acquireEventFromStorageById(storedId);
+        // return this.acquireEventFromStorageById(storedId);
+
+        synchronized(cached) {
+            return cached.get(storedId);
+        }
     }
 
     public Collection<EventData> getEvents(final Set<String> storedIds) {
@@ -83,11 +97,18 @@ public abstract class AbstractEventDataService implements IEventService {
     }
 
     public boolean checkRequestForRemoval(final EventData eventData) {
-        return this.fetchDeletionEvents()
-            .stream()
-            .filter(event -> EventKind.DELETION == event.getKind())
-            .filter(event -> event.getReferencedEventList().contains(eventData.getId()))
-            .count() > 0;
+        // return this.fetchDeletionEvents()
+        //     .stream()
+        //     .filter(event -> EventKind.DELETION == event.getKind())
+        //     .filter(event -> event.getReferencedEventList().contains(eventData.getId()))
+        //     .count() > 0;
+
+        synchronized(cached) {
+            return this.deletion.values()
+                .stream()
+                .filter(event -> event.getReferencedEventList().contains(eventData.getId()))
+                .count() > 0;
+        }
     }
 
     private Collection<EventData> fetchEventsFromDatasource() {
