@@ -186,7 +186,7 @@ public class NostrService {
         }
 
         if( eventData.getCreatedAt() > (currentTime + 600) ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event 'created_at' field is out of the acceptable range (, +10min) for this relay"));
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event 'created_at' field is out of the acceptable range (+10min) for this relay"));
             return broadcastClient(context, gson.toJson(response));
         }
 
@@ -217,6 +217,9 @@ public class NostrService {
 
         logger.info("[Nostr] event validation completed");
 
+        response.addAll(Arrays.asList(Boolean.TRUE, ""));
+        this.broadcastClient(context, gson.toJson(response));
+
         boolean ok = true;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
             this.persistRegular(eventData);
@@ -231,13 +234,7 @@ public class NostrService {
         }
 
         if( ok ){
-            response.addAll(Arrays.asList(Boolean.TRUE, ""));
-            this.broadcastClient(context, gson.toJson(response));
-
             this.broadcastNewEvent(context, gson, eventData);
-        } else {
-            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: event kind unknown."));
-            this.broadcastClient(context, gson.toJson(response));
         }
 
         if( eventData.getKind() == EventKind.DELETION ) {
