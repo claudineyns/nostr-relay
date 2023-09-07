@@ -219,19 +219,26 @@ public class NostrService {
         this.broadcastClient(context, gson.toJson(response));
 
         boolean ok = true;
+
+        final String responseText;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
-            this.persistRegular(eventData);
+            responseText = this.persistRegular(eventData);
         } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
-            this.persistReplaceable(eventData);
+            responseText = this.persistReplaceable(eventData);
         } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
-            this.persistParameterizedReplaceable(eventData);
+            responseText = this.persistParameterizedReplaceable(eventData);
         } else if( EventState.EPHEMERAL.equals(eventData.getState()) ) {
-            consumeEphemeralEvent(eventData);
+            responseText = consumeEphemeralEvent(eventData);
         } else {
+            responseText = null;
             ok = false;
         }
 
-        if( ok ){
+        if( responseText != null ) {
+            logger.info("[Nostr] [Event] {}", responseText);
+        }
+
+        if( ok && responseText == null ){
             this.broadcastNewEvent(context, gson, eventData);
         }
 
