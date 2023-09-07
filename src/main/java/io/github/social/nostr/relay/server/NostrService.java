@@ -646,10 +646,12 @@ public class NostrService {
                 selectedEvents.stream().map(event -> event.toJson()).collect(Collectors.toList())
             );
 
-            this.broadcastClient(context, gson.toJson(subscriptionResponse));
+            final String response = gson.toJson(subscriptionResponse);
+            this.broadcastSubscriptionData(context, subscriptionId, response);
         }
 
-        this.broadcastClient(context, gson.toJson(Arrays.asList("EOSE", subscriptionId)));
+        final String eose = gson.toJson(Arrays.asList("EOSE", subscriptionId));
+        this.broadcastSubscriptionData(context, subscriptionId, eose);
 
         if( notifyUnauthUsers ) {
             this.broadcastClient(context, gson.toJson(Arrays.asList("NOTICE", "restricted: some kind of events cannot be served by this relay to unauthenticated users, does your client implement NIP-42?")));
@@ -657,6 +659,16 @@ public class NostrService {
         }
 
         return 0;
+    }
+
+    private byte broadcastSubscriptionData(
+            final WebsocketContext context,
+            final String subscriptionId,
+            final String data
+    ) {
+        final String subscriptionKey = subscriptionId+":"+context.getContextID();
+
+        return this.subscriptions.containsKey(subscriptionKey) ? this.broadcastClient(context, data) : 0;
     }
 
     private void broadcastNewEvent(
