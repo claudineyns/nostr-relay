@@ -22,7 +22,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
 
     private final CacheDS cache = CacheDS.INSTANCE;
 
-    public boolean isRegistered(final EventData eventData) {
+    boolean validateRegistration(final EventData eventData) {
         try (final Jedis jedis = cache.connect()) {
             return validateRegistration(jedis, eventData);
         } catch(JedisException e) {
@@ -31,7 +31,16 @@ public final class EventCacheDataService extends AbstractEventDataService {
         }
     }
 
-    private boolean validateRegistration(final Jedis jedis, final EventData eventData) {
+    Set<String> acquireRegistrationFromStorage() {
+        try (final Jedis jedis = cache.connect()) {
+            return jedis.smembers("registration");
+        } catch(JedisException e) {
+            logger.warning("[Redis] Could not fetch registrations: {}", e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
+    boolean validateRegistration(final Jedis jedis, final EventData eventData) {
         final Set<String> registration = jedis.smembers("registration");
         if(registration.contains(eventData.getPubkey())) return true;
 
@@ -41,6 +50,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
 
         return false;
     }
+
 
     byte storeEvent(final EventData eventData) {
         try (final Jedis jedis = cache.connect()) {

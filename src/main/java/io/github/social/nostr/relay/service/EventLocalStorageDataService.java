@@ -26,8 +26,12 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
 
     static final String DB_NAME = DocumentDS.DB_NAME;
 
-    public boolean isRegistered(final EventData eventData) {
+    boolean validateRegistration(final EventData eventData) {
         return false;
+    }
+
+    Set<String> acquireRegistrationFromStorage() {
+        return Collections.emptySet();
     }
 
     byte storeEvent(final EventData eventData) {

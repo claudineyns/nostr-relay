@@ -25,6 +25,7 @@ public abstract class AbstractEventDataService implements IEventService {
 
     protected final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
 
+    private final Set<String> registration = new HashSet<>();
     private final Map<String, EventData> cached = new HashMap<>();
     private final Map<String, EventData> deletion = new HashMap<>();
 
@@ -44,16 +45,8 @@ public abstract class AbstractEventDataService implements IEventService {
         return 0;
     }
 
-    private byte putCache(final EventData eventData) {
-        synchronized(cached) {
-            if(eventData.getKind() == EventKind.DELETION) {
-                deletion.putIfAbsent(eventData.getId(), eventData);
-            } else {
-                eventData.storableIds().forEach(id -> cached.put(id, eventData));
-            }
-        }
-
-        return 0;
+    public boolean isRegistered(final EventData eventData) {
+        return this.validateRegistration(eventData);
     }
 
     public final byte persistEvent(final EventData eventData) {
@@ -139,6 +132,22 @@ public abstract class AbstractEventDataService implements IEventService {
             .filter(eventData -> EventKind.DELETION == eventData.getKind())
             .collect(Collectors.toList());
     }
+
+    private byte putCache(final EventData eventData) {
+        synchronized(cached) {
+            if(eventData.getKind() == EventKind.DELETION) {
+                deletion.putIfAbsent(eventData.getId(), eventData);
+            } else {
+                eventData.storableIds().forEach(id -> cached.put(id, eventData));
+            }
+        }
+
+        return 0;
+    }
+
+    abstract boolean validateRegistration(EventData eventData);
+
+    abstract Set<String> acquireRegistrationFromStorage();
 
     abstract byte storeEvent(EventData eventData);
 

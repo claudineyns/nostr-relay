@@ -31,7 +31,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
 
     static final String DB_NAME = DocumentDS.DB_NAME;
 
-    public boolean isRegistered(final EventData eventData) {
+    boolean validateRegistration(final EventData eventData) {
         try (final MongoClient client = datasource.connect()) {
             return validateRegistration(client.getDatabase(DB_NAME), eventData);
         } catch(Exception e) {
@@ -40,7 +40,16 @@ public class EventDocumentDataService extends AbstractEventDataService {
         }
     }
 
-    private boolean validateRegistration(final MongoDatabase db, final EventData eventData) {
+    Set<String> acquireRegistrationFromStorage() {
+        try (final MongoClient client = datasource.connect()) {
+            return acquireRegistrationFromStorage(client.getDatabase(DB_NAME));
+        } catch(Exception e) {
+            logger.warning("[MongoDB] Could not fetch registrations: {}", e.getMessage());
+            return Collections.emptySet();
+        }
+    }
+
+    boolean validateRegistration(final MongoDatabase db, final EventData eventData) {
         final Set<String> registration = new LinkedHashSet<>();
 
         final MongoCollection<Document> registrationDB = db.getCollection("registration");
@@ -55,6 +64,17 @@ public class EventDocumentDataService extends AbstractEventDataService {
         }
 
         return false;
+    }
+
+    Set<String> acquireRegistrationFromStorage(final MongoDatabase db) {
+        final Set<String> registration = new LinkedHashSet<>();
+
+        final MongoCollection<Document> registrationDB = db.getCollection("registration");
+        try(final MongoCursor<Document> cursor = registrationDB.find().cursor()) {
+            cursor.forEachRemaining(document -> registration.add(document.get("pubkey").toString()));
+        }
+
+        return registration;
     }
 
     byte storeEvent(EventData eventData) {
