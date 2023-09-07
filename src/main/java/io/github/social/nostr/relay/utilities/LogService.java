@@ -1,11 +1,12 @@
 package io.github.social.nostr.relay.utilities;
 
-import java.io.PrintStream;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public final class LogService {
 
@@ -69,7 +70,7 @@ public final class LogService {
 	}
 	
 	private byte logv(final CharSequence template, final LogLevel level, final Object... args) {
-		logTask.submit(()->computeLog(template, level, args));
+		computeLog(template, level, args);
 
 		return 0;
 	}
@@ -99,18 +100,25 @@ public final class LogService {
 			default: return 0;
 		}
 	}
+
+	final BufferedOutputStream bufferedOut = new BufferedOutputStream(System.out);
+	final BufferedOutputStream bufferedErr = new BufferedOutputStream(System.err);
 	
 	private byte printOut(final String message) {
-		return print(System.out, message);
+		return print(bufferedOut, message);
 	}
 	
 	private byte printErr(final String message) {
-		return print(System.err, message);
+		return print(bufferedErr, message);
 	}
-	
-	final ExecutorService logTask = Executors.newSingleThreadExecutor();
-	private byte print(final PrintStream writer, final String message) {
-		writer.print(message);
+
+	// private byte print(final PrintStream writer, final String message) {
+	private byte print(final OutputStream writer, final String message) {
+		//writer.print(message);
+		try {
+			writer.write(message.getBytes(StandardCharsets.UTF_8));
+		} catch (IOException e) { /***/ }
+
 		return 0;
 	}
 
