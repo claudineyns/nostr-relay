@@ -330,7 +330,12 @@ public class ClientHandler implements Runnable {
 		if( hostList
 			.stream()
 			.filter(userHost -> userHost.equals(this.host) || userHost.startsWith(this.host+":"))
-			.count() == 0 ) return this.sendBadRequest();
+			.count() == 0
+		) {
+			this.sendBadRequest();
+			this.interrupt = true;
+			return 0;
+		}
 
 		byte returnCode = 0;
 		switch (this.requestMethod) {
