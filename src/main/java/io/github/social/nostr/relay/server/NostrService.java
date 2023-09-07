@@ -569,7 +569,7 @@ public class NostrService {
             Optional
                 .ofNullable(entry.get("limit"))
                 .ifPresent(q -> limit[0] = q.getAsInt());
-            emptyFilter = emptyFilter && limit[0] >= 0;
+            emptyFilter = emptyFilter && limit[0] == -1;
 
             if(emptyFilter) {
                 logger.info("[Nostr] [Subscription] [{}] filter has been considered empty:\n{}", subscriptionId, entry);
