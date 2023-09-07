@@ -142,6 +142,7 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
     }
 
     public byte close() {
+        this.beforeClosing();
         return 0;
     }
 

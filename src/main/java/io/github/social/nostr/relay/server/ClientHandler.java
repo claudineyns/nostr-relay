@@ -68,7 +68,7 @@ public class ClientHandler implements Runnable {
 	private final String host = AppProperties.getHost();
 
 	private final WebsocketContext websocketContext = new WebsocketContext() {
-		public synchronized byte broadcast(final String message) {
+		public byte broadcast(final String message) {
 			clientBroadcaster.submit(() -> {
 				if(interrupt) return;
 

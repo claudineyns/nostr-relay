@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.gson.GsonBuilder;
@@ -17,36 +19,36 @@ import com.google.gson.GsonBuilder;
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
+import io.github.social.nostr.relay.utilities.LogService;
 
 @SuppressWarnings("unused")
 public abstract class AbstractEventDataService implements IEventService {
+    private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
     
-    protected final GsonBuilder gsonBuilder = new GsonBuilder();
-
-    protected final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
+    private final ScheduledExecutorService scheduledTask = Executors.newScheduledThreadPool(5);
 
     private final Set<String> registration = new HashSet<>();
     private final Map<String, EventData> cached = new HashMap<>();
     private final Map<String, EventData> deletion = new HashMap<>();
 
-    public byte start() {
-        synchronized(cached) {
-            fetchEventsFromDatasource()
-                .stream()
-                .forEach(event ->  {
-                    if( EventKind.DELETION == event.getKind() )  {
-                        deletion.put(event.getId(), event);
-                    } else {
-                        event.storableIds().forEach(id -> cached.put(id, event));
-                    }
-                });
-        }
+    protected final GsonBuilder gsonBuilder = new GsonBuilder();
 
+    protected final ExecutorService cacheTask = Executors.newSingleThreadExecutor();
+
+    public byte start() {
+        scheduledTask.scheduleAtFixedRate(this::refreshCache, 0, 60000, TimeUnit.MILLISECONDS);
+
+        scheduledTask.scheduleAtFixedRate(this::refreshRegistration, 0, 60000, TimeUnit.MILLISECONDS);
+        
         return 0;
     }
 
     public boolean isRegistered(final EventData eventData) {
-        return this.validateRegistration(eventData);
+        // return this.validateRegistration(eventData);
+
+        synchronized(registration) {
+            return registration.contains(eventData.getPubkey());
+        }
     }
 
     public final byte persistEvent(final EventData eventData) {
@@ -104,6 +106,34 @@ public abstract class AbstractEventDataService implements IEventService {
         }
     }
 
+    private byte refreshCache() {
+        synchronized(cached) {
+            cached.clear();
+            deletion.clear();
+
+            fetchEventsFromDatasource()
+                .stream()
+                .forEach(event ->  {
+                    if( EventKind.DELETION == event.getKind() )  {
+                        deletion.put(event.getId(), event);
+                    } else {
+                        event.storableIds().forEach(id -> cached.put(id, event));
+                    }
+                });
+        }
+
+        return logger.info("[DataSource] Cache refreshed.");
+    }
+
+    private byte refreshRegistration() {
+        synchronized(registration) {
+            registration.clear();
+            registration.addAll(this.acquireRegistrationFromStorage());
+        }
+
+        return logger.info("[DataSource] Registration refreshed.");
+    }
+
     private Collection<EventData> fetchEventsFromDatasource() {
         final Collection<EventData> list = new LinkedHashSet<>();
 
@@ -142,6 +172,11 @@ public abstract class AbstractEventDataService implements IEventService {
             }
         }
 
+        return 0;
+    }
+
+    byte beforeClosing() {
+        scheduledTask.shutdown();
         return 0;
     }
 

@@ -434,7 +434,7 @@ public class NostrService {
             return "invalid: this event has already been requested to be removed from this relay.";
         }
 
-        this.eventProcessor.submit(() -> eventService.persistEvent(eventData));
+        eventService.persistEvent(eventData);
         return null;
     }
 
@@ -457,7 +457,7 @@ public class NostrService {
             return "invalid: event is outdated";
         }
 
-        this.eventProcessor.submit(() -> eventService.persistEvent(eventData));
+        eventService.persistEvent(eventData);
         return null;
     }
 
@@ -482,7 +482,7 @@ public class NostrService {
             return "invalid: event is outdated";
         }
 
-        this.eventProcessor.submit(() -> eventService.persistEvent(eventData));
+        eventService.persistEvent(eventData);
         return null;
     }
 
@@ -679,7 +679,7 @@ public class NostrService {
             .map(key -> key.substring(0, key.lastIndexOf(":")))
             .map(subscriptionId -> Arrays.asList("EVENT", subscriptionId, eventData.toJson()))
             .map(gson::toJson)
-            .forEach(jsonResponse -> this.eventProcessor.submit(() ->  context.broadcast(jsonResponse)));
+            .forEach(jsonResponse -> context.broadcast(jsonResponse));
     }
     
 }

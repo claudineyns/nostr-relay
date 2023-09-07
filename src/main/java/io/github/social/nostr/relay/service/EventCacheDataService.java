@@ -169,6 +169,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
     }
 
     public byte close() {
+        this.beforeClosing();
         return cache.close();
     }
 

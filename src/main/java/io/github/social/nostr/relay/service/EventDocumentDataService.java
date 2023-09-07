@@ -218,6 +218,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
     }
 
     public byte close() {
+        this.beforeClosing();
         return datasource.close();
     }
 
