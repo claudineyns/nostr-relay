@@ -668,7 +668,11 @@ public class NostrService {
     ) {
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
 
-        return this.subscriptions.containsKey(subscriptionKey) ? this.broadcastClient(context, data) : 0;
+        if(this.subscriptions.containsKey(subscriptionKey)) {
+            return this.broadcastClient(context, data);
+        }
+
+        return logger.warning("[Nostr] Subscription {} is closed. broadcast aborted.", subscriptionId);
     }
 
     private void broadcastNewEvent(
