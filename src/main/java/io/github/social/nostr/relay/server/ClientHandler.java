@@ -11,7 +11,6 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.net.http.WebSocketHandshakeException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.ZoneId;
@@ -26,19 +25,16 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.io.IOUtils;
 
 import io.github.social.nostr.relay.exceptions.CloseConnectionException;
-import io.github.social.nostr.relay.service.EventCacheDataService;
 import io.github.social.nostr.relay.types.HttpMethod;
 import io.github.social.nostr.relay.types.HttpStatus;
 import io.github.social.nostr.relay.types.Opcode;
@@ -46,11 +42,11 @@ import io.github.social.nostr.relay.utilities.AppProperties;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.websocket.BinaryMessage;
 import io.github.social.nostr.relay.websocket.TextMessage;
+import io.github.social.nostr.relay.websocket.Websocket;
 import io.github.social.nostr.relay.websocket.WebsocketException;
 
 import static io.github.social.nostr.relay.utilities.Utils.secWebsocketAccept;
 
-@SuppressWarnings("unused")
 public class ClientHandler implements Runnable {
 	private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
@@ -58,7 +54,6 @@ public class ClientHandler implements Runnable {
 
 	private final ExecutorService websocketEventService = Executors.newCachedThreadPool();
 
-    // [ENFORCEMENT] Keep this executor with only a single thread
     private final ExecutorService clientBroadcaster = Executors.newSingleThreadExecutor();
 	
 	private final String redirectPage = AppProperties.getRedirectPage();
@@ -103,9 +98,9 @@ public class ClientHandler implements Runnable {
 	private String userAgent;
 	private String remoteAddress = "0.0.0.0";
 
-	private final WebsocketHandler websocketHandler;
+	private final Websocket websocketHandler;
 
-	public ClientHandler(final Socket c, final WebsocketHandler websocketHandler) {
+	public ClientHandler(final Socket c, final Websocket websocketHandler) {
 		this.client = c;
 		this.websocketHandler = websocketHandler;
 	}
@@ -148,12 +143,6 @@ public class ClientHandler implements Runnable {
 
 	private synchronized byte sendBytes(final byte[] rawData) throws IOException {
 		this.out.write(rawData);
-
-		return 0;
-	}
-
-	private synchronized byte sendBytes(final int data) throws IOException {
-		this.out.write(data);
 
 		return 0;
 	}
@@ -585,7 +574,7 @@ public class ClientHandler implements Runnable {
 			data.flush();
 		}
 
-		this.httpResponseHeaders.put("Content-Type", Collections.singletonList("text/html; charset=UTF-8"));
+		this.httpResponseHeaders.put("Content-Type", Collections.singletonList(contentType));
 		this.httpResponseHeaders.put("Content-Length", Collections.singletonList(Integer.toString(data.size())));
 		this.httpResponseBody.write(data.toByteArray());
 
@@ -783,9 +772,9 @@ public class ClientHandler implements Runnable {
 			.ofNullable(this.httpRequestHeaders.get("sec-websocket-version"))
 			.orElse(Collections.emptyList());
 
-		final List<String> secWebsocketProtocol = Optional
-			.ofNullable(this.httpRequestHeaders.get("sec-websocket-protocol"))
-			.orElse(Collections.emptyList());
+		// final List<String> secWebsocketProtocol = Optional
+		// 	.ofNullable(this.httpRequestHeaders.get("sec-websocket-protocol"))
+		// 	.orElse(Collections.emptyList());
 
 		if( connection.isEmpty() || ! "Upgrade".equalsIgnoreCase(connection.get(0)) ) {
 			status.replace(HttpStatus.OK);
@@ -930,11 +919,6 @@ public class ClientHandler implements Runnable {
 	private byte fetchData() throws IOException {
 
 		if(this.remainingBytes > 0) {
-
-			final byte[] remainingData = Arrays.copyOfRange(
-				this.packet,
-				this.packetRead - this.remainingBytes,
-				this.packetRead);
 
 			for(byte c = 0; c < this.remainingBytes; ++c) {
 				this.packet[c] = this.packet[ c + this.packetRead - this.remainingBytes ];

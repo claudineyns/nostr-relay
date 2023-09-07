@@ -1,30 +1,18 @@
 package io.github.social.nostr.relay.server;
 
 import java.io.File;
-import java.io.FileFilter;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -32,18 +20,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import org.apache.commons.codec.binary.Hex;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
 import io.github.social.nostr.relay.def.IEventService;
 import io.github.social.nostr.relay.dto.EventValidation;
-import io.github.social.nostr.relay.service.EventCacheDataService;
 import io.github.social.nostr.relay.service.EventValidationService;
 import io.github.social.nostr.relay.specs.ReplaceableMetadata;
 import io.github.social.nostr.relay.specs.EventData;
@@ -54,15 +38,13 @@ import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
 import io.github.social.nostr.relay.websocket.TextMessage;
 
-@SuppressWarnings("unused")
+//@SuppressWarnings("unused")
 public class NostrService {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
     private final IEventService eventService = IEventService.INSTANCE;
 
     private final EventValidationService eventValidationService = new EventValidationService();
-
-    private final File directory = new File("/var/nostr/data/");
 
     private ExecutorService eventProcessor = Executors.newCachedThreadPool();
 
@@ -80,9 +62,8 @@ public class NostrService {
     private final int tlsPort = AppProperties.getTlsPort();
     private final int port = AppProperties.getPort();
 
-    NostrService() {
-        eventService.start();
-        logger.info("[Nostr] cache loaded");
+    byte open() {
+        return eventService.start();
     }
 
     byte close() {
@@ -321,13 +302,19 @@ public class NostrService {
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         if( eventData.getCreatedAt() < (now - 300) || eventData.getCreatedAt() > (now + 300) ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event 'created_at' field is out of the acceptable range (-5min, +5min) for this relay."));
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: 'created_at' field is out of the acceptable range (-5min, +5min) for this relay."));
 
             return broadcastClient(context, gson.toJson(response));
         }
 
         if( EventKind.CLIENT_AUTH != eventData.getKind() ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event kind for authentication must be '22242'."));
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: kind for authentication must be '22242'."));
+
+            return broadcastClient(context, gson.toJson(response));
+        }
+
+        if( ! Boolean.TRUE.equals(validation.getStatus()) ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: could not validate signature."));
 
             return broadcastClient(context, gson.toJson(response));
         }

@@ -37,16 +37,23 @@ import io.github.social.nostr.relay.websocket.WebsocketException;
 @SuppressWarnings("unused")
 public class WebsocketHandler implements Websocket {
     private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
+
     private final NostrService nostr = new NostrService();
 
-    @Override
+    public byte onServerStartup() {
+        return nostr.open();
+    }
+
+    public byte onServerShutdown() {
+        return nostr.close();
+    }
+
     public byte onOpen(final WebsocketContext context) {
         logger.info("[WS] Server ready to accept data.");
 
         return nostr.openSession(context);
     }
 
-    @Override
     public byte onClose(final WebsocketContext context) {
         logger.info("[WS] Client gone. Bye.");
 
@@ -70,11 +77,6 @@ public class WebsocketHandler implements Websocket {
     @Override
     public byte onError(WebsocketException exception) {
         return logger.info("[WS] Server got error: {}", exception.getMessage());
-    }
-
-    @Override
-    public byte onServerShutdown() {
-        return nostr.close();
     }
 
 }
