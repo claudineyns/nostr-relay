@@ -613,8 +613,7 @@ public class ClientHandler implements Runnable {
 			final String content = new String(html.toByteArray(), StandardCharsets.UTF_8)
 				.replaceAll("[\\r\\n]", "")
 				.replaceAll("\\s+", " ")
-				.replace("https://example.com", redirectPage)
-				;
+				.replace("https://example.com", redirectPage);
 
 			page.append(content);
 		}
