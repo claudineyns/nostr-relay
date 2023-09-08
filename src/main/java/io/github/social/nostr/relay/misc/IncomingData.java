@@ -7,6 +7,10 @@ public class IncomingData {
     private int written = 0;
     private int consumed = 0;
 
+    public int write(final byte octet) {
+        return this.write(new byte[]{octet}, 0, 1);
+    }
+
     public int write(final byte[] source, final int offset, final int length) {
         if(offset >= source.length) return 0;
 
@@ -45,6 +49,10 @@ public class IncomingData {
         System.arraycopy(this.data, this.consumed, destination, 0, read);
 
         return destination;
+    }
+
+    public byte[] consume() {
+        return this.consume(this.remaining());
     }
 
     public byte next() {

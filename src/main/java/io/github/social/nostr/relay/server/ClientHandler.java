@@ -182,7 +182,7 @@ public class ClientHandler implements Runnable {
 
 				if( ! interrupt ) continue;
 			} catch (CloseConnectionException failure) {
-				logger.warning("Connection closed");
+				logger.warning("[Server] Connection will be closed.");
 			} catch (IOException failure) {
 				logger.warning(
 					"I/O error.\n> Class: {}\n> Message: {}",
@@ -280,9 +280,9 @@ public class ClientHandler implements Runnable {
 	private void startHandleHttpRequest() throws IOException {
 		this.incomingData.reset();
 
+		final IncomingData httpData = new IncomingData();
+
 		int bytesRead = 0;
-		int remainingBytes = 0;
-		int bytesConsumed = 0;
 
 		final int[] lastOctets = new int[] {0, 0, 0, 0};
 
@@ -311,8 +311,8 @@ public class ClientHandler implements Runnable {
 
 			int pos = 0;
 			do {
-				byte octet = this.incomingBytes[pos++];
-				bytesConsumed++;
+				byte octet = this.incomingData.next();
+				httpData.write(octet);
 
 				lastOctets[0] = lastOctets[1];
 				lastOctets[1] = lastOctets[2];
@@ -324,7 +324,7 @@ public class ClientHandler implements Runnable {
 					&&	lastOctets[2] == '\r' 
 					&&	lastOctets[3] == '\n'
 				) {
-					final byte[] rawHeaders = this.incomingData.consume(bytesConsumed - 4);
+					final byte[] rawHeaders = httpData.consume();
 
 					this.httpRawRequestHeaders.write(rawHeaders);
 					this.parseRequestHeader();
