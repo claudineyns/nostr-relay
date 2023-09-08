@@ -689,6 +689,7 @@ public class ClientHandler implements Runnable {
 		this.sendDateHeader();
 
 		if (cause == null) {
+			this.sendConnectionCloseHeader();
 			return this.mountHeadersTermination();
 		}
 
