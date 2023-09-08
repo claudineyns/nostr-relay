@@ -288,6 +288,7 @@ public class ClientHandler implements Runnable {
 
 		long totalTimeout = 0;
 
+		fetchData:
 		while(true) {
 			if(this.interrupt) return;
 
@@ -331,7 +332,7 @@ public class ClientHandler implements Runnable {
 
 					this.incomingData.shrink();
 
-					break;
+					break fetchData;
 				}
 
 			} while(pos < bytesRead);
