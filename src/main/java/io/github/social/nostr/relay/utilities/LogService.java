@@ -3,6 +3,7 @@ package io.github.social.nostr.relay.utilities;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.PrintStream;
 import java.io.Writer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -100,28 +101,21 @@ public final class LogService {
 			default: return 0;
 		}
 	}
-
-
-	//final BufferedWriter bufferedOut = new BufferedWriter(new OutputStreamWriter(System.out));
-	//final BufferedWriter bufferedErr = new BufferedWriter(new OutputStreamWriter(System.err));
-
-	final Writer bufferedOut = new OutputStreamWriter(System.out);
-	final Writer bufferedErr = new OutputStreamWriter(System.err);
 	
 	private byte printOut(final String message) {
-		return print(bufferedOut, message);
+		return print(System.out, message);
 	}
 	
 	private byte printErr(final String message) {
-		return print(bufferedErr, message);
+		return print(System.err, message);
 	}
 
-	//private byte print(final PrintStream writer, final String message) {
-	private byte print(final Writer writer, final String message) {
-		//writer.print(message);
-		try {
-			writer.write(message);
-		} catch (IOException e) { /***/ }
+	private byte print(final PrintStream writer, final String message) {
+	//private byte print(final Writer writer, final String message) {
+		writer.print(message);
+		// try {
+		// 	writer.write(message);
+		// } catch (IOException e) { /***/ }
 
 		return 0;
 	}
