@@ -70,7 +70,9 @@ public class IncomingData {
 
     public void shrink() {
         final int remaining = this.remaining();
-        System.arraycopy(this.data, this.consumed, this.data, 0, remaining);
+        if(remaining > 0) {
+            System.arraycopy(this.data, this.consumed, this.data, 0, remaining);
+        }
 
         this.written = remaining;
         this.consumed = 0;
