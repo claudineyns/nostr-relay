@@ -196,6 +196,8 @@ public class ClientHandler implements Runnable {
 					failure.getClass().getCanonicalName(),
 					failure.getMessage());
 
+				failure.printStackTrace();
+
 				this.notifyWebsocketFailure(failure);
 			}
 
