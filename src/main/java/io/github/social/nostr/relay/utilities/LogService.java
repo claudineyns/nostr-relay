@@ -102,8 +102,11 @@ public final class LogService {
 	}
 
 
-	final BufferedWriter bufferedOut = new BufferedWriter(new OutputStreamWriter(System.out));
-	final BufferedWriter bufferedErr = new BufferedWriter(new OutputStreamWriter(System.err));
+	//final BufferedWriter bufferedOut = new BufferedWriter(new OutputStreamWriter(System.out));
+	//final BufferedWriter bufferedErr = new BufferedWriter(new OutputStreamWriter(System.err));
+
+	final Writer bufferedOut = new OutputStreamWriter(System.out);
+	final Writer bufferedErr = new OutputStreamWriter(System.err);
 	
 	private byte printOut(final String message) {
 		return print(bufferedOut, message);
