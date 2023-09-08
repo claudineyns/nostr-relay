@@ -36,6 +36,7 @@ public class IncomingData {
         final int read = Math.min(destination.length, this.remaining());
 
         System.arraycopy(this.data, this.consumed, destination, 0, read);
+        this.consumed += read;
 
         return read;
     }
@@ -48,6 +49,7 @@ public class IncomingData {
         final byte[] destination = new byte[read];
 
         System.arraycopy(this.data, this.consumed, destination, 0, read);
+        this.consumed += read;
 
         return destination;
     }
