@@ -40,15 +40,17 @@ public class ServerHandler implements Runnable {
     public void run() {
 		Runtime.getRuntime().addShutdownHook(new Thread(()-> stop()));
 
-		final boolean tlsRequired = AppProperties.isTls();
+		final boolean isTls = AppProperties.isTls();
 
-		final int port = tlsRequired ? AppProperties.getTlsPort() : AppProperties.getPort();
+		final int port = isTls ? AppProperties.getTlsPort() : AppProperties.getPort();
         try {
-			this.server = ServerSocketFactoryBuilder.newFactory(tlsRequired).createServerSocket(port);
+			this.server = ServerSocketFactoryBuilder.newFactory(isTls).createServerSocket(port);
 			logger.info("[Server] startup completed.");
         } catch(IOException cause) {
             throw new IllegalStateException(cause);
         }
+
+		final String host = AppProperties.getHost();
 
 		logger.info("[Server] listening on port {}.", port);
 
@@ -64,7 +66,7 @@ public class ServerHandler implements Runnable {
 				break;
 			}
 
-			clientPool.submit(new ClientHandler(client, websocketHandler));
+			clientPool.submit(new ClientHandler(host, port, isTls, client, websocketHandler));
 		}
     }
 }

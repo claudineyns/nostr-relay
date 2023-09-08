@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.io.IOUtils;
 
 import io.github.social.nostr.relay.exceptions.CloseConnectionException;
+import io.github.social.nostr.relay.misc.IncomingData;
 import io.github.social.nostr.relay.types.HttpMethod;
 import io.github.social.nostr.relay.types.HttpStatus;
 import io.github.social.nostr.relay.types.Opcode;
@@ -92,34 +93,47 @@ public class ClientHandler implements Runnable {
 
 	};
 
-	private final Socket client;
 	private InputStream in;
 	private OutputStream out;
 
 	private String userAgent;
 	private String remoteAddress = "0.0.0.0";
 
+	private final Socket client;
 	private final Websocket websocketHandler;
+	private final String serverHost;
+	private final int serverPort;
+	private final boolean isServerTls;
 
-	public ClientHandler(final Socket c, final Websocket websocketHandler) {
+	public ClientHandler(
+			final String serverHost,
+			final int serverPort,
+			final boolean isServerTls,
+			final Socket c,
+			final Websocket websocketHandler
+	) {
 		this.client = c;
+		this.serverHost = serverHost;
+		this.serverPort = serverPort;
 		this.websocketHandler = websocketHandler;
+		this.isServerTls = isServerTls;
 	}
 
 	private boolean interrupt = false;
 
 	private boolean websocket = false;
 
-	final int socket_timeout_millis = 250;
+	final int MAX_TIMEOUT_MILLIS = 10000;
+	final int SOCKET_TIMEOUT_MILLIS = 50;
 
 	@Override
 	public void run() {
 		try {
-			this.makeItReady();
+			this.process();
 		} catch(IOException failure) { /****/ }
 	}
 
-	private void makeItReady() throws IOException {
+	private void process() throws IOException {
 		this.startStreams();
 		this.handleStream();
 		this.endStreams();
@@ -131,15 +145,22 @@ public class ClientHandler implements Runnable {
 			this.remoteAddress = ((InetSocketAddress) sk).getAddress().getHostAddress();
 		});
 
+		boolean started = false;
 		try {
-			// this.client.setSoTimeout(socket_timeout_millis); // <-- websocket: do not apply
-			this.client.setSoTimeout(socket_timeout_millis);
+			this.client.setSoTimeout(SOCKET_TIMEOUT_MILLIS);
 			this.in = client.getInputStream();
 			this.out = client.getOutputStream();
+
+			started = true;
 		} catch(IOException failure) {
-			logger.warning("Request startup error: {}: {}", failure.getClass().getCanonicalName(), failure.getMessage());
+			logger.warning(
+				"Client startup error.\n> Class: {}\n> Message: {}",
+				failure.getClass().getCanonicalName(), failure.getMessage());
+
 			throw failure;
 		}
+
+		if(!started) this.client.close();
 	}
 
 	private synchronized byte sendBytes(final byte[] rawData) throws IOException {
@@ -158,28 +179,22 @@ public class ClientHandler implements Runnable {
 		while(true) {
 			try {
 				this.handle();
+
 				if( ! interrupt ) continue;
-
-			} catch (SocketTimeoutException failure) {
-				logger.warning(failure.getMessage());
-
-				this.notifyWebsocketFailure(failure);
 			} catch (CloseConnectionException failure) {
 				logger.warning("Connection closed");
-
 			} catch (IOException failure) {
 				logger.warning(
-					"I/O Request handling error: {}: {}",
+					"I/O error.\n> Class: {}\n> Message: {}",
 					failure.getClass().getCanonicalName(),
 					failure.getMessage());
 
 				this.notifyWebsocketFailure(failure);
 			} catch (Exception failure) {
 				logger.error(
-					"Unpredictable error occured: {}: {}",
+					"Unpredictable error occured.\n> Class: {}\n> Message: {}",
 					failure.getClass().getCanonicalName(),
 					failure.getMessage());
-				failure.printStackTrace();
 
 				this.notifyWebsocketFailure(failure);
 			}
@@ -197,17 +212,13 @@ public class ClientHandler implements Runnable {
 			if( !this.client.isClosed() ) {
 				client.close();
 			}
-		} catch (IOException e) {
-			logger.warning("{}: {}", e.getClass().getCanonicalName(), e.getMessage());
-		}
+		} catch (IOException e) { /***/ }
 
-		logger.info("[Server] Client connection has been terminated.");
+		logger.info("[Server] Client connection terminated.");
 	}
 
 	private static final String CRLF = "\r\n";
 	private static final byte[] CRLF_RAW = CRLF.getBytes(StandardCharsets.US_ASCII);
-
-	private boolean isUrlAsterisk = false;
 
 	private HttpMethod requestMethod = null;
 	private URL requestUrl = null;
@@ -262,57 +273,68 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
-	private final byte[] packet = new byte[1024];
-	private int packetRead = 0;
-	private int remainingBytes = 0;
+	private final byte[] incomingBytes = new byte[1024];
+
+	private IncomingData incomingData = new IncomingData();
 
 	private void startHandleHttpRequest() throws IOException {
-		//final ByteArrayOutputStream cache = new ByteArrayOutputStream();
+		this.incomingData.reset();
 
-		final int[] octets = new int[] {0, 0, 0, 0};
+		int bytesRead = 0;
+		int remainingBytes = 0;
+		int bytesConsumed = 0;
 
-		loopData:
+		final int[] lastOctets = new int[] {0, 0, 0, 0};
+
+		long totalTimeout = 0;
+
 		while(true) {
 			if(this.interrupt) return;
 
-			this.packetRead = 0;
-
-			while(true) {
-				try {
-					this.packetRead = in.read(packet);
-				} catch(SocketTimeoutException timeout) {
-					continue;
-				} catch(IOException failure) {
-					throw failure;
+			bytesRead = 0;
+			try {
+				bytesRead = this.in.read(this.incomingBytes);
+				this.incomingData.write(this.incomingBytes, 0, bytesRead);
+			} catch(SocketTimeoutException timeout) {
+				totalTimeout += SOCKET_TIMEOUT_MILLIS;
+				if(totalTimeout >= MAX_TIMEOUT_MILLIS) {
+					logger.warning("[Server] client connect reached max allowed timeout.");
+					throw new CloseConnectionException();
 				}
-				break;
+
+				continue;
+			} catch(IOException failure) {
+				throw failure;
 			}
 
-			this.remainingBytes = this.packetRead;
+			totalTimeout = 0;
 
-			int counter = 0;
+			int pos = 0;
 			do {
-				byte octet = packet[counter++];
-				remainingBytes--;
+				byte octet = this.incomingBytes[pos++];
+				bytesConsumed++;
 
-				octets[0] = octets[1];
-				octets[1] = octets[2];
-				octets[2] = octets[3];
-				octets[3] = octet;
+				lastOctets[0] = lastOctets[1];
+				lastOctets[1] = lastOctets[2];
+				lastOctets[2] = lastOctets[3];
+				lastOctets[3] = octet;
 
-				if (	octets[0] == '\r' 
-					&&	octets[1] == '\n'
-					&&	octets[2] == '\r' 
-					&&	octets[3] == '\n'
+				if (	lastOctets[0] == '\r' 
+					&&	lastOctets[1] == '\n'
+					&&	lastOctets[2] == '\r' 
+					&&	lastOctets[3] == '\n'
 				) {
+					final byte[] rawHeaders = this.incomingData.consume(bytesConsumed - 4);
 
-					final byte[] rawHeaders = Arrays.copyOfRange(packet, 0, packet.length - 4);
 					this.httpRawRequestHeaders.write(rawHeaders);
-					this.analyseRequestHeader(rawHeaders);
-					break loopData;
+					this.parseRequestHeader();
+
+					this.incomingData.shrink();
+
+					break;
 				}
 
-			} while(counter < packetRead);
+			} while(pos < bytesRead);
 		}
 
 	}
@@ -366,7 +388,7 @@ public class ClientHandler implements Runnable {
 	}
 	
 	private final String getPath() {
-		return this.isUrlAsterisk ? "*" : this.requestUrl.getPath();
+		return this.requestUrl.getPath();
 	}
 
 	static final String ACME_CHALLENGE_BASE_PATH = "/.well-known/acme-challenge/";
@@ -391,8 +413,9 @@ public class ClientHandler implements Runnable {
 		}
 	}
 
-	private byte analyseRequestHeader(byte[] raw) throws IOException {
-		final String CRLF_RE = "\\r\\n";
+	static final String CRLF_RE = "\\r\\n";
+	private byte parseRequestHeader() throws IOException {
+		final byte[] raw = this.httpRawRequestHeaders.toByteArray();
 
 		final String data = new String(raw, StandardCharsets.US_ASCII)
 			.replaceAll("\\r\\n[\\s\\t]+", "\u0000\u0000\u0000");
@@ -416,7 +439,7 @@ public class ClientHandler implements Runnable {
 			return sendBadRequest("Invalid HTTP Method Sintax");
 		}
 
-		logger.info(methodLine);
+		logger.info("[Server] {}", methodLine);
 
 		final String httpVersion = methodContent[2];
 		if ( ! "HTTP/1.1".equalsIgnoreCase(httpVersion) ) {
@@ -428,19 +451,19 @@ public class ClientHandler implements Runnable {
 
 		final HttpMethod httpMethod = HttpMethod.from(method);
 		if (httpMethod == null) {
-			return sendMethodNotImplemented();
+			return this.sendMethodNotImplemented();
 		}
 
-		if (!methodLineLower.toUpperCase().startsWith(httpMethod.name() + " ")) {
-			return sendBadRequest("Invalid HTTP Method Sintax");
+		if ( ! methodLineLower.toUpperCase().startsWith(httpMethod.name() + " ") ) {
+			return this.sendBadRequest("Invalid HTTP Method Sintax.");
 		}
 
-		final String uri = methodContent[1];
-		if (!validateURI(uri)) {
-			return sendBadRequest("Invalid HTTP URI");
+		final String path = methodContent[1];
+		if ( ! this.validateURI(path) ) {
+			return this.sendBadRequest("HTTP URI must be a relative path.");
 		}
 
-		httpRequestHeaders.put(null, Collections.singletonList(methodLine));
+		this.httpRequestHeaders.put(null, Collections.singletonList(methodLine));
 		for (int i = startLine + 1; i < entries.length; ++i) {
 			final String entry = entries[i];
 			final String header = entry.substring(0, entry.indexOf(':')).toLowerCase();
@@ -448,8 +471,9 @@ public class ClientHandler implements Runnable {
 				.substring(entry.indexOf(':') + 1)
 				.trim()
 				.replaceAll("[\u0000]{3}", "\r\n ");
-			httpRequestHeaders.putIfAbsent(header, new LinkedList<>());
-			httpRequestHeaders.get(header).add(value);
+
+			this.httpRequestHeaders.putIfAbsent(header, new LinkedList<>());
+			this.httpRequestHeaders.get(header).add(value);
 		}
 
 		final StringBuilder originDebug = new StringBuilder("");
@@ -470,15 +494,11 @@ public class ClientHandler implements Runnable {
 			.ofNullable(this.httpRequestHeaders.get("origin"))
 			.ifPresent(lista -> lista.stream().forEach(q -> originDebug.append(String.format("%n> Origin: %s", q)) ));
 
-		logger.info("{}\n", originDebug);
+		logger.info("{}", originDebug);
 
 		this.requestMethod = httpMethod;
 
-		this.isUrlAsterisk = uri.equals("*");
-
-		if ( ! isUrlAsterisk) {
-			this.requestUrl = new URL("http://localhost" + uri);
-		}
+		this.requestUrl = new URL(this.isServerTls?"https":"http", this.serverHost, this.serverPort, path);
 
 		return 0;
 	}
@@ -493,7 +513,7 @@ public class ClientHandler implements Runnable {
 
 	private byte sendStatusLine(HttpStatus status) throws IOException {
 		final String statusLine = "HTTP/1.1 " + status.code() + " " + status.text();
-		logger.info("[Server] Status: {}", statusLine);
+		logger.info("[Server] StatusLine: {}", statusLine);
 
 		return this.sendBytes((statusLine + CRLF).getBytes(StandardCharsets.US_ASCII));
 	}
@@ -731,7 +751,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private boolean validateURI(String uri) {
-		final Pattern uriPattern = Pattern.compile("^\\/\\S*$|^\\*$");
+		final Pattern uriPattern = Pattern.compile("^\\/\\S*$");
 		final Matcher uriMatcher = uriPattern.matcher(uri);
 
 		return uriMatcher.matches();
@@ -917,31 +937,24 @@ public class ClientHandler implements Runnable {
 		return this.sendWebsocketCloseFrame(message.toByteArray());
 	}
 
-	private byte fetchData() throws IOException {
+	private byte fetchWebsocketData() throws IOException {
+		int bytesRead = 0;
 
-		if(this.remainingBytes > 0) {
+		this.incomingData.shrink();
 
-			for(byte c = 0; c < this.remainingBytes; ++c) {
-				this.packet[c] = this.packet[ c + this.packetRead - this.remainingBytes ];
+		while(true) {
+			if(this.interrupt) return 0;
+
+			try {
+				bytesRead = in.read(this.incomingBytes);
+				this.incomingData.write(this.incomingBytes, 0, bytesRead);
+			} catch(SocketTimeoutException timeout) {
+				continue;
+			} catch(IOException failure) {
+				throw failure;
 			}
 
-		} else {
-
-			while(true) {
-				if(this.interrupt) break;
-
-				try {
-					this.packetRead = in.read(this.packet);
-				} catch(SocketTimeoutException timeout) {
-					continue;
-				} catch(IOException failure) {
-					throw failure;
-				}
-
-				this.remainingBytes = this.packetRead;
-				break;
-			}
-
+			break;
 		}
 
 		return 0;
@@ -978,19 +991,16 @@ public class ClientHandler implements Runnable {
 		int payloadLength = 0;
 		int nextBytes = 0;
 
-		int[] decoder = new int[4];
+		final int[] decoder = new int[4];
 		int decoderIndex = 0;
 
 		fetchRawData:
 		while(true) {
-			this.fetchData();
-
+			this.fetchWebsocketData();
 			if(this.interrupt) return 0;
 
-			int counter = 0;
 			do {
-				byte octet = this.packet[counter++];
-				this.remainingBytes--;
+				byte octet = this.incomingData.next();
 
 				if( stage == CHECK_FIN ) {
 					isFinal = (octet & FIN_ON) == FIN_ON;
@@ -1078,7 +1088,7 @@ public class ClientHandler implements Runnable {
 					}
 				}
 
-			} while(counter < this.packetRead);
+			} while(this.incomingData.remaining() > 0);
 
 		}
 
