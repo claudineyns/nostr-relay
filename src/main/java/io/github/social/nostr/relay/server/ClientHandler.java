@@ -297,6 +297,8 @@ public class ClientHandler implements Runnable {
 			bytesRead = 0;
 			try {
 				bytesRead = this.in.read(this.incomingBytes);
+				if(bytesRead <= 0) continue;
+
 				this.incomingData.write(this.incomingBytes, 0, bytesRead);
 			} catch(SocketTimeoutException timeout) {
 				totalTimeout += SOCKET_TIMEOUT_MILLIS;
@@ -949,7 +951,9 @@ public class ClientHandler implements Runnable {
 			if(this.interrupt) return 0;
 
 			try {
-				bytesRead = in.read(this.incomingBytes);
+				bytesRead = this.in.read(this.incomingBytes);
+				if( bytesRead <= 0 ) continue;
+
 				this.incomingData.write(this.incomingBytes, 0, bytesRead);
 			} catch(SocketTimeoutException timeout) {
 				continue;
