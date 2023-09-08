@@ -18,7 +18,8 @@ public class IncomingData {
 
         final int availableSpace = this.data.length - this.written;
         if( srcLen > availableSpace ) {
-            final byte[] alloc = new byte[this.data.length + ALLOC_SIZE];
+            final int allocFactor = (srcLen / ALLOC_SIZE) + 1;
+            final byte[] alloc = new byte[this.data.length + (allocFactor * ALLOC_SIZE)];
             System.arraycopy(this.data, 0, alloc, 0, this.data.length);
             this.data = alloc;
         }
