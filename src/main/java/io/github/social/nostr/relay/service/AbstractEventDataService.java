@@ -2,6 +2,7 @@ package io.github.social.nostr.relay.service;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -46,15 +47,18 @@ public abstract class AbstractEventDataService implements IEventService {
     public boolean isRegistered(final EventData eventData) {
         // return this.validateRegistration(eventData);
 
+        final Set<String> reg;
         synchronized(registration) {
-            if(registration.contains(eventData.getPubkey())) return true;
-
-            return eventData
-                .getReferencedPubkeyList()
-                .stream()
-                .filter(p -> registration.contains(p))
-                .count() > 0;
+            reg = Collections.unmodifiableSet(registration);
         }
+
+        if(reg.contains(eventData.getPubkey())) return true;
+
+        return eventData
+            .getReferencedPubkeyList()
+            .stream()
+            .filter(p -> registration.contains(p))
+            .count() > 0;
     }
 
     public final byte persistEvent(final EventData eventData) {
