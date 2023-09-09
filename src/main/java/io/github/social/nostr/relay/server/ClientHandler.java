@@ -71,7 +71,7 @@ public class ClientHandler implements Runnable {
 				if(interrupt) return;
 
 				final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss.SSS", Locale.US));
-				System.out.printf("%s [ INFO]%n[WS] send data to client%n%s%n", dateTime, message);
+				System.out.printf("%s [ INFO]%n[WS] send data to client%n%s%n%n", dateTime, message);
 
 				try {
 					sendWebsocketDataClient(message);
