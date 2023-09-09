@@ -2,10 +2,10 @@ package io.github.social.nostr.relay.specs;
 
 import java.util.Arrays;
 
-public enum EventState {
+public enum EventGroup {
     UNKNOWN, REGULAR, REPLACEABLE, EPHEMERAL, PARAMETERIZED_REPLACEABLE;
 
-    public static EventState byKind(final int n) {
+    public static EventGroup byKind(final int n) {
         if (Arrays.asList(
                 EventKind.TEXT_NOTE,
                 EventKind.ENCRYPTED_DIRECT,
@@ -15,7 +15,6 @@ public enum EventState {
                 EventKind.BADGE_AWARD,
                 EventKind.GENERIC_REPOST,
                 EventKind.CHANNEL_CREATE,
-                EventKind.CHANNEL_METADATA,
                 EventKind.CHANNEL_MESSAGE,
                 EventKind.CHANNEL_HIDE,
                 EventKind.CHANNEL_MUTE_USER
@@ -25,7 +24,8 @@ public enum EventState {
 
         if ( Arrays.asList(
                 EventKind.METADATA,
-                EventKind.CONTACT_LIST
+                EventKind.CONTACT_LIST,
+                EventKind.CHANNEL_METADATA
             ).contains(n)) {
             return REPLACEABLE;
         }

@@ -27,7 +27,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
-import io.github.social.nostr.relay.specs.EventState;
+import io.github.social.nostr.relay.specs.EventGroup;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.websocket.BinaryMessage;
 import io.github.social.nostr.relay.websocket.TextMessage;

@@ -31,7 +31,7 @@ import io.github.social.nostr.relay.service.EventValidationService;
 import io.github.social.nostr.relay.specs.ReplaceableMetadata;
 import io.github.social.nostr.relay.specs.EventData;
 import io.github.social.nostr.relay.specs.EventKind;
-import io.github.social.nostr.relay.specs.EventState;
+import io.github.social.nostr.relay.specs.EventGroup;
 import io.github.social.nostr.relay.utilities.AppProperties;
 import io.github.social.nostr.relay.utilities.LogService;
 import io.github.social.nostr.relay.utilities.Utils;
@@ -218,13 +218,13 @@ public class NostrService {
         logger.info("[Nostr] Event validated.");
 
         final String responseText;
-        if( EventState.REGULAR.equals(eventData.getState()) ) {
+        if( EventGroup.REGULAR.equals(eventData.getState()) ) {
             responseText = this.persistRegular(eventData);
-        } else if( EventState.REPLACEABLE.equals(eventData.getState()) ) {
+        } else if( EventGroup.REPLACEABLE.equals(eventData.getState()) ) {
             responseText = this.persistReplaceable(eventData);
-        } else if( EventState.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
+        } else if( EventGroup.PARAMETERIZED_REPLACEABLE.equals(eventData.getState()) ) {
             responseText = this.persistParameterizedReplaceable(eventData);
-        } else if( EventState.EPHEMERAL.equals(eventData.getState()) ) {
+        } else if( EventGroup.EPHEMERAL.equals(eventData.getState()) ) {
             responseText = consumeEphemeralEvent(eventData);
         } else {
             responseText = "invalid: event kind unknown";
@@ -377,7 +377,7 @@ public class NostrService {
         final Collection<EventData> eventsForRemoval = events
             .stream()
             .filter(event -> eventData.getReferencedEventList().contains(event.getId()))
-            .filter(event -> EventState.REGULAR.equals(event.getState()))
+            .filter(event -> EventGroup.REGULAR.equals(event.getState()))
             .filter(event -> event.getKind() != EventKind.DELETION)
             .collect(Collectors.toList());
 

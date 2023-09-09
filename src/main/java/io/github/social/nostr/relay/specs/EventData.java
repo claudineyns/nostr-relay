@@ -34,7 +34,7 @@ public class EventData implements Comparable<EventData> {
     private final List<String> referencedDataList = new ArrayList<>();
     private final List<ReplaceableMetadata> replaceableMetadataList = new ArrayList<>();
 
-    private final EventState state;
+    private final EventGroup state;
 
     private final String payload;
 
@@ -48,7 +48,7 @@ public class EventData implements Comparable<EventData> {
         this.created_at = json.get("created_at").getAsInt();
         this.sig = json.get("sig").getAsString();
 
-        this.state = EventState.byKind(kind);
+        this.state = EventGroup.byKind(kind);
 
         Optional.ofNullable(json.get("tags")).ifPresent(this::fetchTags);
 
@@ -80,7 +80,7 @@ public class EventData implements Comparable<EventData> {
         return kind;
     }
 
-    public EventState getState() {
+    public EventGroup getState() {
         return state;
     }
 
