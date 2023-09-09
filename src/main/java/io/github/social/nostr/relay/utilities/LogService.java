@@ -107,11 +107,7 @@ public final class LogService {
 	}
 
 	private byte print(final PrintStream writer, final String message) {
-	//private byte print(final Writer writer, final String message) {
 		writer.print(message);
-		// try {
-		// 	writer.write(message);
-		// } catch (IOException e) { /***/ }
 
 		return 0;
 	}

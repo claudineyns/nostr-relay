@@ -69,8 +69,7 @@ public class ClientHandler implements Runnable {
 			clientBroadcaster.submit(() -> {
 				if(interrupt) return;
 
-				logger.info("[WS] send data to client");
-				System.out.printf("%s%n", message);
+				logger.info("[WS] send data to client\n{}", message);
 				try {
 					sendWebsocketDataClient(message);
 				} catch (IOException e) { /***/ }
