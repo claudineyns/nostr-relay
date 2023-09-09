@@ -40,7 +40,7 @@ public final class Constants {
 		"event.validation.port";
 	
 	public static final String PROPERTY_REGISTRATION_PAGE = 
-		"relay.redirect.page";
+		"relay.registration.page";
 	public static final String PROPERTY_REDIRECT_PAGE = 
 		"server.redirect.page";
 
