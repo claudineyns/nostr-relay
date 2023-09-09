@@ -70,7 +70,7 @@ public class ClientHandler implements Runnable {
 				if(interrupt) return;
 
 				logger.info("[WS] send data to client");
-				System.out.println(message);
+				System.out.printf("%s%n", message);
 				try {
 					sendWebsocketDataClient(message);
 				} catch (IOException e) { /***/ }
