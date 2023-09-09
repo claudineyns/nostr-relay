@@ -11,7 +11,6 @@ import com.google.gson.Gson;
 
 import io.github.social.nostr.relay.datasource.CacheDS;
 import io.github.social.nostr.relay.specs.EventData;
-import io.github.social.nostr.relay.specs.EventKind;
 import io.github.social.nostr.relay.utilities.LogService;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Pipeline;
@@ -68,9 +67,9 @@ public final class EventCacheDataService extends AbstractEventDataService {
         }
     }
 
-    Collection<EventData> acquireListFromStorage() {
+    Collection<EventData> acquireEventsFromStorage() {
         try (final Jedis jedis = cache.connect()) {
-            return acquireListFromStorage(jedis);
+            return acquireEventsFromStorage(jedis);
         } catch(JedisException e) {
              logger.warning("[Redis] Failure: {}", e.getMessage());
              return Collections.emptyList();
@@ -155,7 +154,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
             : null;
     }
 
-    private Collection<EventData> acquireListFromStorage(final Jedis jedis) {
+    private Collection<EventData> acquireEventsFromStorage(final Jedis jedis) {
         final Gson gson = gsonBuilder.create();
 
         return jedis.smembers("idList")
@@ -164,7 +163,6 @@ public final class EventCacheDataService extends AbstractEventDataService {
             .filter(eventMap -> eventMap != null)
             .filter(eventMap -> "inserted".equals(eventMap.get("status")))
             .map(eventMap -> EventData.gsonEngine(gson, eventMap.get("payload")))
-            .filter(eventData -> EventKind.DELETION != eventData.getKind() )
             .collect(Collectors.toList());
     }
 

@@ -74,7 +74,9 @@ public abstract class AbstractEventDataService implements IEventService {
     }
 
     public byte fetchActiveEvents(final Collection<EventData> events) {
-        events.addAll( cached.values().stream().sorted().collect(Collectors.toList()) );
+        synchronized(cached) {
+            events.addAll( cached.values().stream().sorted().collect(Collectors.toList()) );
+        }
 
         return 0;
     }
@@ -94,7 +96,6 @@ public abstract class AbstractEventDataService implements IEventService {
     public boolean checkRequestForRemoval(final EventData eventData) {
         // return this.fetchDeletionEvents()
         //     .stream()
-        //     .filter(event -> EventKind.DELETION == event.getKind())
         //     .filter(event -> event.getReferencedEventList().contains(eventData.getId()))
         //     .count() > 0;
 
@@ -112,14 +113,12 @@ public abstract class AbstractEventDataService implements IEventService {
             deletion.clear();
 
             fetchEventsFromDatasource()
-                .stream()
-                .forEach(event ->  {
-                    if( EventKind.DELETION == event.getKind() )  {
-                        deletion.put(event.getId(), event);
-                    } else {
-                        event.storableIds().forEach(id -> cached.put(id, event));
-                    }
-                });
+            .forEach(event ->  {
+                if( EventKind.DELETION == event.getKind() )  {
+                    deletion.put(event.getId(), event);
+                }
+                event.storableIds().forEach(id -> cached.put(id, event));
+            });
         }
 
         return 0;
@@ -135,15 +134,12 @@ public abstract class AbstractEventDataService implements IEventService {
     }
 
     private Collection<EventData> fetchEventsFromDatasource() {
-        final Collection<EventData> list = new LinkedHashSet<>();
-
-        list.addAll(acquireListFromStorage());
-
         final int now = (int) (System.currentTimeMillis()/1000L);
 
         final Set<String> unique = new HashSet<>();
         final List<EventData> events = new ArrayList<>();
-        list
+
+        acquireEventsFromStorage()
             .stream()
             .filter(eventData -> eventData.getExpiration() == 0 || eventData.getExpiration() > now)
             .forEach(eventData -> {
@@ -157,7 +153,7 @@ public abstract class AbstractEventDataService implements IEventService {
     }
 
     private Collection<EventData> fetchDeletionEvents() {
-        return this.acquireListFromStorage()
+        return this.acquireEventsFromStorage()
             .stream()
             .filter(eventData -> EventKind.DELETION == eventData.getKind())
             .collect(Collectors.toList());
@@ -188,7 +184,7 @@ public abstract class AbstractEventDataService implements IEventService {
 
     abstract byte removeStoredEvents(Collection<EventData> events);
 
-    abstract Collection<EventData> acquireListFromStorage();
+    abstract Collection<EventData> acquireEventsFromStorage();
 
     abstract EventData acquireEventFromStorageById(String id);
 

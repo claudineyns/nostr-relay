@@ -94,9 +94,9 @@ public class EventDocumentDataService extends AbstractEventDataService {
         }
     }
 
-    Collection<EventData> acquireListFromStorage() {
+    Collection<EventData> acquireEventsFromStorage() {
         try (final MongoClient client = datasource.connect()) {
-            return acquireListFromStorage(client.getDatabase(DB_NAME));
+            return acquireEventsFromStorage(client.getDatabase(DB_NAME));
         } catch(Exception e) {
             logger.warning("[MongoDB] Failure: {}", e.getMessage());
             return Collections.emptyList();
@@ -183,7 +183,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
         }
     }
 
-    private Collection<EventData> acquireListFromStorage(final MongoDatabase db) {
+    private Collection<EventData> acquireEventsFromStorage(final MongoDatabase db) {
         final Gson gson = gsonBuilder.create();
 
         final MongoCollection<Document> current = db.getCollection("current");
@@ -193,9 +193,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
         try(final MongoCursor<Document> cursor = current.find().cursor()) {
             cursor.forEachRemaining(doc -> {
                 doc.remove("_id");
-
-                final EventData eventData = EventData.gsonEngine(gson, gson.toJson(doc));
-                eventList.add(eventData);
+                eventList.add(EventData.gsonEngine(gson, gson.toJson(doc)));
             });
         }
 

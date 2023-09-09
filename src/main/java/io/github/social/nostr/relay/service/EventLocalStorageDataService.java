@@ -93,7 +93,7 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
         return 0;
     }
 
-    Collection<EventData> acquireListFromStorage() {
+    Collection<EventData> acquireEventsFromStorage() {
         final File currentDB = new File(BASE_DIR, "/current");
         if(!currentDB.exists()) return Collections.emptyList();
 
