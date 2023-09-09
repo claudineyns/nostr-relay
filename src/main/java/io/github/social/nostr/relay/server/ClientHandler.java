@@ -13,6 +13,7 @@ import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -69,7 +70,9 @@ public class ClientHandler implements Runnable {
 			clientBroadcaster.submit(() -> {
 				if(interrupt) return;
 
-				logger.info("[WS] send data to client\n{}", message);
+				final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss.SSS", Locale.US));
+				System.out.printf("%s [ INFO]%n[WS] send data to client%n%s%n", dateTime, message);
+
 				try {
 					sendWebsocketDataClient(message);
 				} catch (IOException e) { /***/ }
