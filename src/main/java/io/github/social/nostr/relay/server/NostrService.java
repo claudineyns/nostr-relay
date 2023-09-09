@@ -61,6 +61,8 @@ public class NostrService {
     private final int tlsPort = AppProperties.getTlsPort();
     private final int port = AppProperties.getPort();
 
+    private final String registrationPage = AppProperties.getRegistrationPage();
+
     byte open() {
         return eventService.start();
     }
@@ -199,7 +201,7 @@ public class NostrService {
 
         final boolean isRegistered = eventService.isRegistered(eventData);
         if( !isRegistered ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "blocked: Please register yourself at https://register.notes.social"));
+            response.addAll(Arrays.asList(Boolean.FALSE, "blocked: Please register yourself at " + registrationPage));
             return broadcastClient(context, gson.toJson(response));
         }
 

@@ -39,6 +39,8 @@ public final class Constants {
 	public static final String PROPERTY_VALIDATION_PORT = 
 		"event.validation.port";
 	
+	public static final String PROPERTY_REGISTRATION_PAGE = 
+		"relay.redirect.page";
 	public static final String PROPERTY_REDIRECT_PAGE = 
 		"server.redirect.page";
 
@@ -81,6 +83,8 @@ public final class Constants {
 	public static final String ENV_VALIDATION_PORT = 
 		"EVENT_VALIDATION_PORT";
 
+	public static final String ENV_REGISTRATION_PAGE = 
+		"RELAY_REGISTRATION_PAGE";
 	public static final String ENV_REDIRECT_PAGE = 
 		"SERVER_REDIRECT_PAGE";
 

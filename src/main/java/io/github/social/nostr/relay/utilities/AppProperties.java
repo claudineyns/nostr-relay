@@ -29,6 +29,7 @@ public final class AppProperties {
 	private static final String DEFAULT_VALIDATION_PORT = "8888";
 
 	private static final String DEFAULT_REDIRECT_PAGE = "https://example.com";
+	private static final String DEFAULT_REGISTRATION_PAGE = "https://example.com";
 
 	public static String getAcmeChallengePath() {
 		return nullValue(
@@ -130,6 +131,14 @@ public final class AppProperties {
 				DEFAULT_CLIENT_PING_SECOND
 			);
 		return Integer.parseInt(info);
+	}
+
+	public static String getRegistrationPage() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_REGISTRATION_PAGE),
+				System.getenv(Constants.ENV_REGISTRATION_PAGE),
+				DEFAULT_REGISTRATION_PAGE
+			);
 	}
 
 	public static String getRedirectPage() {
