@@ -29,13 +29,25 @@ public final class LogService {
 	public byte info(final CharSequence template, final Object... args) {
 		return logv(template, LogLevel.INFO, args);
 	}
+
+	public byte infof(final CharSequence template, final Object... args) {
+		return logf(template, LogLevel.INFO, args);
+	}
 	
 	public byte debug(final CharSequence template, final Object... args) {
 		return logv(template, LogLevel.DEBUG, args);
 	}
+
+	public byte debugf(final CharSequence template, final Object... args) {
+		return logf(template, LogLevel.DEBUG, args);
+	}
 	
 	public byte error(final CharSequence template, final Object... args) {
 		return logv(template, LogLevel.ERROR, args);
+	}
+
+	public byte errorf(final CharSequence template, final Object... args) {
+		return logf(template, LogLevel.ERROR, args);
 	}
 	
 	public byte error(final CharSequence message, final Throwable throwable) {
@@ -65,11 +77,17 @@ public final class LogService {
 	public byte warning(final CharSequence template, final Object... args) {
 		return logv(template, LogLevel.WARN, args);
 	}
-	
-	private byte logv(final CharSequence template, final LogLevel level, final Object... args) {
-		computeLog(template, level, args);
 
-		return 0;
+	public byte warningf(final CharSequence template, final Object... args) {
+		return logf(template, LogLevel.WARN, args);
+	}
+
+	private byte logv(final CharSequence template, final LogLevel level, final Object... args) {
+		return computeLog(template, level, args);
+	}
+
+	private byte logf(final CharSequence template, final LogLevel level, final Object... args) {
+		return log(String.format(template.toString(), args), level);
 	}
 
 	private byte computeLog(final CharSequence template, final LogLevel level, final Object... args) {
@@ -84,8 +102,12 @@ public final class LogService {
 		return log(messageFormatted, level);
 	}
 
+	static String timestamp() {
+		return LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss.SSS", Locale.US));
+	}
+
 	private byte log(final String message, final LogLevel level) {
-		final String dateTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss.SSS", Locale.US));
+		final String dateTime = timestamp();
 
 		final String outMessage = String.format("%s [%5s]%s%n%s%n%n", dateTime, level.name(), name, message);
 
