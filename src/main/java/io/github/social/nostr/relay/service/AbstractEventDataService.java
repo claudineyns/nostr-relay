@@ -39,7 +39,7 @@ public abstract class AbstractEventDataService implements IEventService {
         scheduledTask.scheduleAtFixedRate(this::refreshCache, 0, 60000, TimeUnit.MILLISECONDS);
 
         scheduledTask.scheduleAtFixedRate(this::refreshRegistration, 0, 60000, TimeUnit.MILLISECONDS);
-        
+
         return 0;
     }
 
@@ -47,7 +47,13 @@ public abstract class AbstractEventDataService implements IEventService {
         // return this.validateRegistration(eventData);
 
         synchronized(registration) {
-            return registration.contains(eventData.getPubkey());
+            if(registration.contains(eventData.getPubkey())) return true;
+
+            return eventData
+                .getReferencedPubkeyList()
+                .stream()
+                .filter(p -> registration.contains(p))
+                .count() > 0;
         }
     }
 
