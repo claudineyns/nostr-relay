@@ -61,7 +61,7 @@ public class EventLocalStorageDataService extends AbstractEventDataService {
             } catch(IOException failure) { /***/ }
         });
 
-        logger.info("[Storage] event {} saved.", eventData.getId());
+        logger.info("[Storage] Event {} stored.", eventData.getId());
 
         return 0;
     }

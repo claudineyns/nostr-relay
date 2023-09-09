@@ -119,7 +119,7 @@ public final class EventCacheDataService extends AbstractEventDataService {
 
         pipeline.sync();
 
-        logger.info("[Redis] parameterized replaceabe event {} updated.", eventData.getId());
+        logger.info("[Redis] Event {} stored.", eventData.getId());
 
         return 0;
     }

@@ -128,7 +128,7 @@ public class EventDocumentDataService extends AbstractEventDataService {
             cacheVersion.insertOne(eventVersion);
         });
 
-        return logger.info("[MongoDB] [Parameter] event {} consumed.", eventData.getId());
+        return logger.info("[MongoDB] Event {} stored.", eventData.getId());
     }
     
     private byte removeStoredEvents(final MongoDatabase db, final Collection<EventData> events) {
