@@ -215,11 +215,6 @@ public class NostrService {
 
         logger.info("[Nostr] Event validated.");
 
-        response.addAll(Arrays.asList(Boolean.TRUE, ""));
-        this.broadcastClient(context, gson.toJson(response));
-
-        boolean ok = true;
-
         final String responseText;
         if( EventState.REGULAR.equals(eventData.getState()) ) {
             responseText = this.persistRegular(eventData);
@@ -230,17 +225,18 @@ public class NostrService {
         } else if( EventState.EPHEMERAL.equals(eventData.getState()) ) {
             responseText = consumeEphemeralEvent(eventData);
         } else {
-            responseText = null;
-            ok = false;
+            responseText = "invalid: event kind unknown";
         }
 
         if( responseText != null ) {
-            logger.info("[Nostr] [Event] {}", responseText);
+            response.addAll(Arrays.asList(Boolean.FALSE, responseText));
+            return this.broadcastClient(context, gson.toJson(response));
         }
 
-        if( ok && responseText == null ){
-            this.broadcastNewEvent(context, gson, eventData);
-        }
+        response.addAll(Arrays.asList(Boolean.TRUE, ""));
+        this.broadcastClient(context, gson.toJson(response));
+
+        this.broadcastNewEvent(context, gson, eventData);
 
         if( eventData.getKind() == EventKind.DELETION ) {
             this.eventProcessor.submit(()->this.removeRelatedEvents(eventData));
