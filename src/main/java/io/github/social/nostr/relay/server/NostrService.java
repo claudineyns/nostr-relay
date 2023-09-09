@@ -419,7 +419,7 @@ public class NostrService {
             return "duplicate: event has already been stored.";
         }
         if( eventService.checkRequestForRemoval(eventData) ) {
-            return "invalid: this event has already been requested to be removed from this relay.";
+            return "invalid: there is already a DELETION event for this event.";
         }
 
         eventService.persistEvent(eventData);
