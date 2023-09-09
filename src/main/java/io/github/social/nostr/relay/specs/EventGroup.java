@@ -3,7 +3,7 @@ package io.github.social.nostr.relay.specs;
 import java.util.Arrays;
 
 public enum EventGroup {
-    UNKNOWN, REGULAR, REPLACEABLE, EPHEMERAL, PARAMETERIZED_REPLACEABLE;
+    UNKNOWN, REGULAR, REPLACEABLE, PARAMETERIZED_REPLACEABLE, EPHEMERAL;
 
     public static EventGroup byKind(final int n) {
         if (Arrays.asList(
