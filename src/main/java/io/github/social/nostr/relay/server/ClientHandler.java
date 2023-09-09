@@ -266,11 +266,12 @@ public class ClientHandler implements Runnable {
 	}
 	
 	private byte checkCloseConnection() throws IOException {
-		final List<String> connectionHeader = this.httpRequestHeaders.get("connection");
-		if ( connectionHeader != null && ! connectionHeader.isEmpty() && "close".equalsIgnoreCase(connectionHeader.get(0)) ) {
-			logger.warning("Client has requested server to close connection");
-			throw new CloseConnectionException();
-		}
+		final List<String> connectionHeader = this.httpRequestHeaders
+			.getOrDefault("connection", Collections.emptyList());
+
+		final boolean closeAfterEnd = connectionHeader.stream().filter(q -> "close".equalsIgnoreCase(q)).count() > 0;
+
+		if( connectionHeader.isEmpty() || closeAfterEnd ) this.interrupt = true;
 
 		return 0;
 	}
