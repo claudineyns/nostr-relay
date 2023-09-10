@@ -691,6 +691,7 @@ public class ClientHandler implements Runnable {
 					getClass().getResourceAsStream("/META-INF/resources/index.html")
 				) {
 					IOUtils.copy(in, html);
+					etagPage = Utils.sha256(html.toByteArray());
 				}
 			}
 		}
@@ -704,6 +705,7 @@ public class ClientHandler implements Runnable {
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("text/html; charset=UTF-8"));
 		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
 		this.httpResponseHeaders.put("Expires", Arrays.asList(gmt(DAY_SECONDS)));
+		this.httpResponseHeaders.put("ETag", Arrays.asList(etagPage));
 
 		this.httpResponseBody.write(raw);
 
