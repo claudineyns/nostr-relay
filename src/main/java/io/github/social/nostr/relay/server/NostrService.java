@@ -456,24 +456,13 @@ public class NostrService {
             return "invalid: event must contain tag 'd'";
         }
 
-        final Map<String, Integer> lastUpdated = new HashMap<>();
+        final int[] lastUpdated = new int[] {0};
 
-        eventService.getEvents(eventData.storableIds())
-            .forEach(event -> event
-                .storableIds()
-                .forEach(id -> {
-                    if( event.getCreatedAt() > lastUpdated.getOrDefault(id, 0)) {
-                        lastUpdated.put(id, event.getCreatedAt());
-                    }
-                })
-            );
+        eventService
+            .getEvents(eventData.storableIds())
+            .forEach(event -> lastUpdated[0] = Math.max(lastUpdated[0], event.getCreatedAt()) );
 
-        if( lastUpdated
-            .values()
-            .stream()
-            .filter(updatedAt -> eventData.getCreatedAt() < updatedAt)
-            .count() > 0 
-        ) {
+        if( eventData.getCreatedAt() < lastUpdated[0] ) {
             return "invalid: event is outdated";
         }
 
