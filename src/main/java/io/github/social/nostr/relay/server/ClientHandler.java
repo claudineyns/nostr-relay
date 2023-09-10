@@ -681,9 +681,7 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
-	static final int DAY_SECONDS = 86400;
 	final ByteArrayOutputStream html = new ByteArrayOutputStream();
-	private String etagPage = "";
 	private byte sendIndexPage() throws IOException {
 		synchronized(html) {
 			if(html.size() == 0) {
@@ -691,21 +689,14 @@ public class ClientHandler implements Runnable {
 					getClass().getResourceAsStream("/META-INF/resources/index.html")
 				) {
 					IOUtils.copy(in, html);
-					etagPage = Utils.sha256(html.toByteArray());
 				}
 			}
-		}
-
-		if(this.getRequestHeader("if-none-match").contains(etagPage) ) {
-			return Q_NOT_MODIFIED;
 		}
 
 		final byte[] raw = html.toByteArray();
 
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("text/html; charset=UTF-8"));
 		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
-		this.httpResponseHeaders.put("Expires", Arrays.asList(gmt(DAY_SECONDS)));
-		this.httpResponseHeaders.put("ETag", Arrays.asList(etagPage));
 
 		this.httpResponseBody.write(raw);
 
