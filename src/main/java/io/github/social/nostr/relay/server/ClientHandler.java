@@ -459,7 +459,8 @@ public class ClientHandler implements Runnable {
 
 		final HttpMethod httpMethod = HttpMethod.from(method);
 		if (httpMethod == null) {
-			return this.sendMethodNotImplemented();
+			// return this.sendMethodNotImplemented();
+			return this.sendForbidden();
 		}
 
 		if ( ! methodLineLower.toUpperCase().startsWith(httpMethod.name() + " ") ) {
@@ -703,6 +704,14 @@ public class ClientHandler implements Runnable {
 		this.mountHeadersTermination();
 		
 		return this.sendBytes(raw);
+	}
+
+	private byte sendForbidden() throws IOException {
+		this.sendStatusLine(HttpStatus.FORBIDDEN);
+		this.sendDateHeader();
+		this.sendConnectionCloseHeader();
+
+		return this.mountHeadersTermination();
 	}
 
 	private byte sendResourceNotFound() throws IOException {
