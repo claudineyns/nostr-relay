@@ -1164,7 +1164,7 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( opcode == Opcode.OPCODE_PONG.code() ) {
-			logger.infof("[WS] Client [%s] -> Server: I'm on!", this.remoteAddress);
+			logger.infof("[WS] Client [%s] is on!", this.remoteAddress);
 			return 0;
 		}
 
@@ -1175,11 +1175,11 @@ public class ClientHandler implements Runnable {
 
 		if( opcode == Opcode.OPCODE_CLOSE.code() ) {
 			final short closeCode = parseCode(controlMessage.toByteArray());
-			logger.info("[WS] Client sent CLOSE frame with code {}.", closeCode);
+			logger.info("[WS] Client [%s] -> Server: sent CLOSE frame with code %d.", this.remoteAddress, closeCode);
 
 			if( this.interrupt ) return 0;
 
-			logger.info("[WS] Send client back a CLOSE confirmation frame.");
+			logger.info("[WS] Server -> Client [%s]: Sent back a CLOSE confirmation frame.", this.remoteAddress);
 			this.sendWebsocketCloseFrame(controlMessage.toByteArray());
 
 			this.interrupt = true;
