@@ -60,21 +60,16 @@ public class WebsocketHandler implements Websocket {
         return nostr.closeSession(context);
     }
 
-    @Override
     public byte onMessage(final WebsocketContext context, final TextMessage message) {
-        logger.info("[WS] Server received text message of content\n{}", message.getMessage());
+        logger.infof("[WS] Client -> Server%n%s", message.getMessage());
 
         return nostr.consume(context, message);
     }
 
-    @Override
     public byte onMessage(final WebsocketContext context, final BinaryMessage message) {
-        //return logger.info("[WS] Server received message of type {}.", message.getType());
-
         return 0;
     }
 
-    @Override
     public byte onError(WebsocketException exception) {
         return logger.info("[WS] Server got error: {}", exception.getMessage());
     }
