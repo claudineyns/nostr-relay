@@ -938,7 +938,6 @@ public class ClientHandler implements Runnable {
 	}
 
 	static final int CLIENT_LIVENESS_MILLIS = AppProperties.getClientPingSecond() * 1000;
-	private final AtomicInteger pingCounter = new AtomicInteger();
 	private void scheduleWebsocketPingClient() {
 		final Thread pingPong = new Thread(() -> {
 			try {
@@ -957,6 +956,8 @@ public class ClientHandler implements Runnable {
 	}
 
 	static final long MAX_PACKET_RECEIVED_TIMEOUT_MILLIS = 300000; // 5 minutos
+
+	private final AtomicInteger pingCounter = new AtomicInteger();
 	private byte websocketPingClientEventFired() throws IOException {
 		if(Thread.currentThread().isInterrupted()) return 0;
 
@@ -965,11 +966,7 @@ public class ClientHandler implements Runnable {
 		if ( timeDiff < CLIENT_LIVENESS_MILLIS ) return 0;
 
 		if( timeDiff > MAX_PACKET_RECEIVED_TIMEOUT_MILLIS ) {
-			if(this.interrupt) {
-				logger.info("[Server] Force closing client connection.");
-				this.client.close();
-				return 0;
-			}
+			if(this.interrupt) return 0;
 
 			return this.requestCloseDueInactivity();
 		}
@@ -985,8 +982,6 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte requestCloseDueInactivity() throws IOException {
-		logger.info("[WS] Server about to close connection due to client inactivity.");
-
 		this.interrupt = true;
 
 		final ByteBuffer closeCode = ByteBuffer.allocate(2);
@@ -996,6 +991,7 @@ public class ClientHandler implements Runnable {
 		message.write(closeCode.array());
 		message.write("Closed due to inactivity".getBytes(StandardCharsets.UTF_8));
 
+		logger.info("[WS] Server -> Client: Send CLOSE frame due to client inactivity.");
 		return this.sendWebsocketCloseFrame(message.toByteArray());
 	}
 
