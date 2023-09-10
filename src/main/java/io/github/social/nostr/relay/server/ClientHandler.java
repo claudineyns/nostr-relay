@@ -576,6 +576,15 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendETagHeader() throws IOException {
+		if( this.httpResponseHeaders
+				.keySet()
+				.stream()
+				.filter(key -> "etag".equalsIgnoreCase(key))
+				.count() > 0 
+		) {
+			return 0;
+		}
+
 		return this.sendBytes(("ETag:\"" + UUID.randomUUID().toString() + "\"" + CRLF).getBytes(StandardCharsets.US_ASCII));
 	}
 
