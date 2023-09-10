@@ -448,12 +448,21 @@ public class ClientHandler implements Runnable {
 			return this.sendAcmeChallengeData(relativePath);
 		}
 
+		final List<String> connection = this.getRequestHeader("connection");
+		final boolean isIndexPage = connection.isEmpty() || ! "Upgrade".equalsIgnoreCase(connection.get(0));
+
+		final boolean isNir = this.getRequestHeader("accept")
+			.stream()
+			.filter(accept -> accept.startsWith("application/nostr+json"))
+			.count() > 0;
+
 		switch (path) {
-			case "/live":
-				return this.sendIndexPage();
 			case "/favicon.ico":
 				return this.sendFavicon();
 			case "/":
+				if(isNir) return this.sendNirPage();
+				if(isIndexPage) return this.sendIndexPage();
+
 				return Q_SWITCHING_PROTOCOL;
 			default:
 				return Q_NOT_FOUND;
@@ -662,26 +671,36 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
+	static final int DAY_SECONDS = 86400;
 	private final ByteArrayOutputStream nirData = new ByteArrayOutputStream();
+	private String etagNir = "";
 	private byte sendNirPage() throws IOException {
 		synchronized(nirData) {
 			if(nirData.size() == 0) {
 				try(final InputStream in = new FileInputStream(nirFullpath) ) {
 					IOUtils.copy(in, nirData);
+					etagNir = Utils.sha256(nirData.toByteArray());
 				}
 			}
+		}
+
+		if( this.getRequestHeader("if-none-match").contains(etagNir) ) {
+			return Q_NOT_MODIFIED;
 		}
 
 		final byte[] raw = nirData.toByteArray();
 
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("application/nostr+json; charset=UTF-8"));
 		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
+		this.httpResponseHeaders.put("ETag", Arrays.asList(etagNir));
+		this.httpResponseHeaders.put("Expires", Arrays.asList(gmt(DAY_SECONDS)));
 		this.httpResponseBody.write(raw);
 
 		return 0;
 	}
 
 	final ByteArrayOutputStream html = new ByteArrayOutputStream();
+	private String etagPage = "";
 	private byte sendIndexPage() throws IOException {
 		synchronized(html) {
 			if(html.size() == 0) {
@@ -689,14 +708,21 @@ public class ClientHandler implements Runnable {
 					getClass().getResourceAsStream("/META-INF/resources/index.html")
 				) {
 					IOUtils.copy(in, html);
+					etagPage = Utils.sha256(html.toByteArray());
 				}
 			}
+		}
+
+		if( this.getRequestHeader("if-none-match").contains(etagPage) ) {
+			return Q_NOT_MODIFIED;
 		}
 
 		final byte[] raw = html.toByteArray();
 
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("text/html; charset=UTF-8"));
 		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
+		this.httpResponseHeaders.put("ETag", Arrays.asList(etagPage));
+		this.httpResponseHeaders.put("Expires", Arrays.asList(gmt(DAY_SECONDS)));
 
 		this.httpResponseBody.write(raw);
 
@@ -862,7 +888,6 @@ public class ClientHandler implements Runnable {
 	private byte checkSwitchingProtocol() throws IOException {
 		final HttpStatus status = HttpStatus.SWITCHING_PROTOCOL.clone();
 
-		final List<String> accept = this.getRequestHeader("accept");
 		final List<String> upgrade = this.getRequestHeader("upgrade");
 		final List<String> connection = this.getRequestHeader("connection");
 		final List<String> secWebsocketKey = this.getRequestHeader("sec-websocket-key");
@@ -873,7 +898,7 @@ public class ClientHandler implements Runnable {
 		// 	.orElse(Collections.emptyList());
 
 		if( connection.isEmpty() || ! "Upgrade".equalsIgnoreCase(connection.get(0)) ) {
-			status.replace(HttpStatus.OK);
+			status.replace(HttpStatus.BAD_REQUEST);
 		} else if( upgrade.isEmpty() ) {
 			status.replace(HttpStatus.UPGRADE_REQUIRED);
 		} else {
@@ -906,13 +931,7 @@ public class ClientHandler implements Runnable {
 
 			this.websocket = true;
 		} else if( status.code() == HttpStatus.OK.code() ) {
-
-			if( accept.contains("application/nostr+json") ) {
-				this.sendNirPage();
-			} else {
-				this.sendIndexPage();
-			}
-
+			this.sendIndexPage();
 			this.sendCustomHeaders();
 			this.sendConnectionCloseHeader();
 		} else {
