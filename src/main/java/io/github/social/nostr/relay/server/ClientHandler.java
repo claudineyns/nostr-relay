@@ -675,6 +675,10 @@ public class ClientHandler implements Runnable {
 	private final ByteArrayOutputStream nirData = new ByteArrayOutputStream();
 	private String etagNir = "";
 	private byte sendNirPage() throws IOException {
+		if( ! etagNir.isEmpty() && this.getRequestHeader("if-none-match").contains(etagNir) ) {
+			return Q_NOT_MODIFIED;
+		}
+
 		synchronized(nirData) {
 			if(nirData.size() == 0) {
 				try(final InputStream in = new FileInputStream(nirFullpath) ) {
@@ -682,10 +686,6 @@ public class ClientHandler implements Runnable {
 					etagNir = Utils.sha256(nirData.toByteArray());
 				}
 			}
-		}
-
-		if( this.getRequestHeader("if-none-match").contains(etagNir) ) {
-			return Q_NOT_MODIFIED;
 		}
 
 		final byte[] raw = nirData.toByteArray();
@@ -702,6 +702,10 @@ public class ClientHandler implements Runnable {
 	final ByteArrayOutputStream html = new ByteArrayOutputStream();
 	private String etagPage = "";
 	private byte sendIndexPage() throws IOException {
+		if( !etagPage.isEmpty() && this.getRequestHeader("if-none-match").contains(etagPage) ) {
+			return Q_NOT_MODIFIED;
+		}
+
 		synchronized(html) {
 			if(html.size() == 0) {
 				try(final InputStream in = 
@@ -711,10 +715,6 @@ public class ClientHandler implements Runnable {
 					etagPage = Utils.sha256(html.toByteArray());
 				}
 			}
-		}
-
-		if( this.getRequestHeader("if-none-match").contains(etagPage) ) {
-			return Q_NOT_MODIFIED;
 		}
 
 		final byte[] raw = html.toByteArray();
@@ -733,6 +733,10 @@ public class ClientHandler implements Runnable {
 	private final ByteArrayOutputStream iconData = new ByteArrayOutputStream();
 	private String etagIcon = "";
 	private byte sendFavicon() throws IOException {
+		if(!etagIcon.isEmpty() && this.getRequestHeader("if-none-match").contains(etagIcon) ) {
+			return Q_NOT_MODIFIED;
+		}
+
 		synchronized(iconData) {
 			if(iconData.size() == 0) {
 				try(final InputStream in = new FileInputStream(nirIconPath) ) {
@@ -742,9 +746,6 @@ public class ClientHandler implements Runnable {
 			}
 		}
 
-		if(this.getRequestHeader("if-none-match").contains(etagIcon) ) {
-			return Q_NOT_MODIFIED;
-		}
 
 		final byte[] raw = iconData.toByteArray();
 
