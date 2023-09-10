@@ -1152,11 +1152,6 @@ public class ClientHandler implements Runnable {
 
 		}
 
-		if(pingCounter.get() > 0) {
-			pingCounter.set(0);
-			logger.info("[WS] Client [%s] -> Server: I'm on", this.remoteAddress);
-		}
-
 		this.lastPacketReceivedTime = System.currentTimeMillis();
 
 		if( opcode == Opcode.OPCODE_TEXT.code() ) {
@@ -1168,9 +1163,10 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( opcode == Opcode.OPCODE_PONG.code() ) {
-			// logger.info("[WS] Client sent PONG frame.");
+			logger.info("[WS] Client [%s] -> Server: I'm on", this.remoteAddress);
 			return 0;
 		}
+		if(pingCounter.get() > 0) pingCounter.set(0);
 
 		if( opcode == Opcode.OPCODE_PING.code() ) {
 			// logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
