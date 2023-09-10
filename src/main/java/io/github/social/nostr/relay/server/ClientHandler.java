@@ -1154,7 +1154,7 @@ public class ClientHandler implements Runnable {
 
 		if(pingCounter.get() > 0) {
 			pingCounter.set(0);
-			logger.info("[WS] Client -> Server: I'm on");
+			logger.info("[WS] Client [%s] -> Server: I'm on", this.remoteAddress);
 		}
 
 		this.lastPacketReceivedTime = System.currentTimeMillis();
