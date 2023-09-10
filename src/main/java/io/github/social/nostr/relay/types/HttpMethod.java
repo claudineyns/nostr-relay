@@ -1,7 +1,7 @@
 package io.github.social.nostr.relay.types;
 
 public enum HttpMethod {
-    GET;
+    OPTIONS, GET, POST;
 
     public static HttpMethod from(final String method) {
         if (method == null) {

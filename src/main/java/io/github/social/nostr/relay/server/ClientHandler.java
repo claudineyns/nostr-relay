@@ -350,7 +350,9 @@ public class ClientHandler implements Runnable {
 	static final byte Q_BAD_REQUEST = -1;
 	static final byte Q_NOT_FOUND = -2;
 	static final byte Q_SERVER_ERROR = -3;
-	static final byte Q_SWITCHING_PROTOCOL = 1;
+
+	static final byte Q_OK_OPTIONS = 1;
+	static final byte Q_SWITCHING_PROTOCOL = 2;
 
 	private byte continueHandleHttpRequest() throws IOException {
 		final List<String> hostList = Optional
@@ -365,6 +367,9 @@ public class ClientHandler implements Runnable {
 
 		byte returnCode = 0;
 		switch (this.requestMethod) {
+		case OPTIONS:
+			returnCode = this.handleOptionsRequests();
+			break;
 		case GET:
 			returnCode = this.handleGetRequests();
 			break;
@@ -379,12 +384,22 @@ public class ClientHandler implements Runnable {
 				return this.sendResourceNotFound();
 			case Q_SWITCHING_PROTOCOL:
 				return this.checkSwitchingProtocol();
+			case Q_OK_OPTIONS:
+				return 0;
 			case 0:
 				return sendResponse();
 			default:
 				return this.sendServerError(null);
 		}
 
+	}
+	
+	private byte handleOptionsRequests() {
+		try {
+			return doHandleOptionsRequests();
+		} catch (IOException e) {
+			return 1;
+		}
 	}
 	
 	private byte handleGetRequests() {
@@ -400,6 +415,17 @@ public class ClientHandler implements Runnable {
 	}
 
 	static final String ACME_CHALLENGE_BASE_PATH = "/.well-known/acme-challenge/";
+
+	private byte doHandleOptionsRequests() throws IOException {
+		final String path = getPath(); 
+
+		switch (path) {
+			case "/":
+				return this.sendOkOptions();
+			default:
+				return Q_NOT_FOUND;
+		}
+	}
 
 	private byte doHandleGetRequests() throws IOException {
 		final String path = getPath(); 
@@ -573,6 +599,16 @@ public class ClientHandler implements Runnable {
 	private byte sendConnectionCloseHeader() throws IOException {
 		this.interrupt = true;
 		return this.sendBytes(("Connection: close" + CRLF).getBytes(StandardCharsets.US_ASCII));
+	}
+
+	private byte sendOkOptions() throws IOException {
+		this.sendStatusLine(HttpStatus.OK);
+		this.sendBytes(("Allow: OPTIONS, GET" + CRLF).getBytes(StandardCharsets.US_ASCII));
+		this.sendBytes(("Content-Length: 0" + CRLF).getBytes(StandardCharsets.US_ASCII));
+		this.sendConnectionCloseHeader();
+		this.mountHeadersTermination();
+
+		return Q_OK_OPTIONS;
 	}
 
 	private byte sendAcmeChallengeData(final String relativePath) throws IOException {
