@@ -443,7 +443,6 @@ public class NostrService {
         final EventData currentEvent = eventService.getEvent(storedId);
         final int currentCreatedAt = currentEvent != null ? currentEvent.getCreatedAt() : 0;
 
-        logger.infof("[Nostr] [Replaceable]%nPubkey: %s | kind: %d | lastUpdated: %d | newUpdate: %d", eventData.getPubkey(), eventData.getKind(), currentCreatedAt, eventData.getCreatedAt());
         if( eventData.getCreatedAt() <= currentCreatedAt ) {
             return "invalid: event is outdated";
         }
@@ -472,7 +471,11 @@ public class NostrService {
         if( eventData
             .storableIds()
             .stream()
-            .filter(id -> eventData.getCreatedAt() < lastUpdated.getOrDefault(id, 0))
+            .map(id -> lastUpdated.getOrDefault(id, 0))
+            .peek(updatedAt -> {
+                logger.infof("[Nostr] [Replaceable]%nPubkey: %s | kind: %d | lastUpdated: %d | newUpdate: %d", eventData.getPubkey(), eventData.getKind(), updatedAt, eventData.getCreatedAt());
+            })
+            .filter(updatedAt -> eventData.getCreatedAt() < updatedAt)
             .count() > 0 ) 
         {
             return "invalid: event is outdated";
