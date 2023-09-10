@@ -973,9 +973,9 @@ public class ClientHandler implements Runnable {
 
 		final int c = pingCounter.getAndIncrement();
 		if( c == 0 ) {
-			logger.info("[WS] Server -> Client: Hey, are you on?");
+			logger.infof("[WS] Server -> Client [%s]: Hey, are you on?", this.remoteAddress);
 		} else {
-			logger.info("[WS] Server -> Client: It seems you are off. Are you on?");
+			logger.infof("[WS] Server -> Client [%s]: It seems you are off. Are you on?", this.remoteAddress);
 		}
 
 		return this.sendWebsocketPingClient();
@@ -991,7 +991,7 @@ public class ClientHandler implements Runnable {
 		message.write(closeCode.array());
 		message.write("Closed due to inactivity".getBytes(StandardCharsets.UTF_8));
 
-		logger.info("[WS] Server -> Client: Send CLOSE frame due to client inactivity.");
+		logger.infof("[WS] Server -> Client [%s]: Send CLOSE frame due to client inactivity.", this.remoteAddress);
 		return this.sendWebsocketCloseFrame(message.toByteArray());
 	}
 
