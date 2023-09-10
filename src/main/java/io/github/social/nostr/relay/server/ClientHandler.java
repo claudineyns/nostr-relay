@@ -1169,7 +1169,7 @@ public class ClientHandler implements Runnable {
 		pingCounter.set(0);
 
 		if( opcode == Opcode.OPCODE_PING.code() ) {
-			// logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
+			logger.info("[WS] Client [%s] -> Server: Hey, are you on?", this.remoteAddress);
 			return this.sendWebsocketPongClient(message.toByteArray());
 		}
 
@@ -1228,6 +1228,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendWebsocketPongClient(final byte[] rawData) throws IOException {
+		logger.info("[WS] Server -> Client [%s]: I'm on!", this.remoteAddress);
 		return this.sendWebsocketClientRawData(Opcode.OPCODE_PONG.code(), rawData);
 	}
 
