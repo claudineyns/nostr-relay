@@ -1171,17 +1171,17 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( opcode == Opcode.OPCODE_PING.code() ) {
-			logger.info("[WS] Client [%s] -> Server: Hey, are you on?", this.remoteAddress);
+			logger.infof("[WS] Client [%s] -> Server: Hey, are you on?", this.remoteAddress);
 			return this.sendWebsocketPongClient(message.toByteArray());
 		}
 
 		if( opcode == Opcode.OPCODE_CLOSE.code() ) {
 			final short closeCode = parseCode(controlMessage.toByteArray());
-			logger.info("[WS] Client [%s] -> Server: sent CLOSE frame with code %d.", this.remoteAddress, closeCode);
+			logger.infof("[WS] Client [%s] -> Server: sent CLOSE frame with code %d.", this.remoteAddress, closeCode);
 
 			if( this.interrupt ) return 0;
 
-			logger.info("[WS] Server -> Client [%s]: Sent back a CLOSE confirmation frame.", this.remoteAddress);
+			logger.infof("[WS] Server -> Client [%s]: Sent back a CLOSE confirmation frame.", this.remoteAddress);
 			this.sendWebsocketCloseFrame(controlMessage.toByteArray());
 
 			this.interrupt = true;
