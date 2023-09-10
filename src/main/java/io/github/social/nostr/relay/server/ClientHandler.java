@@ -736,8 +736,8 @@ public class ClientHandler implements Runnable {
 
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("image/icon"));
 		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
-		this.httpResponseHeaders.put("Expires: ", Arrays.asList(gmt(WEEK_SECONDS)));
-		this.httpResponseHeaders.put("ETag: ", Arrays.asList(etagIcon));
+		this.httpResponseHeaders.put("Expires", Arrays.asList(gmt(WEEK_SECONDS)));
+		this.httpResponseHeaders.put("ETag", Arrays.asList(etagIcon));
 		this.httpResponseBody.write(raw);
 
 		return 0;
