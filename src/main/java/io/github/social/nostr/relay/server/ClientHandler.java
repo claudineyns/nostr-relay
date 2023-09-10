@@ -777,6 +777,8 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte sendResourceNotModified() throws IOException {
+		this.interrupt = true;
+
 		this.sendStatusLine(HttpStatus.NOT_MODIFIED);
 
 		return this.mountHeadersTermination();
