@@ -3,6 +3,7 @@ package io.github.social.nostr.relay.types;
 public class HttpStatus {
 	public static final HttpStatus SWITCHING_PROTOCOL = new HttpStatus(101, "Switching Protocols");
 	public static final HttpStatus OK = new HttpStatus(200, "OK");
+    public static final HttpStatus NOT_MODIFIED = new HttpStatus(304, "Not Modified");
 	public static final HttpStatus BAD_REQUEST = new HttpStatus(400, "Bad Request");
     public static final HttpStatus FORBIDDEN = new HttpStatus(403, "Forbidden");
 	public static final HttpStatus NOT_FOUND = new HttpStatus(404, "Not Found");

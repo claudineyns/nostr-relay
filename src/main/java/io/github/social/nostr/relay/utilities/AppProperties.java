@@ -157,6 +157,13 @@ public final class AppProperties {
 			);
 	}
 
+	public static String getNirIconPath() {
+		return nullValue(
+				System.getProperty(Constants.PROPERTY_NIR_ICON_PATH),
+				System.getenv(Constants.ENV_NIR_ICON_PATH)
+			);
+	}
+
 	public static String getNostrEventScriptpath() {
 		return nullValue(
 				System.getProperty(Constants.PROPERTY_EVENT_SCRIPT_PATH),

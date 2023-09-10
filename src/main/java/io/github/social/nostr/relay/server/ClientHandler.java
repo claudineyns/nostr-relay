@@ -43,6 +43,7 @@ import io.github.social.nostr.relay.types.HttpStatus;
 import io.github.social.nostr.relay.types.Opcode;
 import io.github.social.nostr.relay.utilities.AppProperties;
 import io.github.social.nostr.relay.utilities.LogService;
+import io.github.social.nostr.relay.utilities.Utils;
 import io.github.social.nostr.relay.websocket.BinaryMessage;
 import io.github.social.nostr.relay.websocket.TextMessage;
 import io.github.social.nostr.relay.websocket.Websocket;
@@ -63,6 +64,8 @@ public class ClientHandler implements Runnable {
 	private final String redirectPage = AppProperties.getRedirectPage();
 
 	private final String nirFullpath = AppProperties.getNirFullpath();
+
+	private final String nirIconPath = AppProperties.getNirIconPath();
 
 	private final String host = AppProperties.getHost();
 
@@ -234,6 +237,14 @@ public class ClientHandler implements Runnable {
 	private Map<String, List<String>> httpResponseHeaders = new LinkedHashMap<>();
 	private ByteArrayOutputStream httpResponseBody = new ByteArrayOutputStream();
 
+	private List<String> getRequestHeader(final String header) {
+		return Optional.ofNullable(this.httpRequestHeaders.get(header)).orElseGet(Collections::emptyList);
+	}
+
+	private Optional<List<String>> getOptionalRequestHeader(final String header) {
+		return Optional.ofNullable(this.httpRequestHeaders.get(header));
+	}
+
 	private void cleanup() {
 		this.requestMethod = null;
 		this.requestUrl = null;
@@ -269,8 +280,7 @@ public class ClientHandler implements Runnable {
 	}
 	
 	private byte checkCloseConnection() throws IOException {
-		final List<String> connectionHeader = this.httpRequestHeaders
-			.getOrDefault("connection", Collections.emptyList());
+		final List<String> connectionHeader = this.getRequestHeader("connection");
 
 		final boolean closeAfterEnd = connectionHeader.stream().filter(q -> "close".equalsIgnoreCase(q)).count() > 0;
 
@@ -347,18 +357,18 @@ public class ClientHandler implements Runnable {
 		}
 
 	}
-	
-	static final byte Q_BAD_REQUEST = -1;
+
+	static final byte Q_NOT_MODIFIED = -4;
+
+	static final byte Q_BAD_REQUEST = -3;
 	static final byte Q_NOT_FOUND = -2;
-	static final byte Q_SERVER_ERROR = -3;
+	static final byte Q_SERVER_ERROR = -1;
 
 	static final byte Q_OK_OPTIONS = 1;
 	static final byte Q_SWITCHING_PROTOCOL = 2;
 
 	private byte continueHandleHttpRequest() throws IOException {
-		final List<String> hostList = Optional
-			.ofNullable(this.httpRequestHeaders.get("host"))
-			.orElseGet(Collections::emptyList);
+		final List<String> hostList = this.getRequestHeader("host");
 
 		if( hostList
 			.stream()
@@ -385,6 +395,8 @@ public class ClientHandler implements Runnable {
 				return this.sendResourceNotFound();
 			case Q_SWITCHING_PROTOCOL:
 				return this.checkSwitchingProtocol();
+			case Q_NOT_MODIFIED:
+				return this.sendResourceNotModified();
 			case Q_OK_OPTIONS:
 				return 0;
 			case 0:
@@ -517,8 +529,7 @@ public class ClientHandler implements Runnable {
 
 		originDebug.append(String.format("%n> Remote Address: %s", this.remoteAddress));
 
-		Optional
-			.ofNullable(this.httpRequestHeaders.get("user-agent"))
+		getOptionalRequestHeader("user-agent")
 			.ifPresent(lista -> 
 				lista
 					.stream()
@@ -526,9 +537,11 @@ public class ClientHandler implements Runnable {
 					.forEach(q -> originDebug.append(String.format("%n> User-Agent: %s", q)) )
 			);
 
-		Optional
-			.ofNullable(this.httpRequestHeaders.get("origin"))
-			.ifPresent(lista -> lista.stream().forEach(q -> originDebug.append(String.format("%n> Origin: %s", q)) ));
+		getOptionalRequestHeader("origin").ifPresent(
+			lista -> lista
+				.stream()
+				.forEach(q -> originDebug.append(String.format("%n> Origin: %s", q)) )
+		);
 
 		logger.info("{}", originDebug);
 
@@ -540,9 +553,13 @@ public class ClientHandler implements Runnable {
 	}
 
 	private static final String gmt() {
+		return gmt(0);
+	}
+
+	private static final String gmt(final int additionTimeSeconds) {
 		final DateTimeFormatter RFC_1123_DATE_TIME = DateTimeFormatter
 			.ofPattern("EEE, dd MMM yyyy HH:mm:ss 'GMT'", Locale.US);
-		final ZonedDateTime dt = ZonedDateTime.now(ZoneId.of("GMT"));
+		final ZonedDateTime dt = ZonedDateTime.now(ZoneId.of("GMT")).plusSeconds(additionTimeSeconds);
 
 		return dt.format(RFC_1123_DATE_TIME);
 	}
@@ -649,8 +666,7 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
-	final ByteArrayOutputStream nirData = new ByteArrayOutputStream();
-
+	private final ByteArrayOutputStream nirData = new ByteArrayOutputStream();
 	private byte sendNirPage() throws IOException {
 		synchronized(nirData) {
 			if(nirData.size() == 0) {
@@ -693,11 +709,29 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
+	static final int WEEK_SECONDS = 604800;
+	private final ByteArrayOutputStream iconData = new ByteArrayOutputStream();
+	private String etagIcon = "";
 	private byte sendFavicon() throws IOException {
-		final byte[] raw = new byte[] {};
+		synchronized(iconData) {
+			if(iconData.size() == 0) {
+				try(final InputStream in = new FileInputStream(nirIconPath) ) {
+					IOUtils.copy(in, iconData);
+					etagIcon = Utils.sha256(iconData.toByteArray());
+				}
+			}
+		}
+
+		if(this.getRequestHeader("if-none-match").contains(etagIcon) ) {
+			return Q_NOT_MODIFIED;
+		}
+	
+		final byte[] raw = iconData.toByteArray();
 
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("image/icon"));
 		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
+		this.httpResponseHeaders.put("Expires: ", Arrays.asList(gmt(WEEK_SECONDS)));
+		this.httpResponseHeaders.put("ETag: ", Arrays.asList(etagIcon));
 		this.httpResponseBody.write(raw);
 
 		return 0;
@@ -719,6 +753,12 @@ public class ClientHandler implements Runnable {
 
 	private byte mountHeadersTermination() throws IOException {
 		return this.sendBytes(CRLF_RAW);
+	}
+
+	private byte sendResourceNotModified() throws IOException {
+		this.sendStatusLine(HttpStatus.NOT_MODIFIED);
+		
+		return this.mountHeadersTermination();
 	}
 
 	private byte sendBadRequest() throws IOException {
@@ -828,25 +868,11 @@ public class ClientHandler implements Runnable {
 	private byte checkSwitchingProtocol() throws IOException {
 		final HttpStatus status = HttpStatus.SWITCHING_PROTOCOL.clone();
 
-		final List<String> accept = Optional
-			.ofNullable(this.httpRequestHeaders.get("accept"))
-			.orElse(Collections.emptyList());
-
-		final List<String> upgrade = Optional
-			.ofNullable(this.httpRequestHeaders.get("upgrade"))
-			.orElse(Collections.emptyList());
-
-		final List<String> connection = Optional
-			.ofNullable(this.httpRequestHeaders.get("connection"))
-			.orElse(Collections.emptyList());
-
-		final List<String> secWebsocketKey = Optional
-			.ofNullable(this.httpRequestHeaders.get("sec-websocket-key"))
-			.orElse(Collections.emptyList());
-
-		final List<String> secWebsocketVersion = Optional
-			.ofNullable(this.httpRequestHeaders.get("sec-websocket-version"))
-			.orElse(Collections.emptyList());
+		final List<String> accept = this.getRequestHeader("accept");
+		final List<String> upgrade = this.getRequestHeader("upgrade");
+		final List<String> connection = this.getRequestHeader("connection");
+		final List<String> secWebsocketKey = this.getRequestHeader("sec-websocket-key");
+		final List<String> secWebsocketVersion = this.getRequestHeader("sec-websocket-version");
 
 		// final List<String> secWebsocketProtocol = Optional
 		// 	.ofNullable(this.httpRequestHeaders.get("sec-websocket-protocol"))

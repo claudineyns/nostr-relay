@@ -17,6 +17,8 @@ public final class Constants {
 		"nostr.websocket.client.ping.second";
 	public static final String PROPERTY_NIR_FULLPATH = 
 		"nostr.nir.fullpath";
+	public static final String PROPERTY_NIR_ICON_PATH = 
+		"nostr.nir.icon.path";
 	public static final String PROPERTY_EVENT_SCRIPT_PATH = 
 		"nostr.event.script.path";
 
@@ -61,6 +63,8 @@ public final class Constants {
 		"NOSTR_WEBSOCKET_CLIENT_PING_SECOND";
 	public static final String ENV_NIR_FULLPATH = 
 		"NOSTR_NIR_FULLPATH";
+	public static final String ENV_NIR_ICON_PATH = 
+		"NOSTR_NIR_ICON_PATH";
 	public static final String ENV_EVENT_SCRIPT_PATH = 
 		"NOSTR_EVENT_SCRIPT_PATH";
 
