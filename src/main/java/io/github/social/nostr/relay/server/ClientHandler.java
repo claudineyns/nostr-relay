@@ -974,8 +974,10 @@ public class ClientHandler implements Runnable {
 		final int c = pingCounter.getAndIncrement();
 		if( c == 0 ) {
 			logger.infof("[WS] Server -> Client [%s]: Hey, are you on?", this.remoteAddress);
+		} else if( c == 1 ) {
+			logger.infof("[WS] Server -> Client [%s]: It seems client is off. Are you on?", this.remoteAddress);
 		} else {
-			logger.infof("[WS] Server -> Client [%s]: It seems you are off. Are you on?", this.remoteAddress);
+			logger.infof("[WS] Server -> Client [%s]: Hey, wake up! Are you on?", this.remoteAddress);
 		}
 
 		return this.sendWebsocketPingClient();
