@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,7 +54,7 @@ import static io.github.social.nostr.relay.utilities.Utils.secWebsocketAccept;
 public class ClientHandler implements Runnable {
 	private final LogService logger = LogService.getInstance(getClass().getCanonicalName());
 
-	private final ScheduledExecutorService pingService = Executors.newScheduledThreadPool(5);
+	private final ScheduledExecutorService pingService = Executors.newScheduledThreadPool(1);
 
 	private final ExecutorService websocketEventService = Executors.newCachedThreadPool();
 
@@ -937,6 +938,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	static final int CLIENT_LIVENESS_MILLIS = AppProperties.getClientPingSecond() * 1000;
+	private final AtomicInteger pingCounter = new AtomicInteger();
 	private void scheduleWebsocketPingClient() {
 		final Thread pingPong = new Thread(() -> {
 			try {
@@ -972,7 +974,13 @@ public class ClientHandler implements Runnable {
 			return this.requestCloseDueInactivity();
 		}
 
-		//logger.info("[WS] Send PING frame to client.");
+		final int c = pingCounter.getAndIncrement();
+		if( c == 0 ) {
+			logger.info("[WS] Server -> Client: Hey, are you on?");
+		} else {
+			logger.info("[WS] Server -> Client: It seems you are off. Are you on?");
+		}
+
 		return this.sendWebsocketPingClient();
 	}
 
@@ -1146,6 +1154,11 @@ public class ClientHandler implements Runnable {
 
 			} while(this.incomingData.remaining() > 0);
 
+		}
+
+		if(pingCounter.get() > 0) {
+			pingCounter.set(0);
+			logger.info("[WS] Client -> Server: I'm on");
 		}
 
 		this.lastPacketReceivedTime = System.currentTimeMillis();
