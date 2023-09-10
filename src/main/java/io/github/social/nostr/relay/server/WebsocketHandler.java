@@ -61,7 +61,7 @@ public class WebsocketHandler implements Websocket {
     }
 
     public byte onMessage(final WebsocketContext context, final TextMessage message) {
-        logger.infof("[WS] Client -> Server%n%s", message.getMessage());
+        logger.infof("[WS] Client [%s] -> Server%n%s", context.getRemoteAddress(), message.getMessage());
 
         return nostr.consume(context, message);
     }

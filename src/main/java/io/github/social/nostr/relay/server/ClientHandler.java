@@ -71,7 +71,7 @@ public class ClientHandler implements Runnable {
 			clientBroadcaster.submit(() -> {
 				if(interrupt) return;
 
-				logger.infof("[WS] Server -> Client%n%s", message);
+				logger.infof("[WS] Server -> Client [%s]%n%s", remoteAddress, message);
 
 				try {
 					sendWebsocketDataClient(message);
@@ -1166,7 +1166,7 @@ public class ClientHandler implements Runnable {
 			logger.infof("[WS] Client [%s] -> Server: I'm on!", this.remoteAddress);
 			return 0;
 		}
-		if(pingCounter.get() > 0) pingCounter.set(0);
+		pingCounter.set(0);
 
 		if( opcode == Opcode.OPCODE_PING.code() ) {
 			// logger.info("[WS] Client sent PING frame. Send back a PONG frame.");
