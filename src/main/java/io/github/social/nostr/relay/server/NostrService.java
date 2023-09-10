@@ -468,16 +468,12 @@ public class NostrService {
                 })
             );
 
-        if( eventData
-            .storableIds()
+        if( lastUpdated
+            .values()
             .stream()
-            .map(id -> lastUpdated.getOrDefault(id, 0))
-            .peek(updatedAt -> {
-                logger.infof("[Nostr] [Replaceable]%nPubkey: %s | kind: %d | lastUpdated: %d | newUpdate: %d", eventData.getPubkey(), eventData.getKind(), updatedAt, eventData.getCreatedAt());
-            })
             .filter(updatedAt -> eventData.getCreatedAt() < updatedAt)
-            .count() > 0 ) 
-        {
+            .count() > 0 
+        ) {
             return "invalid: event is outdated";
         }
 
