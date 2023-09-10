@@ -575,19 +575,6 @@ public class ClientHandler implements Runnable {
 		return this.sendBytes(String.format("Date: %s%s", gmt(), CRLF).getBytes(StandardCharsets.US_ASCII));
 	}
 
-	private byte sendETagHeader() throws IOException {
-		if( this.httpResponseHeaders
-				.keySet()
-				.stream()
-				.filter(key -> "etag".equalsIgnoreCase(key))
-				.count() > 0 
-		) {
-			return 0;
-		}
-
-		return this.sendBytes(("ETag:\"" + UUID.randomUUID().toString() + "\"" + CRLF).getBytes(StandardCharsets.US_ASCII));
-	}
-
 	private byte sendContentHeader(final String type, final int length) throws IOException {
 		this.sendBytes(("Content-Type: " + type + CRLF).getBytes(StandardCharsets.US_ASCII));
 		this.sendBytes(("Content-Length: " + length + CRLF).getBytes(StandardCharsets.US_ASCII));
@@ -694,7 +681,9 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
+	static final int DAY_SECONDS = 86400;
 	final ByteArrayOutputStream html = new ByteArrayOutputStream();
+	private String etagPage = "";
 	private byte sendIndexPage() throws IOException {
 		synchronized(html) {
 			if(html.size() == 0) {
@@ -706,10 +695,16 @@ public class ClientHandler implements Runnable {
 			}
 		}
 
+		if(this.getRequestHeader("if-none-match").contains(etagPage) ) {
+			return Q_NOT_MODIFIED;
+		}
+
 		final byte[] raw = html.toByteArray();
 
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("text/html; charset=UTF-8"));
 		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
+		this.httpResponseHeaders.put("Expires", Arrays.asList(gmt(DAY_SECONDS)));
+
 		this.httpResponseBody.write(raw);
 
 		return 0;
@@ -731,7 +726,7 @@ public class ClientHandler implements Runnable {
 		if(this.getRequestHeader("if-none-match").contains(etagIcon) ) {
 			return Q_NOT_MODIFIED;
 		}
-	
+
 		final byte[] raw = iconData.toByteArray();
 
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("image/icon"));
@@ -864,7 +859,6 @@ public class ClientHandler implements Runnable {
 
 		this.sendDateHeader();
 		this.sendAccessControlAllowOriginHeader();		
-		this.sendETagHeader();
 		this.sendCustomHeaders();
 		this.sendConnectionCloseHeader();
 		this.mountHeadersTermination();
