@@ -443,6 +443,7 @@ public class NostrService {
         final EventData currentEvent = eventService.getEvent(storedId);
         final int currentCreatedAt = currentEvent != null ? currentEvent.getCreatedAt() : 0;
 
+        logger.infof("[Nostr] [Replaceable]%nPubkey: %s | kind: %d | lastUpdated: %d | newUpdate: %d", eventData.getPubkey(), eventData.getKind(), currentCreatedAt, eventData.getCreatedAt());
         if( eventData.getCreatedAt() <= currentCreatedAt ) {
             return "invalid: event is outdated";
         }
