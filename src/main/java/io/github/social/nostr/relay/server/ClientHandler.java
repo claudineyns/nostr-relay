@@ -685,22 +685,19 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
+	final ByteArrayOutputStream html = new ByteArrayOutputStream();
 	private byte sendIndexPage() throws IOException {
-		final StringBuilder page = new StringBuilder("");
-		final ByteArrayOutputStream html = new ByteArrayOutputStream();
-		try(final InputStream in = getClass()
-				.getResourceAsStream("/META-INF/resources/index.html")) {
-			IOUtils.copy(in, html);
-
-			final String content = new String(html.toByteArray(), StandardCharsets.UTF_8)
-				.replaceAll("[\\r\\n]", "")
-				.replaceAll("\\s+", " ")
-				.replace("https://example.com", redirectPage);
-
-			page.append(content);
+		synchronized(html) {
+			if(html.size() == 0) {
+				try(final InputStream in = 
+					getClass().getResourceAsStream("/META-INF/resources/index.html")
+				) {
+					IOUtils.copy(in, html);
+				}
+			}
 		}
 
-		final byte[] raw = page.toString().getBytes(StandardCharsets.UTF_8);
+		final byte[] raw = html.toByteArray();
 
 		this.httpResponseHeaders.put("Content-Type", Arrays.asList("text/html; charset=UTF-8"));
 		this.httpResponseHeaders.put("Content-Length", Arrays.asList(Integer.toString(raw.length)));
@@ -757,7 +754,7 @@ public class ClientHandler implements Runnable {
 
 	private byte sendResourceNotModified() throws IOException {
 		this.sendStatusLine(HttpStatus.NOT_MODIFIED);
-		
+
 		return this.mountHeadersTermination();
 	}
 
