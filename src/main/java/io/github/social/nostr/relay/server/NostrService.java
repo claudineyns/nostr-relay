@@ -463,13 +463,18 @@ public class NostrService {
             .forEach(event -> event
                 .storableIds()
                 .forEach(id -> {
-                    if( eventData.getCreatedAt() > lastUpdated.getOrDefault(id, 0)) {
+                    if( event.getCreatedAt() > lastUpdated.getOrDefault(id, 0)) {
                         lastUpdated.put(id, event.getCreatedAt());
                     }
                 })
             );
 
-        if(lastUpdated.isEmpty()) {
+        if( eventData
+            .storableIds()
+            .stream()
+            .filter(id -> eventData.getCreatedAt() < lastUpdated.getOrDefault(id, 0))
+            .count() > 0 ) 
+        {
             return "invalid: event is outdated";
         }
 
