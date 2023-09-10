@@ -1163,7 +1163,7 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( opcode == Opcode.OPCODE_PONG.code() ) {
-			logger.info("[WS] Client [%s] -> Server: I'm on", this.remoteAddress);
+			logger.infof("[WS] Client [%s] -> Server: I'm on", this.remoteAddress);
 			return 0;
 		}
 		if(pingCounter.get() > 0) pingCounter.set(0);
