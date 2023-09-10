@@ -973,25 +973,23 @@ public class ClientHandler implements Runnable {
 
 		final int c = pingCounter.getAndIncrement();
 		if( c == 0 ) {
-			logger.infof("[WS] Server -> Client [%s]: Hey, are you on?", this.remoteAddress);
-		} else if( c == 1 ) {
-			logger.infof("[WS] Server -> Client [%s]: It seems client is off. Are you on?", this.remoteAddress);
+			logger.infof("[WS] Server -> Client [%s]: Checking whether client is on.", this.remoteAddress);
 		} else {
-			logger.infof("[WS] Server -> Client [%s]: Hey, wake up! Are you on?", this.remoteAddress);
+			logger.infof("[WS] Server -> Client [%s]: It seems client is off. Checking again.", this.remoteAddress);
 		}
 
 		return this.sendWebsocketPingClient();
 	}
 
 	private byte requestCloseDueInactivity() throws IOException {
-		this.interrupt = true;
-
 		final ByteBuffer closeCode = ByteBuffer.allocate(2);
 		closeCode.putShort((short)1000);
 
 		final ByteArrayOutputStream message = new ByteArrayOutputStream();
 		message.write(closeCode.array());
 		message.write("Closed due to inactivity".getBytes(StandardCharsets.UTF_8));
+
+		this.interrupt = true;
 
 		logger.infof("[WS] Server -> Client [%s]: Send CLOSE frame due to client inactivity.", this.remoteAddress);
 		return this.sendWebsocketCloseFrame(message.toByteArray());
@@ -1166,7 +1164,7 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( opcode == Opcode.OPCODE_PONG.code() ) {
-			logger.infof("[WS] Client [%s] is on!", this.remoteAddress);
+			logger.infof("[WS] Client [%s] is on.", this.remoteAddress);
 			return 0;
 		}
 
@@ -1177,7 +1175,7 @@ public class ClientHandler implements Runnable {
 
 		if( opcode == Opcode.OPCODE_CLOSE.code() ) {
 			final short closeCode = parseCode(controlMessage.toByteArray());
-			logger.infof("[WS] Client [%s] -> Server: sent CLOSE frame with code %d.", this.remoteAddress, closeCode);
+			logger.infof("[WS] Client [%s] -> Server: Sent CLOSE frame with code %d.", this.remoteAddress, closeCode);
 
 			if( this.interrupt ) return 0;
 
