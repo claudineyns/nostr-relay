@@ -672,8 +672,9 @@ public class ClientHandler implements Runnable {
 	}
 
 	static final int DAY_SECONDS = 86400;
-	private final ByteArrayOutputStream nirData = new ByteArrayOutputStream();
-	private String etagNir = "";
+	static final ByteArrayOutputStream nirData = new ByteArrayOutputStream();
+	static String etagNir = "";
+
 	private byte sendNirPage() throws IOException {
 		synchronized(nirData) {
 			if(nirData.size() == 0) {
@@ -699,8 +700,9 @@ public class ClientHandler implements Runnable {
 		return 0;
 	}
 
-	final ByteArrayOutputStream html = new ByteArrayOutputStream();
-	private String etagPage = "";
+	static final ByteArrayOutputStream html = new ByteArrayOutputStream();
+	static String etagPage = "";
+
 	private byte sendIndexPage() throws IOException {
 		synchronized(html) {
 			if(html.size() == 0) {
@@ -730,8 +732,9 @@ public class ClientHandler implements Runnable {
 	}
 
 	static final int WEEK_SECONDS = 604800;
-	private final ByteArrayOutputStream iconData = new ByteArrayOutputStream();
-	private String etagIcon = "";
+	static final ByteArrayOutputStream iconData = new ByteArrayOutputStream();
+	static String etagIcon = "";
+
 	private byte sendFavicon() throws IOException {
 		synchronized(iconData) {
 			if(iconData.size() == 0) {
