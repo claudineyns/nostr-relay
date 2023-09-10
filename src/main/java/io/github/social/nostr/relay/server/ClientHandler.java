@@ -1153,6 +1153,7 @@ public class ClientHandler implements Runnable {
 		}
 
 		this.lastPacketReceivedTime = System.currentTimeMillis();
+		pingCounter.set(0);
 
 		if( opcode == Opcode.OPCODE_TEXT.code() ) {
 			this.notifyWebsocketTextMessage(message.toByteArray());
@@ -1166,7 +1167,6 @@ public class ClientHandler implements Runnable {
 			logger.infof("[WS] Client [%s] -> Server: I'm on!", this.remoteAddress);
 			return 0;
 		}
-		pingCounter.set(0);
 
 		if( opcode == Opcode.OPCODE_PING.code() ) {
 			logger.info("[WS] Client [%s] -> Server: Hey, are you on?", this.remoteAddress);
