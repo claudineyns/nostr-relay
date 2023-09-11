@@ -51,7 +51,7 @@ public class NostrService {
     private final Map<String, Boolean> subscriptions = new ConcurrentHashMap<>();
 
     private final Map<String, Set<String>> challenges = new HashMap<>();
-    private final Map<String, Set<String>> authUsers = new HashMap<>();
+    private final Map<String, Boolean> authSessions = new HashMap<>();
 
     private final Map<String, AtomicInteger> countFailure = new ConcurrentHashMap<>();
 
@@ -77,10 +77,8 @@ public class NostrService {
 
         countFailure.put(context.getContextID().toString(), new AtomicInteger());
 
-        synchronized(this.authUsers) {
-            this.authUsers.put(context.getContextID().toString(), new HashSet<>());
-        }
-        synchronized(this.challenges) {
+        synchronized(this.authSessions) {
+            this.authSessions.put(context.getContextID().toString(), Boolean.FALSE);
             this.challenges.put(context.getContextID().toString(), new HashSet<>());
         }
 
@@ -92,10 +90,8 @@ public class NostrService {
 
         countFailure.remove(context.getContextID().toString());
 
-        synchronized(this.authUsers) {
-            this.authUsers.remove(context.getContextID().toString());
-        }
-        synchronized(this.challenges) {
+        synchronized(this.authSessions) {
+            this.authSessions.remove(context.getContextID().toString());
             this.challenges.remove(context.getContextID().toString());
         }
 
@@ -138,14 +134,6 @@ public class NostrService {
         }
 
         final String messageType = nostrMessage.get(0).getAsString();
-
-        if( ! "AUTH".equals(messageType) ) {
-            synchronized(this.authUsers) {
-                if(this.authUsers.get(context.getContextID().toString()).isEmpty()) {
-                    return this.requestAuthentication(context);
-                }
-            }
-        }
 
         switch(messageType) {
             case "EVENT":
@@ -190,38 +178,36 @@ public class NostrService {
         final int currentTime = (int) (System.currentTimeMillis()/1000L);
 
         if( eventData.getExpiration() > 0 && eventData.getExpiration() < currentTime ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: event is expired"));
-            return broadcastClient(context, gson.toJson(response));
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: event is expired."));
+            return this.broadcastClient(context, gson.toJson(response));
         }
 
         if( eventData.getCreatedAt() > (currentTime + 600) ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event 'created_at' field is out of the acceptable range (+10min) for this relay"));
-            return broadcastClient(context, gson.toJson(response));
-        }
-
-        if( eventData.getKind() == EventKind.ENCRYPTED_DIRECT) {
-            if( !this.checkAuthentication(context, eventData) ) {
-                response.addAll(Arrays.asList(Boolean.FALSE, "restricted: we do not accept such kind of event from unauthenticated users, does your client implement NIP-42?"));
-                broadcastClient(context, gson.toJson(response));
-
-                return this.requestAuthentication(context);
-            }
+            response.addAll(Arrays.asList(Boolean.FALSE, "invalid: the event 'created_at' field is out of the acceptable range (+10min) for this relay."));
+            return this.broadcastClient(context, gson.toJson(response));
         }
 
         final boolean isRegistered = eventService.isRegistered(eventData);
         if( !isRegistered ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "blocked: Please register yourself at " + registrationPage));
-            return broadcastClient(context, gson.toJson(response));
+            return this.broadcastClient(context, gson.toJson(response));
         }
 
         if(validation == null) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: could not validate event signature"));
-            return broadcastClient(context, gson.toJson(response));
+            return this.broadcastClient(context, gson.toJson(response));
         }
 
         if( ! Boolean.TRUE.equals(validation.getStatus()) ) {
             response.addAll(Arrays.asList(Boolean.FALSE, "error: " + validation.getMessage()));
-            return broadcastClient(context, gson.toJson(response));
+            return this.broadcastClient(context, gson.toJson(response));
+        }
+
+        if( !this.checkAuthentication(context) ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "restricted: Events must be sent only from authenticated users. Check whether your client implements NIP-42."));
+            this.broadcastClient(context, gson.toJson(response));
+
+            return this.requestAuthentication(context);
         }
 
         logger.info("[Nostr] Event validated.");
@@ -257,6 +243,18 @@ public class NostrService {
     }
 
     private byte handleSubscriptionRegistration(final WebsocketContext context, final JsonArray nostrMessage) {
+        final Gson gson = gsonBuilder.create();
+
+        if( !this.checkAuthentication(context) ) {
+            final String notice = gson.toJson(Arrays.asList(
+                "NOTICE",
+                "restricted: Unable to serve request for events to unauthenticated users. "
+                +"Check whether your client implements NIP-42."));
+            this.broadcastClient(context, notice);
+
+            return this.requestAuthentication(context);
+        }
+
         final String subscriptionId = nostrMessage.get(1).getAsString();
         final String subscriptionKey = subscriptionId+":"+context.getContextID();
 
@@ -270,8 +268,7 @@ public class NostrService {
         logger.info("[Nostr] [Subscription] [{}] registered.", subscriptionId);
 
         if( filters.isEmpty() ) {
-            logger.info("[Nostr] [Subscription] [{}] no filters were provided.", subscriptionId);
-            final String response = gsonBuilder.create().toJson(Arrays.asList("EOSE", subscriptionId));
+            final String response = gson.toJson(Arrays.asList("EOSE", subscriptionId));
             return this.broadcastClient(context, response);
         }
 
@@ -333,12 +330,6 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
-        if( !eventService.isRegistered(eventData) ) {
-            response.addAll(Arrays.asList(Boolean.FALSE, "restricted: we do not accept events from unauthenticated users, please sign up at " + this.registrationPage));
-
-            return broadcastClient(context, gson.toJson(response));
-        }
-
         final boolean[] ok = new boolean[] {true};
 
         final int serverPort = "wss".equals(this.protocol) ? tlsPort : port;
@@ -368,8 +359,9 @@ public class NostrService {
             return broadcastClient(context, gson.toJson(response));
         }
 
-        synchronized(this.authUsers)  {
-            this.authUsers.get(context.getContextID().toString()).add(eventData.getPubkey());
+        synchronized(this.authSessions)  {
+            this.authSessions.put(context.getContextID().toString(), Boolean.TRUE);
+            this.challenges.get(context.getContextID().toString()).clear();
         }
 
         response.addAll(Arrays.asList(Boolean.TRUE, ""));
@@ -398,28 +390,16 @@ public class NostrService {
         return 0;
     }
 
-    private boolean checkAuthentication(final WebsocketContext context, final EventData eventData) {
-        // Deixa passar tudo por enquanto
-        return true;
-
-        // final Set<String> users;
-        // synchronized(this.authUsers) {
-        //     users = this.authUsers.getOrDefault(context.getContextID().toString(), Collections.emptySet());
-        // }
-
-        // return users.contains(eventData.getPubkey()) || eventData
-        //     .getTagsByName("p")
-        //     .stream()
-        //     .map(tagList -> tagList.get(1))
-        //     .filter(pubkey -> users.contains(pubkey))
-        //     .count() > 0
-        // ;
+    private boolean checkAuthentication(final WebsocketContext context) {
+        synchronized(this.authSessions) {
+            return Boolean.TRUE.equals(this.authSessions.get(context.getContextID().toString()));
+        }
     }
 
     private byte requestAuthentication(final WebsocketContext context) {
         final String challenge = Utils.secureHash();
 
-        synchronized(this.challenges) {
+        synchronized(this.authSessions) {
             this.challenges.get(context.getContextID().toString()).add(challenge);
         }
 
