@@ -289,6 +289,10 @@ public class NostrService {
     }
 
     private byte handleAuthentication(final WebsocketContext context, final JsonArray nostrMessage) {
+        synchronized(this.authSessions) {
+            if(!this.authSessions.isEmpty()) return 0;
+        }
+
         final Gson gson = gsonBuilder.create();
 
         final EventData eventData;
@@ -349,7 +353,7 @@ public class NostrService {
             .stream()
             .map(tagValue -> URI.create(tagValue))
             .forEach(givenUri -> {
-                ok[0] = ok[0] && (givenUri.equals(expectedFullUri) || givenUri.equals(expectedSimpleUri));
+                ok[0] = ok[0] && (givenUri.equals(expectedSimpleUri) || givenUri.equals(expectedFullUri));
             });
 
         synchronized(this.challenges) {
