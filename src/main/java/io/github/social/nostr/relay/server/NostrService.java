@@ -210,7 +210,7 @@ public class NostrService {
             return this.requestAuthentication(context);
         }
 
-        logger.info("[Nostr] Event validated.");
+        logger.info("[Nostr] [Message] Event validated.");
 
         final String responseText;
         if( EventGroup.REGULAR.equals(eventData.getState()) ) {
@@ -289,8 +289,10 @@ public class NostrService {
     }
 
     private byte handleAuthentication(final WebsocketContext context, final JsonArray nostrMessage) {
-        synchronized(this.authSessions) {
-            if(!this.authSessions.isEmpty()) return 0;
+        if(this.checkAuthentication(context)) {
+            return logger.infof(
+                "[Nostr] [AUTH] Client %s has already been successfully authenticated",
+                context.getRemoteAddress());
         }
 
         final Gson gson = gsonBuilder.create();
