@@ -304,8 +304,8 @@ public class NostrService {
                 : EventData.gsonEngine(gson, json.getAsString());
             validation = this.validate(eventData.toString());
         } catch(final Exception failure) {
-            return logger.info(
-                "[Nostr] [Message] could not parse event\n{}: {}",
+            return logger.infof(
+                "[Nostr] [Message] could not parse event%n%s: %s",
                 failure.getClass().getCanonicalName(),
                 failure.getMessage());
         }
