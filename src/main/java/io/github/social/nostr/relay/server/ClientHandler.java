@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -110,19 +111,25 @@ public class ClientHandler implements Runnable {
 	private final String serverHost;
 	private final int serverPort;
 	private final boolean isServerTls;
+	private final Map<String, Boolean> remoteAddressesLocked;
+	private final Map<String, Long> remoteAddressesFrozen;
 
 	public ClientHandler(
 			final String serverHost,
 			final int serverPort,
 			final boolean isServerTls,
 			final Socket c,
-			final Websocket websocketHandler
+			final Websocket websocketHandler,
+			final Map<String, Boolean> remoteAddressesLocked,
+			final Map<String, Long> remoteAddressesFrozen
 	) {
 		this.client = c;
 		this.serverHost = serverHost;
 		this.serverPort = serverPort;
 		this.websocketHandler = websocketHandler;
 		this.isServerTls = isServerTls;
+		this.remoteAddressesLocked = remoteAddressesLocked;
+		this.remoteAddressesFrozen = remoteAddressesFrozen;
 	}
 
 	private boolean interrupt = false;
@@ -150,6 +157,19 @@ public class ClientHandler implements Runnable {
 		Optional.ofNullable(clientSocketAddress).ifPresent(sk -> {
 			this.remoteAddress = ((InetSocketAddress) sk).getAddress().getHostAddress();
 		});
+
+		final long frozenUntil = this.remoteAddressesFrozen.getOrDefault(this.remoteAddress, 0L);
+		if(System.currentTimeMillis() < frozenUntil) {
+			logger.warningf("[Server] [New] Client %s is frozen due to last inactivity.");
+			this.interrupt = true;
+			return;
+		}
+
+		if( Boolean.TRUE.equals(this.remoteAddressesLocked.get(this.remoteAddress)) ) {
+			logger.warningf("[Server] [New] Client %s is temporarily locked awaiting respond PING frame from server.");
+			this.interrupt = true;
+			return;
+		}
 
 		boolean started = false;
 		try {
@@ -183,10 +203,11 @@ public class ClientHandler implements Runnable {
 
 	private void handleStream() throws IOException {
 		while(true) {
+			if( this.interrupt ) break;
+
 			try {
 				this.handle();
-
-				if( ! interrupt ) continue;
+				continue;
 			} catch (CloseConnectionException failure) {
 				logger.warning("[Server] Connection will be closed.");
 			} catch (IOException failure) {
@@ -973,12 +994,16 @@ public class ClientHandler implements Runnable {
 		}
 	}
 
-	private void notifyWebsocketTextMessage(final byte[] data) {
+	private byte notifyWebsocketTextMessage(final byte[] data) {
 		this.websocketEventService.submit(() -> this.websocketHandler.onMessage(this.websocketContext, new TextMessage(data)));
+
+		return 0;
 	}
 
-	private void notifyWebsocketBinaryMessage(final byte[] data) {
+	private byte notifyWebsocketBinaryMessage(final byte[] data) {
 		this.websocketEventService.submit(() -> this.websocketHandler.onMessage(this.websocketContext, new BinaryMessage(data)));
+
+		return 0;
 	}
 
 	static final int CLIENT_LIVENESS_MILLIS = AppProperties.getClientPingSecond() * 1000;
@@ -1019,6 +1044,7 @@ public class ClientHandler implements Runnable {
 		if( c == 0 ) {
 			logger.infof("[WS] Server -> Client [%s]: Checking whether client is on.", this.remoteAddress);
 		} else {
+			this.remoteAddressesLocked.putIfAbsent(this.remoteAddress, Boolean.TRUE);
 			logger.infof("[WS] Server -> Client [%s]: It seems client is off. Checking again.", this.remoteAddress);
 		}
 
@@ -1026,6 +1052,10 @@ public class ClientHandler implements Runnable {
 	}
 
 	private byte requestCloseDueInactivity() throws IOException {
+		final long penalty = System.currentTimeMillis() + 3600000; // 1h
+		this.remoteAddressesFrozen.putIfAbsent(this.remoteAddress, penalty);
+		this.remoteAddressesLocked.remove(this.remoteAddress);
+
 		final ByteBuffer closeCode = ByteBuffer.allocate(2);
 		closeCode.putShort((short)1000);
 
@@ -1199,21 +1229,13 @@ public class ClientHandler implements Runnable {
 		this.lastPacketReceivedTime = System.currentTimeMillis();
 		pingCounter.set(0);
 
-		if( opcode == Opcode.OPCODE_TEXT.code() ) {
-			this.notifyWebsocketTextMessage(message.toByteArray());
-		}
-
-		if( opcode == Opcode.OPCODE_BINARY.code() ) {
-			this.notifyWebsocketBinaryMessage(message.toByteArray());
-		}
-
 		if( opcode == Opcode.OPCODE_PONG.code() ) {
 			logger.infof("[WS] Client [%s] is on.", this.remoteAddress);
 			return 0;
 		}
 
 		if( opcode == Opcode.OPCODE_PING.code() ) {
-			logger.infof("[WS] Client [%s] -> Server: Hey, are you on?", this.remoteAddress);
+			logger.infof("[WS] Client [%s] -> Server: Sent PING frame.", this.remoteAddress);
 			return this.sendWebsocketPongClient(message.toByteArray());
 		}
 
@@ -1221,12 +1243,27 @@ public class ClientHandler implements Runnable {
 			final short closeCode = parseCode(controlMessage.toByteArray());
 			logger.infof("[WS] Client [%s] -> Server: Sent CLOSE frame with code %d.", this.remoteAddress, closeCode);
 
-			if( this.interrupt ) return 0;
+			this.interrupt = true;
 
 			logger.infof("[WS] Server -> Client [%s]: Sent back a CLOSE confirmation frame.", this.remoteAddress);
-			this.sendWebsocketCloseFrame(controlMessage.toByteArray());
+			return this.sendWebsocketCloseFrame(controlMessage.toByteArray());
+		}
 
-			this.interrupt = true;
+		if( Boolean.TRUE.equals(this.remoteAddressesLocked.get(this.remoteAddress)) ) {
+			logger.warningf("[Server] [Current] Client %s is temporarily locked awaiting respond PING frame from server.");
+
+			return 0;
+		}
+
+		this.remoteAddressesLocked.remove(this.remoteAddress);
+		this.remoteAddressesFrozen.remove(this.remoteAddress);
+
+		if( opcode == Opcode.OPCODE_TEXT.code() ) {
+			return this.notifyWebsocketTextMessage(message.toByteArray());
+		}
+
+		if( opcode == Opcode.OPCODE_BINARY.code() ) {
+			return this.notifyWebsocketBinaryMessage(message.toByteArray());
 		}
 
 		return 0;
