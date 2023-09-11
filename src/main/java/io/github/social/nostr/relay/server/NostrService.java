@@ -292,18 +292,27 @@ public class NostrService {
         final Gson gson = gsonBuilder.create();
 
         final EventData eventData;
-        final EventValidation validation;
         final JsonElement json = nostrMessage.get(1);
 
         try {
             eventData = json.isJsonObject()
                 ? EventData.of(json.getAsJsonObject())
                 : EventData.gsonEngine(gson, json.getAsString());
-            validation = this.validate(eventData.toString());
         } catch(final Exception failure) {
-            return logger.infof(
+            this.broadcastClient(context, gson.toJson(Arrays.asList("NOTICE", "invalid: malformed json object for AUTH event")));
+
+            return logger.errorf(
                 "[Nostr] [Message] could not parse event%n%s: %s",
                 failure.getClass().getCanonicalName(),
+                failure.getMessage());
+        }
+
+        final EventValidation validation;
+        try {
+            validation = this.validate(eventData.toString());
+        } catch(Exception failure) {
+            return logger.errorf(
+                "[Nostr] [Event] could not validate event signature: %s",
                 failure.getMessage());
         }
 
