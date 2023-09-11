@@ -104,6 +104,15 @@ public class EventData implements Comparable<EventData> {
             .collect(Collectors.toList());
     }
 
+    public List<String> getTagValuesByName(final String tagName) {
+        return this.getTags()
+            .stream()
+            .filter(tagList -> tagList.size() > 1)
+            .filter(tagList -> tagName.equals(tagList.get(0)))
+            .map(tagList -> tagList.get(1))
+            .collect(Collectors.toList());
+    }
+
     public Collection<List<String>> getTags() {
         return Collections.unmodifiableCollection(tags);
     }

@@ -527,6 +527,12 @@ public class NostrService {
             );
             emptyFilter = emptyFilter && filterPubkeyList.isEmpty();
 
+            final List<String> filterRefEventList = new ArrayList<>();
+            Optional.ofNullable(entry.get("#e")).ifPresent(p -> p
+                .getAsJsonArray().forEach( element -> filterRefEventList.add(element.getAsString()) )
+            );
+            emptyFilter = emptyFilter && filterRefEventList.isEmpty();
+
             final List<String> filterRefPubkeyList = new ArrayList<>();
             Optional.ofNullable(entry.get("#p")).ifPresent(p -> p
                 .getAsJsonArray().forEach( element -> filterRefPubkeyList.add(element.getAsString()) )
@@ -571,28 +577,21 @@ public class NostrService {
             final Collection<EventData> filteredEvents = new ArrayList<>();
 
             for(final EventData eventData: events) {
+                final List<String> evRefEventList = new ArrayList<>();
                 final List<String> evRefPubKeyList = new ArrayList<>();
                 final List<String> evRefParamList = new ArrayList<>();
 
-                evRefPubKeyList.addAll(
-                    eventData.getTagsByName("p")
-                        .stream()
-                        .map(tagList -> tagList.get(1))
-                        .collect(Collectors.toList())
-                );
-
-                evRefParamList.addAll(
-                    eventData.getTagsByName("d")
-                        .stream()
-                        .map(tagList -> tagList.get(1))
-                        .collect(Collectors.toList())
-                );
+                evRefEventList.addAll(eventData.getTagValuesByName("e"));
+                evRefPubKeyList.addAll(eventData.getTagValuesByName("p"));
+                evRefParamList.addAll(eventData.getTagValuesByName("d"));
 
                 boolean include = true;
 
                 include = include && ( filterEventList.isEmpty()     || filterEventList.contains(eventData.getId())      );
                 include = include && ( filterKindList.isEmpty()      || filterKindList.contains(eventData.getKind())     );
                 include = include && ( filterPubkeyList.isEmpty()    || filterPubkeyList.contains(eventData.getPubkey()) );
+
+                include = include && ( filterRefEventList.isEmpty()  || any(evRefEventList, filterRefEventList)          );
                 include = include && ( filterRefPubkeyList.isEmpty() || any(evRefPubKeyList, filterRefPubkeyList)        );
                 include = include && ( filterRefParamList.isEmpty()  || any(evRefParamList, filterRefParamList)          );
 
