@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
@@ -291,10 +292,16 @@ public class NostrService {
     }
 
     private byte handleAuthentication(final WebsocketContext context, final JsonArray nostrMessage) {
+        final Gson gson = gsonBuilder.create();
+
         final EventData eventData;
         final EventValidation validation;
+        final Object json = nostrMessage.get(1);
+
         try {
-            eventData = EventData.of(nostrMessage.get(1).getAsJsonObject());
+            eventData = (json instanceof JsonElement)
+                ? EventData.of(((JsonElement)json).getAsJsonObject())
+                : EventData.gsonEngine(gson, json.toString());
             validation = this.validate(eventData.toString());
         } catch(final Exception failure) {
             return logger.info(
@@ -305,7 +312,7 @@ public class NostrService {
 
         logger.info("[Nostr] [Message] Received authentication event");
 
-        final Gson gson = gsonBuilder.create();
+        
 
         final List<Object> response = new ArrayList<>();
         response.addAll(Arrays.asList("OK", eventData.getId()));
