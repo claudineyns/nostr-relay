@@ -310,10 +310,6 @@ public class NostrService {
                 failure.getMessage());
         }
 
-        logger.info("[Nostr] [Message] Received authentication event");
-
-        
-
         final List<Object> response = new ArrayList<>();
         response.addAll(Arrays.asList("OK", eventData.getId()));
 
