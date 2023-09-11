@@ -160,13 +160,15 @@ public class ClientHandler implements Runnable {
 
 		final long frozenUntil = this.remoteAddressesFrozen.getOrDefault(this.remoteAddress, 0L);
 		if(System.currentTimeMillis() < frozenUntil) {
-			logger.warningf("[Server] [New] Client %s is frozen due to last inactivity.");
+			logger.warningf("[Server] [New] Client %s is frozen due to last inactivity.", this.remoteAddress);
 			this.interrupt = true;
 			return;
 		}
 
 		if( Boolean.TRUE.equals(this.remoteAddressesLocked.get(this.remoteAddress)) ) {
-			logger.warningf("[Server] [New] Client %s is temporarily locked awaiting respond PING frame from server.");
+			logger.warningf(
+				"[Server] [New] Client %s is temporarily locked awaiting respond PING frame from server.",
+				this.remoteAddress);
 			this.interrupt = true;
 			return;
 		}
@@ -1250,7 +1252,9 @@ public class ClientHandler implements Runnable {
 		}
 
 		if( Boolean.TRUE.equals(this.remoteAddressesLocked.get(this.remoteAddress)) ) {
-			logger.warningf("[Server] [Current] Client %s is temporarily locked awaiting respond PING frame from server.");
+			logger.warningf(
+				"[Server] [Current] Client %s is temporarily locked awaiting respond PING frame from server.",
+				this.remoteAddress);
 
 			return 0;
 		}
