@@ -83,7 +83,7 @@ public class NostrService {
             this.challenges.put(context.getContextID().toString(), new HashSet<>());
         }
 
-        return 0;
+        return this.requestAuthentication(context);
     }
 
     byte closeSession(final WebsocketContext context) {
@@ -137,6 +137,14 @@ public class NostrService {
         }
 
         final String messageType = nostrMessage.get(0).getAsString();
+
+        if( ! "AUTH".equals(messageType) ) {
+            synchronized(this.authUsers) {
+                if(this.authUsers.get(context.getContextID().toString()).isEmpty()) {
+                    return this.requestAuthentication(context);
+                }
+            }
+        }
 
         switch(messageType) {
             case "EVENT":
@@ -295,12 +303,12 @@ public class NostrService {
                 failure.getMessage());
         }
 
-        logger.info("[Nostr] Received request for authentication");
+        logger.info("[Nostr] [Message] Received authentication event");
 
         final Gson gson = gsonBuilder.create();
 
         final List<Object> response = new ArrayList<>();
-        response.add("OK");
+        response.addAll(Arrays.asList("OK", eventData.getId()));
 
         final int now = (int) (System.currentTimeMillis()/1000L);
 
@@ -321,28 +329,29 @@ public class NostrService {
 
             return broadcastClient(context, gson.toJson(response));
         }
-        
+
+        if( !eventService.isRegistered(eventData) ) {
+            response.addAll(Arrays.asList(Boolean.FALSE, "restricted: we do not accept events from unauthenticated users, please sign up at " + this.registrationPage));
+
+            return broadcastClient(context, gson.toJson(response));
+        }
+
         final boolean[] ok = new boolean[] {true};
 
         final int serverPort = "wss".equals(this.protocol) ? tlsPort : port;
         final URI expectedFullUri = URI.create(this.protocol+"://"+this.host+":"+serverPort);
         final URI expectedSimpleUri = URI.create(this.protocol+"://"+this.host+(serverPort == 443 || serverPort == 80 ? "" : ":"+serverPort));
 
-        eventData.getTagsByName("relay")
+        eventData.getTagValuesByName("relay")
             .stream()
-            .filter(tagList -> tagList.size() > 1)
-            .map(tagList -> tagList.get(1))
-            .peek(tagValue -> logger.info("[Nostr] [Auth] givenUri -> {}", tagValue))
             .map(tagValue -> URI.create(tagValue))
             .forEach(givenUri -> {
                 ok[0] = ok[0] && (givenUri.equals(expectedFullUri) || givenUri.equals(expectedSimpleUri));
             });
 
         synchronized(this.challenges) {
-            eventData.getTagsByName("challenge")
-            .stream()
-            .filter(tagList -> tagList.size() > 1)
-            .map(tagList -> tagList.get(1))
+            eventData
+            .getTagValuesByName("challenge")
             .forEach(challenge -> {
                 final Set<String> challengeSet = this.challenges.get(context.getContextID().toString());
                 ok[0] = ok[0] && challengeSet.contains(challenge);
@@ -391,7 +400,6 @@ public class NostrService {
         return true;
 
         // final Set<String> users;
-
         // synchronized(this.authUsers) {
         //     users = this.authUsers.getOrDefault(context.getContextID().toString(), Collections.emptySet());
         // }
@@ -501,8 +509,6 @@ public class NostrService {
     ) {
         final Gson gson = gsonBuilder.create();
 
-        boolean notifyUnauthUsers = false;
-
         final List<EventData> selectedEvents = new ArrayList<>();
 
         for(final JsonObject entry: filters) {
@@ -519,7 +525,6 @@ public class NostrService {
                 .getAsJsonArray().forEach( element -> filterKindList.add(element.getAsInt()) )
             );
             emptyFilter = emptyFilter && filterKindList.isEmpty();
-            boolean checkUnauthUsers = filterKindList.contains(EventKind.ENCRYPTED_DIRECT);
 
             final List<String> filterPubkeyList = new ArrayList<>();
             Optional.ofNullable(entry.get("authors")).ifPresent(k -> k
@@ -609,11 +614,6 @@ public class NostrService {
                 include = include && (until[0] == 0 || eventData.getCreatedAt() <= until[0] );
 
                 if( include ) {
-                    if( EventKind.ENCRYPTED_DIRECT == eventData.getKind() ) {
-                        notifyUnauthUsers = notifyUnauthUsers || (checkUnauthUsers && !checkAuthentication(context, eventData));
-                        continue;
-                    }
-
                     filteredEvents.add(eventData);
 
                     if( limit[0] > 0 && filteredEvents.size() == limit[0] ) break;
@@ -643,11 +643,6 @@ public class NostrService {
 
         final String eose = gson.toJson(Arrays.asList("EOSE", subscriptionId));
         this.broadcastSubscriptionData(context, subscriptionId, eose);
-
-        if( notifyUnauthUsers ) {
-            this.broadcastClient(context, gson.toJson(Arrays.asList("NOTICE", "restricted: some kind of events cannot be served by this relay to unauthenticated users, does your client implement NIP-42?")));
-            this.requestAuthentication(context);
-        }
 
         return 0;
     }
