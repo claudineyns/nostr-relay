@@ -289,12 +289,6 @@ public class NostrService {
     }
 
     private byte handleAuthentication(final WebsocketContext context, final JsonArray nostrMessage) {
-        if(this.checkAuthentication(context)) {
-            return logger.infof(
-                "[Nostr] [AUTH] Client %s has already been successfully authenticated",
-                context.getRemoteAddress());
-        }
-
         final Gson gson = gsonBuilder.create();
 
         final EventData eventData;
@@ -358,14 +352,21 @@ public class NostrService {
                 ok[0] = ok[0] && (givenUri.equals(expectedSimpleUri) || givenUri.equals(expectedFullUri));
             });
 
+        final Set<String> challengeSet = this.challenges.get(context.getContextID().toString());
+
         synchronized(this.challenges) {
             eventData
             .getTagValuesByName("challenge")
-            .forEach(challenge -> {
-                final Set<String> challengeSet = this.challenges.get(context.getContextID().toString());
+            .forEach(challenge -> {        
                 ok[0] = ok[0] && challengeSet.contains(challenge);
                 challengeSet.remove(challenge);
             });
+        }
+
+        if(this.checkAuthentication(context)) {
+            return logger.infof(
+                "[Nostr] [AUTH] Client %s has already been successfully authenticated.",
+                context.getRemoteAddress());
         }
 
         if( !ok[0] ) {
@@ -376,13 +377,12 @@ public class NostrService {
 
         synchronized(this.authSessions)  {
             this.authSessions.put(context.getContextID().toString(), Boolean.TRUE);
-            this.challenges.get(context.getContextID().toString()).clear();
         }
 
         response.addAll(Arrays.asList(Boolean.TRUE, ""));
         broadcastClient(context, gson.toJson(response));
 
-        return broadcastClient(context, gson.toJson(Arrays.asList("NOTICE", "Client has been sucessfully authenticated")));
+        return broadcastClient(context, gson.toJson(Arrays.asList("NOTICE", "Client has been sucessfully authenticated.")));
     }
 
     private String consumeEphemeralEvent(final EventData eventJson) {
