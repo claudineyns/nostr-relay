@@ -296,12 +296,12 @@ public class NostrService {
 
         final EventData eventData;
         final EventValidation validation;
-        final Object json = nostrMessage.get(1);
+        final JsonElement json = nostrMessage.get(1);
 
         try {
-            eventData = (json instanceof JsonElement)
-                ? EventData.of(((JsonElement)json).getAsJsonObject())
-                : EventData.gsonEngine(gson, json.toString());
+            eventData = json.isJsonObject()
+                ? EventData.of(json.getAsJsonObject())
+                : EventData.gsonEngine(gson, json.getAsString());
             validation = this.validate(eventData.toString());
         } catch(final Exception failure) {
             return logger.info(
