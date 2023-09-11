@@ -1026,7 +1026,7 @@ public class ClientHandler implements Runnable {
 		logger.info("[WS] PING client liveness set to {}ms.", CLIENT_LIVENESS_MILLIS);
 	}
 
-	static final long MAX_PACKET_RECEIVED_TIMEOUT_MILLIS = 300000; // 5 minutos
+	static final long MAX_PACKET_RECEIVED_TIMEOUT_MILLIS = 120000; // 2 minutos
 
 	private final AtomicInteger pingCounter = new AtomicInteger();
 	private byte websocketPingClientEventFired() throws IOException {
