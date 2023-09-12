@@ -69,6 +69,9 @@ public class ServerHandler implements Runnable {
 				break;
 			}
 
+			logger.info("[Server] connection received.");
+			logger.infof("[Server] [Monitor] available memory: %d", Runtime.getRuntime().freeMemory());
+
 			clientPool.submit(new ClientHandler(
 				host,
 				port,
