@@ -1009,6 +1009,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	static final int CLIENT_LIVENESS_MILLIS = AppProperties.getClientPingSecond() * 1000;
+	static final int CLIENT_CHECK_MILLIS = 10000;
 	private void scheduleWebsocketPingClient() {
 		final Thread pingPong = new Thread(() -> {
 			try {
@@ -1019,11 +1020,11 @@ public class ClientHandler implements Runnable {
 
 		this.pingService.scheduleAtFixedRate(
 			pingPong,
-			CLIENT_LIVENESS_MILLIS,
-			CLIENT_LIVENESS_MILLIS,
+			CLIENT_CHECK_MILLIS,
+			CLIENT_CHECK_MILLIS,
 			TimeUnit.MILLISECONDS
 		);
-		logger.info("[WS] PING client liveness set to {}ms.", CLIENT_LIVENESS_MILLIS);
+		logger.infof("[WS] PING client liveness set to %dms.", CLIENT_LIVENESS_MILLIS);
 	}
 
 	static final long MAX_PACKET_RECEIVED_TIMEOUT_MILLIS = 120000; // 2 minutos
