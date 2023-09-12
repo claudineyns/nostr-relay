@@ -40,6 +40,8 @@ public class ServerHandler implements Runnable {
         }
 	}
 
+	static final long m1MB = 1000000;
+
     @Override
     public void run() {
 		Runtime.getRuntime().addShutdownHook(new Thread(()-> stop()));
@@ -69,8 +71,17 @@ public class ServerHandler implements Runnable {
 				break;
 			}
 
-			logger.info("[Server] connection received.");
-			logger.infof("[Server] [Monitor] available memory: %d", Runtime.getRuntime().freeMemory());
+			final long freeMemory = Runtime.getRuntime().freeMemory();
+			logger.infof("[Server] [Monitor] available memory: %d", freeMemory);
+
+			if( freeMemory < m1MB ) {
+				logger.warning("[Server] Connection denied due to low memory.");
+				try {
+					client.close();
+				} catch(IOException failure) { /***/ }
+
+				continue;
+			}
 
 			clientPool.submit(new ClientHandler(
 				host,
