@@ -377,6 +377,7 @@ public class NostrService {
 
         synchronized(this.authSessions)  {
             this.authSessions.put(context.getContextID().toString(), Boolean.TRUE);
+            this.challenges.clear();
         }
 
         response.addAll(Arrays.asList(Boolean.TRUE, ""));
