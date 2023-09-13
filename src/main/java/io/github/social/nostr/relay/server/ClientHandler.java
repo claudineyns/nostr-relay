@@ -265,7 +265,7 @@ public class ClientHandler implements Runnable {
 	}
 
 	private Optional<List<String>> getOptionalRequestHeader(final String header) {
-		return Optional.ofNullable(this.httpRequestHeaders.get(header));
+		return Optional.ofNullable(this.httpRequestHeaders.get(header.toLowerCase()));
 	}
 
 	private void cleanup() {
@@ -573,6 +573,12 @@ public class ClientHandler implements Runnable {
 			lista -> lista
 				.stream()
 				.forEach(q -> originDebug.append(String.format("%n> Origin: %s", q)) )
+		);
+
+		getOptionalRequestHeader("accept").ifPresent(
+			lista -> lista
+				.stream()
+				.forEach(q -> originDebug.append(String.format("%n> Accept: %s", q)) )
 		);
 
 		logger.info("{}", originDebug);
