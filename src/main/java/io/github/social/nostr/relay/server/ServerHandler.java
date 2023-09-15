@@ -44,6 +44,12 @@ public class ServerHandler implements Runnable {
 
     @Override
     public void run() {
+		try{
+			start();
+		} catch(Exception failure) { /***/}
+	}
+
+	private void start() throws Exception {
 		Runtime.getRuntime().addShutdownHook(new Thread(()-> stop()));
 
 		final boolean isTls = AppProperties.isTls();
@@ -67,12 +73,15 @@ public class ServerHandler implements Runnable {
 			try {
 				client = server.accept();
 			} catch(IOException e) {
-                logger.warning("{}: {}", e.getClass().getCanonicalName(), e.getMessage());
-				break;
+                logger.warningf(
+					"[Server] failure serving HTTP request%n%s: %s",
+					e.getClass().getCanonicalName(),
+					e.getMessage());
+				Thread.sleep(5000);
+				continue;
 			}
 
 			final long freeMemory = Runtime.getRuntime().freeMemory();
-			logger.infof("[Server] [Monitor] available memory: %d", freeMemory);
 
 			if( freeMemory < m1MB ) {
 				logger.warning("[Server] Connection denied due to low memory.");
