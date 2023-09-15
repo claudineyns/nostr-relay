@@ -78,6 +78,7 @@ public class ServerHandler implements Runnable {
 					e.getClass().getCanonicalName(),
 					e.getMessage());
 				Thread.sleep(5000);
+
 				continue;
 			}
 
