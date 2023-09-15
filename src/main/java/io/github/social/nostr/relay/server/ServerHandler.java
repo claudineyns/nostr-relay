@@ -85,7 +85,7 @@ public class ServerHandler implements Runnable {
 			final long freeMemory = Runtime.getRuntime().freeMemory();
 
 			if( freeMemory < m1MB ) {
-				logger.warning("[Server] Connection denied due to low memory.");
+				logger.warningf("[Server] Connection denied due to low memory: %db", freeMemory);
 				try {
 					client.close();
 				} catch(IOException failure) { /***/ }
